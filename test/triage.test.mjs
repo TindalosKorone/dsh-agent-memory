@@ -5,6 +5,13 @@
 //  2) 高覆盖不得无缘无故扩检索     —— 判红点：把 expanded 强制为 true
 //  3) 请求级隔离                    —— 判红点：把金字塔状态提到模块级并在两次调用间复用
 //
+// I2.1 两处修（用户拍板）：
+//  - 修 1「limit 是硬显示上限」：返回行数恒为 min(limit, 可用候选数)；扩检索只放大内部预算
+//    kBase->kUsed，不再增加显示行数。判红点：去掉显示截断（按 kUsed 显示）⇒ rows=kUsed>limit。
+//  - 修 2「空查询不做分诊」：‖q‖²≈0 ⇒ novelty=0、expanded=false、kUsed=kBase、比值回显 0/0。
+//    判红点：关掉「无词元能量 ⇒ 未分诊」分支走旧公式 ⇒ novelty=0.7、expanded=true。
+//    契约因此被改的旧断言已在原处标注「I2.1 修 1/修 2 契约更新」（不放松判据，只改口径）。
+//
 // 教训延续（I1.3）：新增的每条断言都必须能判红；凡是在夹具下恒真的判据，都补一条
 // 「区分力自检」把它钉住（参考 test/scoring.test.mjs 的 bandRows 写法）。
 import { test } from 'node:test'
@@ -46,8 +53,21 @@ function checkTriageFields(label, r) {
   for (const key of ['novelty', 'explainedRatio', 'residualRatio', 'logicalDepth', 'covMax']) {
     assert.ok(r[key] >= 0 && r[key] <= 1, `${label}: ${key} 必须落在 0..1，实际 ${r[key]}`)
   }
-  assert.ok(Math.abs((r.explainedRatio + r.residualRatio) - 1) < 1e-12, `${label}: 两者必须守恒（和=1）`)
-  assert.equal(r.expanded, r.novelty >= r.noveltyThreshold, `${label}: expanded 必须等于 novelty >= noveltyThreshold`)
+  // I2.1 修 2 契约更新（用户拍板）：查询无词元能量（noQueryEnergy=true）时**未做分诊**：
+  //  - explainedRatio/residualRatio 如实回显 0/0（0/0 未定义，不假造 1 去凑守恒式）；
+  //  - expanded 被显式钉为 false（与阈值无关）。
+  // 因此「和=1」与「expanded ⟺ novelty>=threshold」这两条只在**有词元能量**时成立。
+  assert.equal(typeof r.noQueryEnergy, 'boolean')
+  if (!r.noQueryEnergy) {
+    assert.ok(Math.abs((r.explainedRatio + r.residualRatio) - 1) < 1e-12, `${label}: 两者必须守恒（和=1）`)
+    assert.equal(r.expanded, r.novelty >= r.noveltyThreshold, `${label}: expanded 必须等于 novelty >= noveltyThreshold`)
+  } else {
+    assert.equal(r.novelty, 0, `${label}: 无词元能量 ⇒ novelty 必须为 0（旧公式会给 0.7）`)
+    assert.equal(r.expanded, false, `${label}: 无词元能量 ⇒ expanded 必须为 false（未分诊，与阈值无关）`)
+    assert.equal(r.kUsed, r.kBase, `${label}: 无词元能量 ⇒ 不扩检索，kUsed=kBase`)
+    assert.equal(r.explainedRatio, 0, `${label}: 无词元能量 ⇒ explainedRatio 回显 0（0/0 未定义）`)
+    assert.equal(r.residualRatio, 0, `${label}: 无词元能量 ⇒ residualRatio 回显 0（0/0 未定义）`)
+  }
   assert.equal(r.lowConfidence, r.covMax < r.activationThreshold, `${label}: lowConfidence 必须等于 covMax < activationThreshold`)
   // 注意：kUsed 是「本次取回预算」；库容小于 kBase 时会被库容截断（规格：kExpanded 不超过库内条数），
   // 所以这里**不**断言 kUsed >= kBase，具体口径在「红证 1/2」与边界用例里逐条钉死。
@@ -323,7 +343,12 @@ test('红证 1（判红点：把 expanded 强制为 false ⇒ 本条变红）：
   assert.equal(r.expanded, true, '与库几乎无重合的查询必须判 expanded=true（判红点：强制 false）')
   assert.ok(r.kUsed > r.kBase, `扩检索必须真的提高取回条数：kBase=${r.kBase} kUsed=${r.kUsed}`)
   assert.ok(r.rows.length > 0, '低覆盖绝不返回空（第三方明确回退过这种门控）')
-  assert.ok(r.rows.length > r.kBase, `扩检索必须在行数上可见：rows=${r.rows.length} kBase=${r.kBase}`)
+  // I2.1 修 1 契约更新（用户拍板选 B）：limit 是**硬显示上限**，扩检索不再增加显示行数。
+  // （旧断言是 `r.rows.length > r.kBase`，即「扩检索必须在行数上可见」——本次被改为硬上限。）
+  assert.equal(r.rows.length, 3, `limit=3 是硬显示上限：rows 必须恰好 3 条，实际 ${r.rows.length}`)
+  assert.equal(r.rows.length, r.shown, 'shown 必须等于实际显示行数')
+  assert.equal(r.lines.length, r.shown, 'lines 与 shown 必须一致')
+  assert.ok(r.kUsed > 3, `扩检索只在**内部预算**上可见：kUsed=${r.kUsed} 必须 > limit=3`)
   assert.ok(r.novelty >= r.noveltyThreshold, `novelty=${r.novelty} 阈值=${r.noveltyThreshold}`)
   assert.equal(r.explainedRatio, 0, '标签空间完全解释不了这个查询 ⇒ 被解释能量为 0')
   assert.equal(r.residualRatio, 1)
@@ -559,7 +584,13 @@ test('工具层：分诊口径可配置（maxLayers=1 让「三层才解释完�
   assert.equal(rOne.expanded, true, 'novelty≈0.5545 >= 0.5 ⇒ 扩检索')
   assert.equal(rOne.kBase, 3)
   assert.ok(rOne.kUsed > rOne.kBase, `扩检索必须提高预算：kBase=${rOne.kBase} kUsed=${rOne.kUsed}`)
-  assert.ok(rOne.shown > rDefault.shown, `扩检索必须在行数上可见：${rOne.shown} vs ${rDefault.shown}`)
+  // I2.1 修 1 契约更新（用户拍板选 B）：扩检索只在**内部预算**上可见，显示行数被 limit 硬钉死。
+  // （旧断言是 `rOne.shown > rDefault.shown`，即「扩检索必须在行数上可见」——本次被改为硬上限。）
+  assert.equal(rOne.shown, 3, 'limit=3 是硬显示上限：扩检索也不许多显示一行')
+  assert.equal(rOne.shown, rDefault.shown, '扩检索不改变显示行数（两者 limit 都是 3）')
+  assert.equal(rOne.rows.length, 3)
+  assert.ok(rOne.kUsed > rDefault.kUsed,
+    `扩检索必须在内部预算上可见：kUsed ${rOne.kUsed} vs 不扩检索的 ${rDefault.kUsed}`)
   checkTriageFields('口径覆盖', rOne)
 })
 
@@ -575,7 +606,12 @@ test('边界：空库/空查询/单条库的分诊字段全部有限（不许 Na
   assert.equal(empty.layers, 0)
   assert.equal(empty.shown, 0)
   assert.equal(empty.kBase, 5)
-  assert.equal(empty.kUsed, 0, '库容为 0 ⇒ 扩检索预算被库容截断为 0（规格：kExpanded 不超过库内条数）')
+  // I2.1 修 2 契约更新（用户拍板）：空语料里 tagWeight 的 idf 上界也是 0（idf(0,0)=0）
+  // ⇒ ‖q‖²=0 ⇒ 走「无词元能量 ⇒ 未分诊」分支 ⇒ kUsed=kBase（不再有"扩检索预算被库容截断为 0"）。
+  // （旧断言是 `empty.kUsed === 0`，理由是"扩检索预算被库容截断"——现在根本不分诊、不扩检索。）
+  assert.equal(empty.noQueryEnergy, true, '空语料 ⇒ 任何词元权重为 0 ⇒ 查询无词元能量')
+  assert.equal(empty.expanded, false, '空语料 ⇒ 未分诊 ⇒ 不扩检索')
+  assert.equal(empty.kUsed, empty.kBase, '无词元能量 ⇒ kUsed=kBase（未分诊，不扩检索）')
   assert.deepEqual(empty.rows, [])
   assert.ok(!JSON.stringify(empty).includes('null'), 'NaN 会在 JSON 里变 null —— 一个都不许有')
   assertLossless('空库', empty)
@@ -604,13 +640,38 @@ test('边界：空库/空查询/单条库的分诊字段全部有限（不许 Na
   const noCorpus = residualPyramid('x', [], st)
   checkTriageFields('空语料', withToolFields(noCorpus))
   assert.equal(noCorpus.basisSize, 0)
-  assert.equal(noCorpus.novelty, NOVELTY_RESIDUAL_WEIGHT, '没有基 ⇒ 残差全留、方向一致性按定义 0')
+  // I2.1 修 2 契约更新（用户拍板）：空语料下 tagWeight 的 idf 上界为 0 ⇒ ‖q‖²=0
+  // ⇒ 未分诊：novelty=0（旧断言是 novelty===NOVELTY_RESIDUAL_WEIGHT=0.7）。
+  assert.equal(noCorpus.noQueryEnergy, true, '空语料里任何词元权重都是 0 ⇒ 查询无词元能量')
+  assert.equal(noCorpus.novelty, 0, '未分诊 ⇒ novelty=0（不是旧公式的 0.7）')
+  assert.equal(noCorpus.expanded, false, '未分诊 ⇒ 不扩检索')
+
+  // 保留原断言的覆盖意图的一半（有词元能量但**没有基** ⇒ 残差全留），换一个「语料非空、
+  // 查询词不在标签里」的夹具来钉住它（空语料现在走未分诊分支，钉不住这条）。
+  // 注意 dc 的边界定义：basisSize=0 且 R≠0 ⇒ 没有任何方向能解释它 ⇒ dc=1（不是 0）
+  // ⇒ novelty = 0.7×1 + 0.3×1 = 1。旧断言写 dc=0 只因为当时走的是「无能量」路径（‖R‖=0）。
+  const statsBasisless = corpusStats([{ title: 't t t', body: 'b b', tags: ['aa'] }])
+  const noBasis = residualPyramid('zz', [], statsBasisless)
+  assert.equal(noBasis.noQueryEnergy, false, '语料非空 ⇒ df=0 的词元取 idf 上界 ⇒ 有词元能量')
+  assert.equal(noBasis.basisSize, 0)
+  assert.equal(noBasis.explainedRatio, 0)
+  assert.equal(noBasis.residualRatio, 1)
+  assert.equal(noBasis.directionConsistency, 1, '没有基 ⇒ 残差没有任何方向能解释 ⇒ dc 按定义 1')
+  assert.equal(noBasis.novelty, NOVELTY_RESIDUAL_WEIGHT + NOVELTY_DIRECTION_WEIGHT,
+    '没有基但有词元能量 ⇒ novelty = 0.7×1 + 0.3×1 = 1')
+  checkTriageFields('无基（有能量）', withToolFields(noBasis))
 
   const stats = corpusStats([{ title: 't t t t t t', body: 'b b b', tags: ['aa'] }])
   const emptyQuery = residualPyramid('', [{ id: 'x', tags: ['aa'] }], stats)
+  checkTriageFields('空查询（纯函数层）', withToolFields(emptyQuery))
   assert.equal(emptyQuery.layers, 0, '空查询没有词元能量 ⇒ 不做投影')
+  assert.equal(emptyQuery.noQueryEnergy, true, '空查询必须标记为未分诊')
+  assert.equal(emptyQuery.novelty, 0, '未分诊 ⇒ novelty=0')
+  assert.equal(emptyQuery.expanded, false, '未分诊 ⇒ 不扩检索')
+  // I2.1 修 2 契约更新（用户拍板）：0/0 未定义 ⇒ 如实回显 0/0。
+  // （旧断言是 `explainedRatio=0` + `residualRatio=1`，用假造的 1 去凑守恒式。）
   assert.equal(emptyQuery.explainedRatio, 0)
-  assert.equal(emptyQuery.residualRatio, 1)
+  assert.equal(emptyQuery.residualRatio, 0, '0/0 未定义 ⇒ 回显 0，不假造 1')
   assert.equal(emptyQuery.basisSize, 1)
   assert.ok(Number.isFinite(emptyQuery.novelty))
   const nullBasis = residualPyramid('aa', [null, undefined, { id: 'x' }, { id: 'y', tags: [] }], stats)
@@ -639,4 +700,146 @@ test('I2 无损：低置信路径不得整批否决（行数、match、score 都
   assert.ok(r.rows.every((row) => Number.isFinite(row.score) && row.score >= 0 && row.score <= 1))
   for (const line of r.lines) assert.match(line, / \| \d+\.\d{4}$/, '行尾仍是展示分')
   assertLossless('低置信', r)
+})
+
+// ── I2.1 修 1/修 2：limit 硬显示上限 + 空查询不做分诊 ────────────────────────
+
+test('I2.1 修 2：空查询/纯空白查询不做分诊（novelty=0、expanded=false、kUsed=kBase；判红点：关掉未分诊分支 ⇒ novelty=0.7/expanded=true）', async () => {
+  freshHome('i21-noquery')
+  const defs = tools()
+  const remember = defs.get('memory_remember')
+  const recall = defs.get('memory_recall')
+  for (let i = 0; i < 12; i += 1) {
+    const w = await remember.execute({
+      kind: 'fact', title: `alpha beta numbered note ${i}`, body: `alpha beta details ${i}`,
+      tags: ['alpha', 'beta'], source: 'test:i21',
+    })
+    assert.equal(w.ok, true)
+  }
+
+  for (const q of ['', '   ', '\t\n ']) {
+    const r = await recall.execute({ query: q, limit: 4 })
+    assert.equal(r.noQueryEnergy, true, `query=${JSON.stringify(q)} 必须标记为无词元能量`)
+    assert.equal(r.novelty, 0, `query=${JSON.stringify(q)} 未分诊 ⇒ novelty=0（判红点：旧公式给 0.7）`)
+    assert.equal(r.expanded, false, `query=${JSON.stringify(q)} 未分诊 ⇒ expanded=false（判红点：旧公式给 true）`)
+    assert.equal(r.kUsed, r.kBase, `query=${JSON.stringify(q)} 未分诊 ⇒ kUsed=kBase`)
+    assert.equal(r.explainedRatio, 0, `query=${JSON.stringify(q)} 0/0 未定义 ⇒ 回显 0`)
+    assert.equal(r.residualRatio, 0, `query=${JSON.stringify(q)} 0/0 未定义 ⇒ 回显 0（不假造 1）`)
+    assert.equal(r.shown, Math.min(4, r.matched), '未分诊不等于返回空：仍按新鲜度取满 limit')
+    assert.equal(r.rows.length, r.shown, 'shown 必须等于实际显示行数')
+    assert.equal(r.lines.length, r.shown)
+    checkTriageFields(`空查询 ${JSON.stringify(q)}`, r)
+    assert.ok(!JSON.stringify(r).includes('null'), '退化情形不许出 NaN（NaN 在 JSON 里会变 null）')
+    assertLossless(`空查询 ${JSON.stringify(q)}`, r)
+  }
+
+  // 表头自证：必须如实写明「未分诊」，且不得再出现旧公式的 0.7000
+  const r = await recall.execute({ query: '   ', limit: 4 })
+  const header = r.text.split('\n')[0]
+  assert.ok(header.includes('未分诊'), `表头必须如实写明未分诊：${header}`)
+  assert.ok(header.includes('expanded=false'), `表头必须回显 expanded=false：${header}`)
+  assert.ok(!header.includes('novelty=0.7000'), `表头不得出现旧公式的 novelty=0.7000：${header}`)
+  assert.ok(header.includes('0/0'), `表头必须如实说明比值未定义（0/0）：${header}`)
+  const kk = /kBase=(\d+) -> kUsed=(\d+)/.exec(header)
+  assert.ok(kk, '表头仍须打印 kBase/kUsed')
+  assert.equal(Number(kk[1]), r.kBase)
+  assert.equal(Number(kk[2]), r.kUsed)
+
+  // 区分力自检：同一夹具 + 有词元能量的查询仍然会判 expanded=true（否则「空查询不扩」是假绿）
+  const pos = await recall.execute({ query: '今天天气怎么样', limit: 4 })
+  assert.equal(pos.noQueryEnergy, false, '非空查询必须有词元能量')
+  assert.equal(pos.expanded, true, '夹具必须让非空查询能扩检索，否则上面对空查询的断言没有区分力')
+
+  // 纯函数层：同一契约（空查询无词元能量 ⇒ 未分诊）
+  const stats = corpusStats([{ title: 't t', body: 'b', tags: ['aa'] }])
+  const pureEmpty = residualPyramid('  ', [{ id: 'x', tags: ['aa'] }], stats)
+  assert.equal(pureEmpty.noQueryEnergy, true)
+  assert.equal(pureEmpty.novelty, 0)
+  assert.equal(pureEmpty.expanded, false)
+  checkTriageFields('纯函数空查询', withToolFields(pureEmpty))
+})
+
+test('I2.1 修 1：limit 是硬显示上限（扩检索分支 rows===limit；不扩分支 rows===min(limit,候选数)；判红点：去掉显示截断 ⇒ rows=kUsed>limit）', async () => {
+  // 分支 1（扩检索）：与库几乎无重合的查询 ⇒ expanded=true、kUsed>kBase，但显示仍恰好 limit 条
+  freshHome('i21-hardcap-expand')
+  const defs = tools()
+  const remember = defs.get('memory_remember')
+  for (let i = 0; i < 12; i += 1) {
+    const w = await remember.execute({
+      kind: 'fact', title: `alpha beta numbered note ${i}`, body: `alpha beta details ${i}`,
+      tags: ['alpha', 'beta'], source: 'test:i21',
+    })
+    assert.equal(w.ok, true)
+  }
+  const recall = defs.get('memory_recall')
+  const rExp = await recall.execute({ query: '今天天气怎么样', limit: 3 })
+  assert.equal(rExp.expanded, true, '本分支夹具前提：查询必须判扩检索')
+  assert.ok(rExp.kUsed > rExp.kBase, `扩检索必须提高内部预算：kBase=${rExp.kBase} kUsed=${rExp.kUsed}`)
+  assert.ok(rExp.kUsed > rExp.limit,
+    `夹具必须让扩检索预算超过 limit，否则「截断」这条断言没有区分力：kUsed=${rExp.kUsed} limit=${rExp.limit}`)
+  assert.equal(rExp.rows.length, 3, `limit 是硬上限：rows 必须严格等于 limit=3，实际 ${rExp.rows.length}`)
+  assert.equal(rExp.shown, 3, 'shown 必须等于实际显示行数')
+  assert.equal(rExp.rows.length, rExp.shown, 'rows 与 shown 必须一致')
+  assert.equal(rExp.lines.length, rExp.shown, 'lines 与 shown 必须一致')
+  checkTriageFields('扩检索+硬上限', rExp)
+
+  // 分支 2（不扩检索）：候选数 > limit ⇒ rows.length === min(limit, 候选数) === limit
+  freshHome('i21-hardcap-noexpand')
+  const dflt = tools()
+  const rem2 = dflt.get('memory_remember')
+  for (const [title, body, tags] of [
+    ['note aa one record', 'body for aa record', ['aa']],
+    ['note ab two record', 'body for ab record', ['ab']],
+    ['note ac three record', 'body for ac record', ['ac']],
+    ['plain filler note zero', 'plain filler body zero', ['filler0']],
+    ['plain filler note one', 'plain filler body one', ['filler1']],
+    ['plain filler note two', 'plain filler body two', ['filler2']],
+    ['plain filler note three', 'plain filler body three', ['filler3']],
+    ['plain filler note four', 'plain filler body four', ['filler4']],
+  ]) {
+    const w = await rem2.execute({ kind: 'fact', title, body, tags, source: 'test:i21' })
+    assert.equal(w.ok, true)
+  }
+  const rNo = await dflt.get('memory_recall').execute({ query: 'aa ab ac', limit: 3 })
+  assert.equal(rNo.expanded, false, '本分支夹具前提：三层把 aa/ab/ac 解释完 ⇒ 不扩检索')
+  assert.equal(rNo.kUsed, rNo.kBase)
+  assert.ok(rNo.matched > 3, `候选数必须多于 limit，否则本断言没有区分力：matched=${rNo.matched}`)
+  assert.equal(rNo.rows.length, Math.min(3, rNo.matched), '不扩检索 ⇒ rows.length === min(limit, 候选数)')
+  assert.equal(rNo.rows.length, 3)
+  assert.equal(rNo.rows.length, rNo.shown)
+  checkTriageFields('不扩检索+硬上限', rNo)
+
+  // 反向断言（用户点名保留）：expanded===false ⇒ rows.length === min(limit, 候选数)
+  for (const r of [rNo]) {
+    assert.equal(r.expanded, false)
+    assert.equal(r.rows.length, Math.min(r.limit, r.matched),
+      `expanded=false ⇒ rows.length 必须恰好 min(limit, 候选数)：rows=${r.rows.length}`)
+  }
+  // 正向：expanded===true ⇒ rows.length === limit（硬上限，不是 kUsed）
+  assert.equal(rExp.rows.length, rExp.limit, 'expanded=true ⇒ rows.length 必须恰好 limit')
+})
+
+test('I2.1 修 2：退化情形（空库/空语料/空查询）分诊字段全部有限、不出 NaN，比值如实回显 0/0', async () => {
+  freshHome('i21-degenerate')
+  const r = await tools().get('memory_recall').execute({ query: '任意查询词', limit: 5 })
+  checkTriageFields('空库未分诊', r)
+  assert.equal(r.noQueryEnergy, true)
+  assert.equal(r.expanded, false)
+  assert.equal(r.kUsed, r.kBase)
+  for (const k of ['novelty', 'explainedRatio', 'residualRatio', 'logicalDepth', 'covMax', 'noveltyThreshold', 'activationThreshold']) {
+    assert.ok(Number.isFinite(r[k]), `${k} 必须有限，实际 ${r[k]}`)
+    assert.ok(!Number.isNaN(r[k]), `${k} 不许是 NaN`)
+  }
+  assert.equal(r.explainedRatio + r.residualRatio, 0, '0/0 未定义 ⇒ 如实回显 0/0（不是假造出来的 1）')
+  assert.ok(!JSON.stringify(r).includes('null'), 'NaN 在 JSON 里会变 null —— 一个都不许有')
+  assertLossless('空库未分诊', r)
+
+  const st = corpusStats([])
+  const pureEmpty = residualPyramid('', [], st)
+  assert.equal(pureEmpty.noQueryEnergy, true)
+  assert.equal(pureEmpty.explainedRatio, 0)
+  assert.equal(pureEmpty.residualRatio, 0)
+  assert.ok(Number.isFinite(pureEmpty.novelty) && Number.isFinite(pureEmpty.directionConsistency))
+  assert.ok(!Number.isNaN(pureEmpty.novelty + pureEmpty.explainedRatio + pureEmpty.residualRatio))
+  checkTriageFields('空库空语料', withToolFields(pureEmpty))
 })

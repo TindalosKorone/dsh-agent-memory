@@ -272,13 +272,17 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
       + 'cov 是标签覆盖率（仅诊断）；match 是绝对判定 none/weak/strong（由 rel 与绝对阈值比较得出）。'
       + '与库无关的查询不会拿到满分：无证据候选 rel/score 均为 0.0000、match=none（只奖不罚，不整批否决）。'
       + 'I2 分诊：以候选标签向量为基、在标签 idf 词法空间里做 Gram-Schmidt 残差金字塔，'
-      + '得到 novelty（0.7×残差能量比 + 0.3×方向一致性）并据此决定是否扩检索'
-      + '（expanded=true 时把取回条数从 kBase 提到 kUsed），另给 explainedRatio/residualRatio/'
+      + '得到 novelty（0.7×残差能量比 + 0.3×方向一致性）并据此决定是否扩检索。'
+      + '**limit 是硬显示上限**：返回行数恒为 min(limit, 可用候选数)，扩检索只放大**内部**召回预算 '
+      + 'kBase -> kUsed（给金字塔取基、给多样性更大的候选池），**不增加返回行数**。'
+      + '查询无词元能量（‖q‖²≈0）时**不做分诊**：novelty=0、expanded=false、kUsed=kBase，'
+      + 'explainedRatio/residualRatio 如实回显 0/0（未定义）。'
+      + '另给 explainedRatio/residualRatio/'
       + 'basisSize/layers/logicalDepth 与 lowConfidence（低置信只是**如实报告**，绝不返回空、绝不整批否决）。'
       + `总输出超过 ${RECALL_MAX_CHARS} 字符会截断并如实说明。`,
     parameters: {
-      query: { type: 'string', required: true, description: '查询串（中文/英文均可；空串表示只按新鲜度排）' },
-      limit: { type: 'integer', description: `返回条数，默认 5，最大 ${RECALL_LIMIT_MAX}` },
+      query: { type: 'string', required: true, description: '查询串（中文/英文均可；空串/纯空白表示无词元能量、不分诊，只按新鲜度排）' },
+      limit: { type: 'integer', description: `显示条数**硬上限**，默认 5，最大 ${RECALL_LIMIT_MAX}（返回行数恒为 min(limit, 可用候选数)；扩检索只放大内部候选池 kUsed，不增加返回行数）` },
     },
     output: {
       schema: {
@@ -302,7 +306,8 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
           diversityApplied: { type: 'boolean', required: true },
           /**
            * I2 分诊（残差金字塔）：全部是本查询自己的结论（请求级隔离，不跨请求复用）。
-           * kBase/kUsed 是条数口径：kUsed = expanded ? min(max(kBase, 2×kBase), 库内条数) : kBase。
+           * kBase/kUsed 是**内部召回预算**（不是显示承诺）：kUsed = expanded ? min(max(kBase, 2×kBase), 库内条数) : kBase。
+           * 显示行数恒为 min(limit, 可用候选数) —— 扩检索只放大内部候选池，不改变返回行数（I2.1 修 1）。
            */
           expanded: { type: 'boolean', required: true },
           kBase: { type: 'integer', required: true },
@@ -315,8 +320,15 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
           logicalDepth: { type: 'number', required: true },
           lowConfidence: { type: 'boolean', required: true },
           /**
+           * 查询无词元能量（‖q‖²≈0）⇒ 未分诊：novelty=0、expanded=false、kUsed=kBase，
+           * explainedRatio/residualRatio 回显 0/0（0/0 未定义）。表头会如实写明「未分诊」。
+           */
+          noQueryEnergy: { type: 'boolean', required: true },
+          /**
            * 口径回显（I1.3 可复算铁律）：没有这三个数，读者拿到的 expanded/lowConfidence 复算不出来。
-           * expanded ⟺ novelty >= noveltyThreshold；lowConfidence ⟺ covMax < activationThreshold。
+           * 有词元能量时：expanded ⟺ novelty >= noveltyThreshold；
+           * 无词元能量时（noQueryEnergy=true）**不做分诊**：expanded=false 与阈值无关（表头写明「未分诊」）；
+           * lowConfidence ⟺ covMax < activationThreshold（两种情形都成立）。
            */
           noveltyThreshold: { type: 'number', required: true },
           activationThreshold: { type: 'number', required: true },
@@ -397,7 +409,8 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
       // ── I2 分诊：残差金字塔（Gram-Schmidt）→ 是否扩检索 ────────────────────
       // 分诊口径：模块级默认常数（可经 cfg.triage 覆盖），**没有任何批次相关量**。
       const triageCfg = resolveTriageOptions(cfg.triage)
-      // kBase = 本次本来要取的候选数（= limit）；扩检索预算 = min(2×kBase, 库内条数)
+      // kBase = **内部**召回预算基线（= limit，仅决定候选池规模，**不承诺显示行数**）；
+      // 扩检索预算 = min(2×kBase, 库内条数)
       // （规格：kExpanded = max(limit, 2×limit) 且**不超过库内条数** —— 库容小于 kBase 时
       //  kUsed 因此可能小于 kBase，但行为上不会少取候选：候选总数本身就 <= 库容，两种预算
       //  下 diversify 都只会取到库里全部候选）。
@@ -413,8 +426,13 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
       const kUsed = expanded ? kExpanded : kBase
 
       // 多样性乘进同一个分数：final = rel × (1 − β·maxSim)；列表按 final 降序 ⇒ 打印天然单调。
-      // 注意 limit 用 kUsed（扩检索时确实多取几条）；展示分仍是绝对映射，不随批次变化。
-      const picked = diversify(candidates, { beta, limit: kUsed })
+      // ── I2.1 修 1：limit 是**硬显示上限** ─────────────────────────────────
+      // 显示行数恒为 min(limit, 可用候选数)。扩检索只放大**内部**预算 kUsed（给金字塔取基、
+      // 给多样性一个更大的候选池），**绝不**改变返回行数：旧实现把 limit 直接换成 kUsed 交给
+      // diversify ⇒ limit=3 也能吐 6 行（实测 rows=6），调用方无法依赖 limit，契约被泄漏破坏。
+      // 内部先按 kUsed 选（保持「扩检索=更大候选池」的语义），再按硬上限截断显示。
+      const shownCap = Math.min(limit, candidates.length)
+      const picked = diversify(candidates, { beta, limit: kUsed }).slice(0, shownCap)
 
       // 低置信：cov_max < activationThreshold。**低置信只影响如实报告**：
       // 不否决任何候选、不返回空（第三方明确回退过这种门控）。
@@ -454,16 +472,25 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
       // 表头必须如实说明四列含义与两种标度（单行：recall 用例按 split('\n') 切片核对行）。
       // I2 追加一段**分诊自证**：novelty 与阈值、kBase/kUsed、explainedRatio/residualRatio、
       // cov_max 与 activationThreshold 全部打印 ⇒ 读者能用打印的数自行复算 expanded 与 lowConfidence。
+      // I2.1 修 1：写明 limit 是硬显示上限、扩检索只放大内部候选池；
+      // I2.1 修 2：无词元能量时**如实写明「未分诊」**（不假装算过：两个比值回显 0/0）。
+      const triageSeg = triage.noQueryEnergy
+        ? `I2 分诊（词法空间残差金字塔）：novelty=0.0000（查询无词元能量 ‖q‖²≈0 ⇒ 未分诊，`
+          + `阈值 ${triageCfg.noveltyThreshold} 不参与门控）⇒ expanded=false；`
+          + `kBase=${kBase} -> kUsed=${kUsed}（未分诊 ⇒ 不扩检索，kUsed=kBase）；`
+          + 'explainedRatio=0.0000 residualRatio=0.0000（0/0 未定义：无词元能量可解释）；'
+        : `I2 分诊（词法空间残差金字塔）：novelty=${triage.novelty.toFixed(4)} ${expanded ? '>=' : '<'} 阈值 ${triageCfg.noveltyThreshold} ⇒ expanded=${expanded}；`
+          + `kBase=${kBase} -> kUsed=${kUsed}（分诊判定${expanded ? '扩检索' : '不扩检索'}：kUsed 是内部候选池预算，显示行数仍受硬上限 limit=${limit} 约束）；`
+          + `explainedRatio=${triage.explainedRatio.toFixed(4)} + residualRatio=${triage.residualRatio.toFixed(4)} = 1；`
       const header = `记忆召回（L1 索引，不含正文）：query=${JSON.stringify(query)} | 库内 ${records.length} 条 | `
-        + `融合候选 ${fused.length} 条 | 本次显示 ${lines.length} 条（limit=${limit}）| `
+        + `融合候选 ${fused.length} 条 | 本次显示 ${lines.length} 条（limit=${limit} 是硬显示上限：`
+        + '返回行数恒为 min(limit,可用候选数)，扩检索只放大内部候选池、不增加返回行数）| '
         + '列序：id | kind | title | tags | rel(惩罚前相关度) | cov(标签覆盖率,仅诊断) | match(绝对判定) | score(含多样性惩罚的最终分,按此降序) | '
         + 'rel=BM25 原始相关度（绝对标度，不随批次归一化）——阈值直接作用于它，可据此自行验算 match；'
         + `score=disp(final)=clip((final-${scoreCfg.scaleA})/(${scoreCfg.scaleB}-${scoreCfg.scaleA})) 映射到 0..1 的展示分（与 rel 不同标度，仅用于排序展示）；`
         + `阈值 match：rel>=${scoreCfg.weak} 为 weak、>=${scoreCfg.strong} 为 strong，无证据为 none（不扣分）；`
         + `多样性 beta=${beta}${beta === 0 ? '（候选<=5，已跳过）' : ''} | `
-        + `I2 分诊（词法空间残差金字塔）：novelty=${triage.novelty.toFixed(4)} ${expanded ? '>=' : '<'} 阈值 ${triageCfg.noveltyThreshold} ⇒ expanded=${expanded}；`
-        + `kBase=${kBase} -> kUsed=${kUsed}（分诊判定${expanded ? '扩检索' : '不扩检索'}）；`
-        + `explainedRatio=${triage.explainedRatio.toFixed(4)} + residualRatio=${triage.residualRatio.toFixed(4)} = 1；`
+        + triageSeg
         + `basisSize=${triage.basisSize} layers=${triage.layers} logicalDepth=${triage.logicalDepth.toFixed(4)}；`
         + (lowConfidence
           ? `低置信：cov_max=${covMax.toFixed(4)} < ${triageCfg.activationThreshold}（仅如实报告：不否决任何候选、不返回空）`
@@ -490,6 +517,7 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
         diversityApplied: beta > 0,
         // I2 分诊字段（全部是本次调用的局部结论；rows 之外的返回体，schema 已同步声明）
         expanded,
+        noQueryEnergy: triage.noQueryEnergy,
         kBase,
         kUsed,
         novelty: triage.novelty,

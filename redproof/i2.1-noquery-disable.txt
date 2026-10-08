@@ -1,0 +1,93 @@
+=== 红证 1（I2.1 修 2：空查询不扩检索）DISABLE ===
+关掉的分支：src/pure.ts residualPyramid 里 'if (!(qEnergy > PYRAMID_EPS)) return {...未分诊...}'
+改成：if (false) {...}，并把 explainedRatio 恢复为旧的三元守卫（qEnergy>PYRAMID_EPS ? ... : 0）⇒ 走 pre-I2.1 公式
+预期：空查询 novelty=0.7、expanded=true、kUsed<>kBase ⇒ 断言必须变红
+命令：node test/triage.test.mjs
+---
+✔ Gram-Schmidt：正交归一、跳过线性相关向量、保持张成（判红点：只归一化不正交化，两两内积就不为 0） (5.963854ms)
+✔ 能量守恒：explainedRatio 由独立的 gramSchmidt 复算得出，且 explained+residual=1（判红点：跳过正交化就对不上） (2.493229ms)
+✔ 投影熵 → logicalDepth：K=0/1 边界不出 NaN，均摊 → 0、集中 → 1（区分力自检：两者必须不同） (0.568177ms)
+✔ novelty 定义：0.7×残差 + 0.3×方向一致性；方向一致性的三个边界都可判（判红点：字面 1−|cos(R,u1)| 恒为 1） (0.578334ms)
+✔ 分诊口径解析：非法输入回落默认常数，层数/基规模被夹紧（不引入批次相关量） (0.433021ms)
+✔ 红证 1（判红点：把 expanded 强制为 false ⇒ 本条变红）：与库几乎无重合的查询必须扩检索且不返回空 (162.693437ms)
+✔ 红证 2（判红点：把 expanded 强制为 true ⇒ 本条变红）：与某条记录高度重合的查询不得扩检索 (41.981718ms)
+✔ 红证 3（判红点：把金字塔状态提到模块级并在两次调用间复用 ⇒ 本条变红）：请求级隔离 (325.366614ms)
+✔ I2 自证：表头打印的 novelty/kBase/cov_max 与阈值必须能复算 expanded/lowConfidence（单行表头） (152.666562ms)
+✔ 工具层：分诊口径可配置（maxLayers=1 让「三层才解释完」的查询变成扩检索，且行数真的变多） (94.233698ms)
+✖ 边界：空库/空查询/单条库的分诊字段全部有限（不许 NaN/Infinity/undefined 泄漏） (15.676354ms)
+✔ I2 无损：低置信路径不得整批否决（行数、match、score 都照常给出） (120.25052ms)
+✖ I2.1 修 2：空查询/纯空白查询不做分诊（novelty=0、expanded=false、kUsed=kBase；判红点：关掉未分诊分支 ⇒ novelty=0.7/expanded=true） (125.360781ms)
+✔ I2.1 修 1：limit 是硬显示上限（扩检索分支 rows===limit；不扩分支 rows===min(limit,候选数)；判红点：去掉显示截断 ⇒ rows=kUsed>limit） (225.149375ms)
+✖ I2.1 修 2：退化情形（空库/空语料/空查询）分诊字段全部有限、不出 NaN，比值如实回显 0/0 (5.512344ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 12
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1306.175364
+
+✖ failing tests:
+
+test at test/triage.test.mjs:599:1
+✖ 边界：空库/空查询/单条库的分诊字段全部有限（不许 NaN/Infinity/undefined 泄漏） (15.676354ms)
+  AssertionError [ERR_ASSERTION]: 空语料 ⇒ 任何词元权重为 0 ⇒ 查询无词元能量
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/triage.test.mjs:612:10)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/triage.test.mjs:707:1
+✖ I2.1 修 2：空查询/纯空白查询不做分诊（novelty=0、expanded=false、kUsed=kBase；判红点：关掉未分诊分支 ⇒ novelty=0.7/expanded=true） (125.360781ms)
+  AssertionError [ERR_ASSERTION]: query="" 必须标记为无词元能量
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/triage.test.mjs:722:12)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/triage.test.mjs:822:1
+✖ I2.1 修 2：退化情形（空库/空语料/空查询）分诊字段全部有限、不出 NaN，比值如实回显 0/0 (5.512344ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/triage.test.mjs:826:10)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+exit=1
+
+--- 同状态下直接复算（证明判红点确实是 novelty 0.7 / expanded=true）：
+$ node .tmp-test/i21-probe/probe.mjs
+limit=3 扩检索查询: expanded=true kBase=3 kUsed=6 rows=3 shown=3
+空白查询: novelty=0.7 expanded=true kUsed=10 kBase=5 explained=0 residual=1 shown=5
+
+--- 判红的三条断言（原文）：
+    AssertionError [ERR_ASSERTION]: 空语料 ⇒ 任何词元权重为 0 ⇒ 查询无词元能量
+    AssertionError [ERR_ASSERTION]: query="" 必须标记为无词元能量
+    AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:

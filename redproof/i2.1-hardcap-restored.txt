@@ -1,0 +1,30 @@
+=== 红证 2（I2.1 修 1：limit 是硬显示上限）RESTORED ===
+恢复方式：cp .tmp-test/i21-probe/index.ts.pre-red2b src/index.ts
+校验：cmp -s src/index.ts .tmp-test/i21-probe/index.ts.pre-red2b ⇒ 逐字节相同（sha256 前 8 位 81303c29）
++ node node_modules/typescript/bin/tsc -p . 重建
+哈希（前 8 位）：src/pure.ts=9505a207 src/index.ts=81303c29 test/triage.test.mjs=551a35dc lib/index.js=e2e57ee0
+---
+✔ Gram-Schmidt：正交归一、跳过线性相关向量、保持张成（判红点：只归一化不正交化，两两内积就不为 0） (4.164219ms)
+✔ 能量守恒：explainedRatio 由独立的 gramSchmidt 复算得出，且 explained+residual=1（判红点：跳过正交化就对不上） (1.770208ms)
+✔ 投影熵 → logicalDepth：K=0/1 边界不出 NaN，均摊 → 0、集中 → 1（区分力自检：两者必须不同） (0.426459ms)
+✔ novelty 定义：0.7×残差 + 0.3×方向一致性；方向一致性的三个边界都可判（判红点：字面 1−|cos(R,u1)| 恒为 1） (0.457344ms)
+✔ 分诊口径解析：非法输入回落默认常数，层数/基规模被夹紧（不引入批次相关量） (0.266146ms)
+✔ 红证 1（判红点：把 expanded 强制为 false ⇒ 本条变红）：与库几乎无重合的查询必须扩检索且不返回空 (285.49375ms)
+✔ 红证 2（判红点：把 expanded 强制为 true ⇒ 本条变红）：与某条记录高度重合的查询不得扩检索 (56.098177ms)
+✔ 红证 3（判红点：把金字塔状态提到模块级并在两次调用间复用 ⇒ 本条变红）：请求级隔离 (431.96974ms)
+✔ I2 自证：表头打印的 novelty/kBase/cov_max 与阈值必须能复算 expanded/lowConfidence（单行表头） (300.972395ms)
+✔ 工具层：分诊口径可配置（maxLayers=1 让「三层才解释完」的查询变成扩检索，且行数真的变多） (245.164792ms)
+✔ 边界：空库/空查询/单条库的分诊字段全部有限（不许 NaN/Infinity/undefined 泄漏） (46.183073ms)
+✔ I2 无损：低置信路径不得整批否决（行数、match、score 都照常给出） (191.6175ms)
+✔ I2.1 修 2：空查询/纯空白查询不做分诊（novelty=0、expanded=false、kUsed=kBase；判红点：关掉未分诊分支 ⇒ novelty=0.7/expanded=true） (282.868698ms)
+✔ I2.1 修 1：limit 是硬显示上限（扩检索分支 rows===limit；不扩分支 rows===min(limit,候选数)；判红点：去掉显示截断 ⇒ rows=kUsed>limit） (490.797291ms)
+✔ I2.1 修 2：退化情形（空库/空语料/空查询）分诊字段全部有限、不出 NaN，比值如实回显 0/0 (7.954948ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2365.209947
+exit=0

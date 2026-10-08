@@ -1,0 +1,93 @@
+=== 红证 2（I2.1 修 1：limit 是硬显示上限）DISABLE ===
+关掉的代码：src/index.ts recall 里的显示截断 '.slice(0, shownCap)'（保留 diversify(..., limit: kUsed)）
+⇒ 显示行数回退为 kUsed（旧行为），limit 不再是硬上限
+预期：扩检索分支 rows.length=kUsed=6 > limit=3 ⇒ 断言必须变红
+命令：node test/triage.test.mjs
+---
+✔ Gram-Schmidt：正交归一、跳过线性相关向量、保持张成（判红点：只归一化不正交化，两两内积就不为 0） (8.067709ms)
+✔ 能量守恒：explainedRatio 由独立的 gramSchmidt 复算得出，且 explained+residual=1（判红点：跳过正交化就对不上） (3.551198ms)
+✔ 投影熵 → logicalDepth：K=0/1 边界不出 NaN，均摊 → 0、集中 → 1（区分力自检：两者必须不同） (0.700156ms)
+✔ novelty 定义：0.7×残差 + 0.3×方向一致性；方向一致性的三个边界都可判（判红点：字面 1−|cos(R,u1)| 恒为 1） (0.757812ms)
+✔ 分诊口径解析：非法输入回落默认常数，层数/基规模被夹紧（不引入批次相关量） (0.458073ms)
+✖ 红证 1（判红点：把 expanded 强制为 false ⇒ 本条变红）：与库几乎无重合的查询必须扩检索且不返回空 (240.211406ms)
+✔ 红证 2（判红点：把 expanded 强制为 true ⇒ 本条变红）：与某条记录高度重合的查询不得扩检索 (55.217864ms)
+✔ 红证 3（判红点：把金字塔状态提到模块级并在两次调用间复用 ⇒ 本条变红）：请求级隔离 (507.485989ms)
+✔ I2 自证：表头打印的 novelty/kBase/cov_max 与阈值必须能复算 expanded/lowConfidence（单行表头） (301.378698ms)
+✖ 工具层：分诊口径可配置（maxLayers=1 让「三层才解释完」的查询变成扩检索，且行数真的变多） (221.717761ms)
+✔ 边界：空库/空查询/单条库的分诊字段全部有限（不许 NaN/Infinity/undefined 泄漏） (58.677292ms)
+✔ I2 无损：低置信路径不得整批否决（行数、match、score 都照常给出） (221.244011ms)
+✔ I2.1 修 2：空查询/纯空白查询不做分诊（novelty=0、expanded=false、kUsed=kBase；判红点：关掉未分诊分支 ⇒ novelty=0.7/expanded=true） (261.697968ms)
+✖ I2.1 修 1：limit 是硬显示上限（扩检索分支 rows===limit；不扩分支 rows===min(limit,候选数)；判红点：去掉显示截断 ⇒ rows=kUsed>limit） (231.378697ms)
+✔ I2.1 修 2：退化情形（空库/空语料/空查询）分诊字段全部有限、不出 NaN，比值如实回显 0/0 (8.08974ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 12
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2161.796718
+
+✖ failing tests:
+
+test at test/triage.test.mjs:327:1
+✖ 红证 1（判红点：把 expanded 强制为 false ⇒ 本条变红）：与库几乎无重合的查询必须扩检索且不返回空 (240.211406ms)
+  AssertionError [ERR_ASSERTION]: limit=3 是硬显示上限：rows 必须恰好 3 条，实际 6
+  
+  6 !== 3
+  
+      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/triage.test.mjs:348:10)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 6,
+    expected: 3,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/triage.test.mjs:546:1
+✖ 工具层：分诊口径可配置（maxLayers=1 让「三层才解释完」的查询变成扩检索，且行数真的变多） (221.717761ms)
+  AssertionError [ERR_ASSERTION]: limit=3 是硬显示上限：扩检索也不许多显示一行
+  
+  6 !== 3
+  
+      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/triage.test.mjs:589:10)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 6,
+    expected: 3,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/triage.test.mjs:762:1
+✖ I2.1 修 1：limit 是硬显示上限（扩检索分支 rows===limit；不扩分支 rows===min(limit,候选数)；判红点：去掉显示截断 ⇒ rows=kUsed>limit） (231.378697ms)
+  AssertionError [ERR_ASSERTION]: limit 是硬上限：rows 必须严格等于 limit=3，实际 6
+  
+  6 !== 3
+  
+      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/triage.test.mjs:780:10)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 6,
+    expected: 3,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+exit=1
+
+--- 同状态下直接复算（证明 rows 确实 > limit）：
+$ node .tmp-test/i21-probe/probe.mjs
+limit=3 扩检索查询: expanded=true kBase=3 kUsed=6 rows=6 shown=6
+空白查询: novelty=0 expanded=false kUsed=5 kBase=5 explained=0 residual=0 shown=5
+
+--- 判红的断言（原文）：
+    AssertionError [ERR_ASSERTION]: limit=3 是硬显示上限：rows 必须恰好 3 条，实际 6
+    AssertionError [ERR_ASSERTION]: limit=3 是硬显示上限：扩检索也不许多显示一行
+    AssertionError [ERR_ASSERTION]: limit 是硬上限：rows 必须严格等于 limit=3，实际 6

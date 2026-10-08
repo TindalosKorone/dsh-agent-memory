@@ -1,0 +1,22 @@
+=== I2.1 最终全量（tsc + 9 个测试文件逐个直跑；本机 node --test 不可用）===
+date: 2026-10-09 07:34:41
+$ node node_modules/typescript/bin/tsc -p .
+tsc exit=0
+
+protocol.test.mjs exit=0 | tests=23 pass=23 fail=0
+cap.test.mjs exit=0 | tests=4 pass=4 fail=0
+pure.test.mjs exit=0 | tests=7 pass=7 fail=0
+scoring.test.mjs exit=0 | tests=11 pass=11 fail=0
+recall.test.mjs exit=0 | tests=7 pass=7 fail=0
+triage.test.mjs exit=0 | tests=15 pass=15 fail=0
+lossless.test.mjs exit=0 | tests=4 pass=4 fail=0
+storage.test.mjs exit=0 | tests=13 pass=13 fail=0
+prune.test.mjs exit=0 | tests=3 pass=3 fail=0
+
+哈希（前 8 位）：
+  9505a207  src/pure.ts
+  81303c29  src/index.ts
+  b1a5551d  src/store.ts
+  551a35dc  test/triage.test.mjs
+  91f7228e  lib/pure.js
+  e2e57ee0  lib/index.js

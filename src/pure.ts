@@ -868,6 +868,12 @@ export interface PyramidResult {
   noveltyThreshold: number
   /** 是否扩检索：novelty >= noveltyThreshold。**与 lowConfidence 无关**（低置信不否决）。 */
   expanded: boolean
+  /**
+   * 查询是否**没有**词元能量（‖q‖² ≈ 0，I2.1 修 2）。
+   * true ⇒ 本查询**未做分诊**：novelty=0、expanded=false、explainedRatio/residualRatio
+   * 回显 0/0（未定义）。上层必须在表头如实写明「无词元能量，未分诊」，不许假装算过。
+   */
+  noQueryEnergy: boolean
 }
 
 /**
@@ -889,11 +895,14 @@ export interface PyramidResult {
  * 语义：残差若仍落在「基里还留着、这几层没用上」的方向上 ⇒ 不是新方向（→0）；
  * 残差若与所有未投影基向量都正交 ⇒ 基给不出这个方向（→1）。
  * 边界（都不许出 NaN）：
- *   - ‖R‖² ≈ 0（查询被完全解释，或查询本身没有词元能量）⇒ 没有残差方向 ⇒ 定义 0
+ *   - ‖R‖² ≈ 0（查询被基完全解释）⇒ 没有残差方向 ⇒ 定义 0
  *     （于是「完全被解释 ⇒ novelty = 0」，不会因为余项白拿分）；
  *   - 未投影基为空（layers = basisSize）而 R ≠ 0 ⇒ max 取 0 ⇒ 定义 1
  *     （残差按构造与本基子空间正交，确实是新方向）；
  *   - 一个基向量都没有（basisSize = 0）而 R ≠ 0 ⇒ 同样 1（没有任何方向能解释它）。
+ *
+ * I2.1 修 2（空查询不做分诊）：‖q‖² ≈ 0 时**直接短路返回**（见函数体），
+ * novelty=0、expanded=false、explainedRatio=residualRatio=0（0/0 未定义，见那里的长注释）。
  */
 export function residualPyramid(
   query: unknown,
@@ -917,25 +926,50 @@ export function residualPyramid(
   }
   const ortho = gramSchmidt(raw)
 
+  // ── I2.1 修 2：查询无词元能量 ⇒ **不做分诊**（显式短路）────────────────────
+  // ‖q‖² ≈ 0 时投影、残差、explained/residual 全是 0/0，没有「能量」可分：
+  // 旧实现按公式走 explained=0、residual=1 ⇒ novelty = 0.7×1 + 0.3×0 = 0.7
+  // ⇒ expanded=true，语义荒谬（「什么都没问」≙「最新颖」，实测 novelty=0.7）。
+  // 现在显式短路：novelty=0、expanded=false；两个比值**如实回显 0/0**
+  // （0/0 未定义，不假造一个 1 去凑守恒式）；noQueryEnergy=true 让上层写明「未分诊」。
+  // basisSize 仍如实回显（基池确实算过），layers/projectedBasis=0（没做任何投影）。
+  // 注意：**不是**把它们塞进公式再钳位 —— 那样 reader 仍会拿 0.7 去复现 expanded。
+  if (!(qEnergy > PYRAMID_EPS)) {
+    return {
+      novelty: 0,
+      explainedRatio: 0,
+      residualRatio: 0,
+      directionConsistency: 0,
+      projectionEntropy: 0,
+      logicalDepth: 0,
+      basisSize: ortho.length,
+      layers: 0,
+      projectedBasis: 0,
+      noveltyThreshold: cfg.noveltyThreshold,
+      expanded: false,
+      noQueryEnergy: true,
+    }
+  }
+
   // 逐层投影：最多 maxLayers 层；每层后残差能量 < residualStop × 原始能量就停。
   const energies: number[] = []
   let residualVec = new Map<string, number>(q)
   let projEnergy = 0
-  if (qEnergy > PYRAMID_EPS) {
-    for (const u of ortho) {
-      if (energies.length >= cfg.maxLayers) break
-      const c = sparseDot(q, u)
-      const e = c * c
-      energies.push(e)
-      projEnergy += e
-      if (c !== 0) residualVec = sparseSub(residualVec, sparseScale(u, c))
-      if (qEnergy - projEnergy < cfg.residualStop * qEnergy) break
-    }
+  for (const u of ortho) {
+    if (energies.length >= cfg.maxLayers) break
+    const c = sparseDot(q, u)
+    const e = c * c
+    energies.push(e)
+    projEnergy += e
+    if (c !== 0) residualVec = sparseSub(residualVec, sparseScale(u, c))
+    if (qEnergy - projEnergy < cfg.residualStop * qEnergy) break
   }
 
-  const explainedRatio = qEnergy > PYRAMID_EPS ? clamp01(projEnergy / qEnergy) : 0
+  // 走到这里保证 qEnergy > PYRAMID_EPS ⇒ 比值有限（不会 0/0 泄 NaN）。
+  const explainedRatio = clamp01(projEnergy / qEnergy)
   // 守恒：residualRatio 直接取 1 − explainedRatio（代数上等于 ‖R‖²/‖q‖²，
   // 且天然有限、和恒为 1，不会因为浮点除零泄 NaN）。
+  // 空查询（无词元能量）已在上面短路 ⇒ 本式子只在 qEnergy > PYRAMID_EPS 时执行。
   const residualRatio = clamp01(1 - explainedRatio)
 
   const rEnergy = sparseNorm2(residualVec)
@@ -965,5 +999,6 @@ export function residualPyramid(
     projectedBasis: ent.k,
     noveltyThreshold: cfg.noveltyThreshold,
     expanded: novelty >= cfg.noveltyThreshold,
+    noQueryEnergy: false,
   }
 }
