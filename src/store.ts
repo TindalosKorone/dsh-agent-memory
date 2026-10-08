@@ -19,6 +19,9 @@ import { dirname, join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { decay, cmpId, type ScoreOptions, type TriageOptions } from './pure.js'
 import { normalizeStoredRecord, type MemoryDraft, type MemoryRecord } from './protocol.js'
+// InjectionConfig 的归属地是它的逻辑实现 inject.ts；这里是 `import type`（编译期擦除，
+// 不会产生运行时循环 import —— inject.ts 也只在类型位置引用本模块）。
+import type { InjectionConfig } from './inject.js'
 
 export const DEFAULT_HOME = '/data/user/0/com.dsharnessmobile.shell/files/home/.dsh'
 export const DEFAULT_MAX_RECORDS = 2000
@@ -89,6 +92,12 @@ export interface MemoryConfig {
    * **不参与候选展示分**（展示分仍只走绝对区间映射，绝不批内归一化）。
    */
   triage?: TriageOptions
+  /**
+   * I4a：稳定记忆索引注入开关与预算（默认 enabled=true / maxChars=240 / topTags=3）。
+   * 只影响「往 prompt 尾部动态块注入的那一行」，**不改变任何写入/召回契约**。
+   * 关掉（enabled:false）时不注册、不输出任何字符。
+   */
+  injection?: InjectionConfig
 }
 
 function ops(cfg: MemoryConfig | undefined): FsOps {
@@ -244,6 +253,22 @@ export function loadSnapshot(cfg: MemoryConfig = {}): LoadSnapshot {
 /** 读全库（不关心文件身份时的便捷入口）。 */
 export function loadRecords(cfg: MemoryConfig = {}): MemoryRecord[] {
   return loadSnapshot(cfg).records
+}
+
+/**
+ * 便宜的文件身份探测（只 stat、**不读内容**）：文件不存在或无法 stat 时返回 undefined。
+ * I4a 的只读缓存用它做 `{path, size, mtimeMs}` 的命中判定 —— 与上面的外部改动守卫
+ * 共用同一套身份口径（StoreStamp），所以缓存不会比库自己的判据更乐观。
+ */
+export function statStamp(cfg: MemoryConfig = {}): StoreStamp | undefined {
+  const path = memoryPath(cfg)
+  const fs = ops(cfg)
+  try {
+    if (!fs.existsSync(path)) return undefined
+    return fs.statSync(path)
+  } catch {
+    return undefined
+  }
 }
 
 export interface SaveResult {

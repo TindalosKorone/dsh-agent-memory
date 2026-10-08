@@ -40,7 +40,9 @@ function schemaViolations(spec, value, path = '$') {
 
 test('插件契约：name/inject 正确，恰好注册 4 个工具', () => {
   assert.equal(name, '@dsh-agent/dsh-agent-memory')
-  assert.deepEqual(inject, ['tools'])
+  // I4a 起 inject 多一项 systemPrompt（尾部动态块注册面）；工具面仍是 4 个，见下面两行断言。
+  // 注意代价：cordis 的 inject 是必需依赖 ⇒ 缺 systemPrompt 时整个插件（含工具）不会 apply。
+  assert.deepEqual(inject, ['tools', 'systemPrompt'])
   const { ctx, defs, effects } = makeCtx()
   apply(ctx)
   assert.deepEqual([...defs.keys()].sort(), TOOL_NAMES)

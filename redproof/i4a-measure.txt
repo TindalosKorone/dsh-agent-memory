@@ -1,0 +1,41 @@
+
+=== 0. 真实记忆库（只读） ===
+库文件: /data/user/0/com.dsharnessmobile.shell/files/home/.dsh/agent-memory/memory.ndjson
+存在: true
+条数: 9 | 锚点: ["失败关闭","区分力","测试"] | 命中缓存: false
+
+=== 1. 真引擎注册与 assemble（落点） ===
+systemPrompt 服务: true
+本插件注册的工具数: 4
+contexts 顺序表（name @ order）: agent-memory
+我们的 context 名/顺序: agent-memory @ 200
+sections 段数（prompt 正文，未受影响）: 3
+注入行: "记忆 9 条（上限 2000）｜标签锚点：失败关闭 / 区分力 / 测试｜细则用 memory_recall"
+完整快照: "Current runtime context. This snapshot supersedes earlier runtime-context snapshots.\n\n记忆 9 条（上限 2000）｜标签锚点：失败关闭 / 区分力 / 测试｜细则用 memory_recall"
+
+=== 2. 成本（字符 / 字节 / 引擎启发式 token） ===
+注入行 字符数: 54 | UTF-8 字节: 106
+快照总长 字符数: 140 （其中引擎自带表头 84 字符）
+token 估算（dsh-token-meter 固定启发式 CHARS_PER_TOKEN=4 + 块开销 4 + 角色帧 4）：
+  整份快照作为一条 user 消息: 43 token
+  仅注入行作为一条 user 消息: 22 token
+  （这是启发式估算，不是供应商计费 token；本插件内部观测不到真实计费）
+  上限回显：maxChars=240 ⇒ 启发式 token 上限约 68
+
+=== 3. 稳定性（库不变 → 逐字节相同） ===
+5 次快照 sha256[0:16]: ccbd2a62f7839c7b ccbd2a62f7839c7b ccbd2a62f7839c7b ccbd2a62f7839c7b ccbd2a62f7839c7b
+5 次注入行 sha256[0:16]: 81072d57fd0edb72 81072d57fd0edb72 81072d57fd0edb72 81072d57fd0edb72 81072d57fd0edb72
+快照全同: true | 注入行全同: true
+注入行字节数: 106/106/106/106/106
+（对照：库文件身份三元组 {path,size,mtimeMs} 不变时只读缓存命中，见 test/inject.test.mjs 用例）
+
+=== 4. 落点源码依据（引用，非本脚本实测） ===
+dsh-agent-loop/lib/index.js:909-910  assemble -> renderContextSections -> joinContextSections -> runtimeContext.project
+  同文件 334-346  project() 返回 createUserMessage(source.kind="runtime-context")；337 文本未变即 return（不发消息）
+  同文件 1061 firstAttempt 时逐条 session.append("user/message", message) ⇒ 追加到本轮消息列表尾部（系统提示另走 1056 的 system/message）
+  dsh-system-prompt/lib/index.js:134  joinContextSections: body 为空 ⇒ 返回 ""（未注册/空文本时零影响）
+
+=== 5. 无法从插件内部观测（不许写成实测） ===
+- 供应商 prompt 缓存命中率 / 缓存读写计费：本插件没有任何通道读请求头或使用量回执
+- 缓存收益是否成立取决于路由把「尾部追加的 user 消息」算不算可复用前缀：这属于供应商与路由侧行为
+- 本脚本能证明的最强命题：库不变时快照逐字节相同（引擎自己会因此不再发新消息）

@@ -1,0 +1,39 @@
+✔ I4a：注册面是 context() 的 {name, order, text}，order 是显式数字且大于 120（尾部） (23.954843ms)
+✔ I4a：注入文本是单行、无 { }、与请求无关（换参数/换缓存实例同字节） (14.174479ms)
+✔ I4a：injection.enabled=false ⇒ 一个 context 都不注册、文本为空串（零字符） (12.059636ms)
+✔ I4a：工具面照旧是 4 个（inject 增加 systemPrompt 不改既有工具契约） (28.687708ms)
+✔ I4a：口径解析有默认值、越界夹到天花板、非法类型回落（解析本身不抛） (0.684792ms)
+✔ I4a：空库 ⇒ 注册成功、给最小占位（记忆 0 条），不抛、不注入垃圾 (7.022552ms)
+✔ I4a：2000 条 + 长标签 ⇒ 注入文本长度 <= maxChars 且带如实省略标记 (195.765052ms)
+✔ I4a：手工改库塞进 300 字符超长标签 ⇒ 仍 <= maxChars（阶梯最后一级硬截断） (7.44276ms)
+✔ I4a：maxChars 极小/为 0 时也绝不超限（装不下标记就给空串） (0.346771ms)
+✔ I4a：锚点排序是确定口径（频次降序 → 码元升序），净化后相同的标签合并计数 (0.420208ms)
+✔ I4a：库不变时连续多次 assemble（多次取文本）逐字节完全相同 (27.096354ms)
+✔ I4a：库内容变了（条数/锚点变）⇒ 文本才跟着变（不是冻结在 boot 时刻） (14.164427ms)
+✔ I4a：缓存键严格是 {path,size,mtimeMs}：命中同值、文件改动后失效重读 (19.405156ms)
+✔ I4a fail-open：读库抛异常 ⇒ 注入空串、绝不抛（注册也成功） (31.283698ms)
+✔ I4a fail-open：stat 抛 / exists 抛 / 目录路径 ⇒ 都不抛且仍给出结论 (25.741302ms)
+✔ I4a fail-open：NDJSON 坏行/空行/非对象行 ⇒ 跳过坏行、不抛、计数只算好行 (16ms)
+✔ I4a fail-open：systemPrompt.context 注册时抛 ⇒ apply 不抛、4 个工具照常注册 (31.64026ms)
+✔ I4a：真引擎 SystemPrompt.context 注册 + assemble：落在 contexts 里、快照含本行、5 次逐字节相同 (84.266041ms)
+✔ I4a：库的硬上限（maxRecords）与注入行里的「上限」一致（不各说各话） (12.798802ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 564.89901
+
+===== 恢复证明（逐字节）=====
+src/*.ts 聚合 sha256（红证前备份 vs 恢复后工作区）:
+da69a4da4c5655ed976a10f284aebcf40cc86792183888916109f0f5bd2e17c5  -
+da69a4da4c5655ed976a10f284aebcf40cc86792183888916109f0f5bd2e17c5  -
+逐文件:
+8afc546468a8751e26927fa40e304ec32bc56239e06dc59e32905a02a4d6b8cf  src/index.ts
+ae4abcff56c209bd1bffe0191ae1eccab275c229b5eac3b8dc8141de1c35a81d  src/inject.ts
+bb207e7aeff55bf7b1b4425d99597040d1cae5c74cd0660b1c146086d053e00a  src/json.ts
+ece2919ca670a4277175ef3e9c4ccf944cafe17cab03afb6f8faa8c25bc20b18  src/protocol.ts
+9505a20774a99889f21d7cd14b79815940f0c851b601076179901e839bc85ba2  src/pure.ts
+70bddd4b18a0b55b14cfbf4cce8f2e3c0aa119dddd021be000e5083e532d66db  src/store.ts

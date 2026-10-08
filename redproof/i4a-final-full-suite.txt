@@ -1,0 +1,29 @@
+I4a 最终全量：tsc + 逐文件直跑（node test/x.test.mjs）
+生成时间戳: 2026-10-08T23:57:12Z
+
+$ node node_modules/typescript/bin/tsc -p .
+tsc exit=0
+
+test/protocol.test.mjs: pass=23 fail=0
+test/cap.test.mjs: pass=4 fail=0
+test/pure.test.mjs: pass=7 fail=0
+test/scoring.test.mjs: pass=11 fail=0
+test/recall.test.mjs: pass=7 fail=0
+test/triage.test.mjs: pass=15 fail=0
+test/lossless.test.mjs: pass=4 fail=0
+test/storage.test.mjs: pass=13 fail=0
+test/prune.test.mjs: pass=3 fail=0
+test/inject.test.mjs: pass=19 fail=0
+
+TOTAL pass=106 fail=0
+（基线 9 文件 87 pass；新增 test/inject.test.mjs 19 pass。lossless.test.mjs 里 1 条 inject 断言按 I4a 规格更新：['tools'] -> ['tools','systemPrompt']）
+
+src/*.ts 聚合 sha256（红证前后逐字节一致的基线）:
+da69a4da4c5655ed976a10f284aebcf40cc86792183888916109f0f5bd2e17c5  -
+逐文件:
+8afc546468a8751e26927fa40e304ec32bc56239e06dc59e32905a02a4d6b8cf  src/index.ts
+ae4abcff56c209bd1bffe0191ae1eccab275c229b5eac3b8dc8141de1c35a81d  src/inject.ts
+bb207e7aeff55bf7b1b4425d99597040d1cae5c74cd0660b1c146086d053e00a  src/json.ts
+ece2919ca670a4277175ef3e9c4ccf944cafe17cab03afb6f8faa8c25bc20b18  src/protocol.ts
+9505a20774a99889f21d7cd14b79815940f0c851b601076179901e839bc85ba2  src/pure.ts
+70bddd4b18a0b55b14cfbf4cce8f2e3c0aa119dddd021be000e5083e532d66db  src/store.ts

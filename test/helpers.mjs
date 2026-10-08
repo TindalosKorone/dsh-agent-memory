@@ -37,15 +37,25 @@ export function diskText(home) {
   return existsSync(p) ? readFileSync(p, 'utf8') : ''
 }
 
-/** 桩 ctx：收集注册的工具定义与 effect 清理函数。 */
+/** 桩 ctx：收集注册的工具定义、effect 清理函数、以及 I4a 的 systemPrompt.context 贡献。 */
 export function makeCtx() {
   const defs = new Map()
   const effects = []
+  const contexts = new Map()
   const ctx = {
     tools: { register: (d) => { defs.set(d.name, d); return { dispose: () => defs.delete(d.name) } } },
     effect: (cb) => { effects.push(cb()) },
+    // 桩 systemPrompt：形状与真引擎一致（贡献对象只用 name/order/text；order 必须是有限数字）。
+    systemPrompt: {
+      context: (contribution) => {
+        if (!Number.isFinite(contribution?.order)) throw new TypeError('prompt context order must be a finite number')
+        if (typeof contribution?.name !== 'string' || contribution.name === '') throw new TypeError('prompt context name must be a non-empty string')
+        contexts.set(contribution.name, contribution)
+        return { dispose: () => contexts.delete(contribution.name) }
+      },
+    },
   }
-  return { ctx, defs, effects }
+  return { ctx, defs, effects, contexts }
 }
 
 /** apply 之后拿到 4 个工具定义（可传 MemoryConfig，把 FsOps 接缝注入进来做并发度观测/故障注入）。 */
@@ -53,6 +63,13 @@ export function tools(config = {}) {
   const { ctx, defs } = makeCtx()
   apply(ctx, config)
   return defs
+}
+
+/** apply 之后拿到 I4a 注册的 systemPrompt context 贡献（键 = context 名）。 */
+export function appliedContexts(config = {}) {
+  const { ctx, contexts } = makeCtx()
+  apply(ctx, config)
+  return contexts
 }
 
 /** 递归找出所有 undefined 值的路径（宿主按无损 JSON 整值校验，undefined 会整值拒收）。 */

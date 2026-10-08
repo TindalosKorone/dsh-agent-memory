@@ -1,0 +1,87 @@
+✔ I4a：注册面是 context() 的 {name, order, text}，order 是显式数字且大于 120（尾部） (56.576927ms)
+✔ I4a：注入文本是单行、无 { }、与请求无关（换参数/换缓存实例同字节） (14.182813ms)
+✔ I4a：injection.enabled=false ⇒ 一个 context 都不注册、文本为空串（零字符） (13.703229ms)
+✔ I4a：工具面照旧是 4 个（inject 增加 systemPrompt 不改既有工具契约） (27.035885ms)
+✔ I4a：口径解析有默认值、越界夹到天花板、非法类型回落（解析本身不抛） (0.515729ms)
+✔ I4a：空库 ⇒ 注册成功、给最小占位（记忆 0 条），不抛、不注入垃圾 (5.246198ms)
+✔ I4a：2000 条 + 长标签 ⇒ 注入文本长度 <= maxChars 且带如实省略标记 (175.165104ms)
+✔ I4a：手工改库塞进 300 字符超长标签 ⇒ 仍 <= maxChars（阶梯最后一级硬截断） (7.127708ms)
+✔ I4a：maxChars 极小/为 0 时也绝不超限（装不下标记就给空串） (0.393073ms)
+✔ I4a：锚点排序是确定口径（频次降序 → 码元升序），净化后相同的标签合并计数 (0.429219ms)
+✔ I4a：库不变时连续多次 assemble（多次取文本）逐字节完全相同 (35.896354ms)
+✔ I4a：库内容变了（条数/锚点变）⇒ 文本才跟着变（不是冻结在 boot 时刻） (16.425678ms)
+✔ I4a：缓存键严格是 {path,size,mtimeMs}：命中同值、文件改动后失效重读 (14.774271ms)
+✖ I4a fail-open：读库抛异常 ⇒ 注入空串、绝不抛（注册也成功） (20.131614ms)
+✖ I4a fail-open：stat 抛 / exists 抛 / 目录路径 ⇒ 都不抛且仍给出结论 (10.927291ms)
+✔ I4a fail-open：NDJSON 坏行/空行/非对象行 ⇒ 跳过坏行、不抛、计数只算好行 (18.402708ms)
+✔ I4a fail-open：systemPrompt.context 注册时抛 ⇒ apply 不抛、4 个工具照常注册 (19.904739ms)
+✔ I4a：真引擎 SystemPrompt.context 注册 + assemble：落在 contexts 里、快照含本行、5 次逐字节相同 (68.490156ms)
+✔ I4a：库的硬上限（maxRecords）与注入行里的「上限」一致（不各说各话） (14.192344ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 17
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 532.469792
+
+✖ failing tests:
+
+test at test/inject.test.mjs:297:1
+✖ I4a fail-open：读库抛异常 ⇒ 注入空串、绝不抛（注册也成功） (20.131614ms)
+  AssertionError [ERR_ASSERTION]: Got unwanted exception.
+  Actual message: "注入的读故障"
+      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:309:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: Error: 注入的读故障
+        at Object.readFileSync (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:305:35)
+        at loadSnapshot (file:///storage/emulated/0/deepseek/dsh-agent-memory/lib/store.js:156:21)
+        at buildInjectionIndex (file:///storage/emulated/0/deepseek/dsh-agent-memory/lib/inject.js:227:26)
+        at file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:309:40
+        at getActual (node:assert:611:5)
+        at strict.doesNotThrow (node:assert:779:32)
+        at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:309:10)
+        at Test.runInAsyncScope (node:async_hooks:227:14)
+        at Test.run (node:internal/test_runner/test:1325:25)
+        at Test.processPendingSubtests (node:internal/test_runner/test:911:18),
+    expected: undefined,
+    operator: 'doesNotThrow',
+    diff: 'simple'
+  }
+
+test at test/inject.test.mjs:320:1
+✖ I4a fail-open：stat 抛 / exists 抛 / 目录路径 ⇒ 都不抛且仍给出结论 (10.927291ms)
+  AssertionError [ERR_ASSERTION]: Got unwanted exception.
+  Actual message: "stat 炸"
+      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:324:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: Error: stat 炸
+        at Object.statSync (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:323:139)
+        at loadSnapshot (file:///storage/emulated/0/deepseek/dsh-agent-memory/lib/store.js:157:22)
+        at buildInjectionIndex (file:///storage/emulated/0/deepseek/dsh-agent-memory/lib/inject.js:227:26)
+        at file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:324:29
+        at getActual (node:assert:611:5)
+        at strict.doesNotThrow (node:assert:779:32)
+        at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:324:10)
+        at Test.runInAsyncScope (node:async_hooks:227:14)
+        at Test.run (node:internal/test_runner/test:1325:25)
+        at Test.processPendingSubtests (node:internal/test_runner/test:911:18),
+    expected: undefined,
+    operator: 'doesNotThrow',
+    diff: 'simple'
+  }

@@ -1,11 +1,14 @@
 /**
- * dsh-agent-memory — 面向 agent 的记忆层（I1 地基版本）。
+ * dsh-agent-memory — 面向 agent 的记忆层（I1 地基 + I2 分诊 + I4a 稳定索引注入）。
  *
  * 设计取舍：
- *  - **只做工具面**：不做每轮自动注入、不注册 systemPrompt、不引 embedding、零运行时依赖；
- *  - **窄**：恰好 4 个工具（remember / recall / expand / prune），分层披露 L1 索引与 L2 正文，
- *    recall 绝不返回 body（省 token，也逼模型显式 expand）；
+ *  - **只做工具面 + 一行稳定索引**：工具面仍是 4 个（remember / recall / expand / prune）；
+ *    I4a 额外往 systemPrompt 的**尾部动态块**（runtime context，落点是本轮消息列表尾部的一条 user 消息）
+ *    注入**一行**与查询无关、低频变化的记忆索引（条数 + 词频锚点 + 工具指路），见 src/inject.ts；
+ *  - **窄**：分层披露 L1 索引与 L2 正文，recall 绝不返回 body（省 token，也逼模型显式 expand）；
  *  - **失败关闭**：写入协议任一不满足即拒收且**不落盘**，并给出可照抄的修复指引；
+ *  - **注入失败则开放（fail-open）**：读库/解析/注册任何异常都只降级成空串，**绝不抛**——
+ *    一个抛异常的注入会毁掉每一步（引擎 assemble() 会跟着抛）；
  *  - **不无限增长**：maxRecords / maxBytes 硬上限 + 按 recency*(1+hits) 淘汰；
  *  - **输出无损 JSON**：返回值过 prune()；`render` 写在 `output` 内部（同级写等于没给）。
  */
@@ -20,11 +23,29 @@ import {
   type MemoryConfig,
 } from './store.js'
 import { cmpId, decay, diversify, absoluteDisp, lexicalScore, matchLevel, rrf, corpusStats, tagCoverage, resolveScoreOptions, resolveTriageOptions, residualPyramid, type MatchLevel } from './pure.js'
+import {
+  INJECTION_CONTEXT_NAME, INJECTION_CONTEXT_ORDER, buildInjectionIndex, createInjectionCache,
+  resolveInjectionOptions,
+} from './inject.js'
 
 export const name = '@dsh-agent/dsh-agent-memory'
 
-/** 只声明必需服务 tools（`ctx.tools` 是属性访问，未 inject 时 cordis 取值直接抛错 ⇒ 引擎启动即死）。 */
-export const inject = ['tools']
+/**
+ * 必需服务：`tools`（4 个工具的注册面）+ `systemPrompt`（I4a 的尾部动态块注册面）。
+ *
+ * 为什么两个都要声明的**事实依据**：cordis 的 `inject` 是**必需依赖**，
+ * fiber 只有在每个名字都解析到实现后才从 INACTIVE 迁出并执行 apply()
+ * （cordis/lib/index.js:1317-1330 `_refresh()`）⇒ 缺 `systemPrompt` 时**整个插件（含 4 个工具）
+ * 都不会 apply**，而不是「只少注入」（这是代价，必须知道）。
+ * 之所以仍敢这么声明：`systemPrompt` 由引擎核心 dsh-base / dsh-app-boot 硬依赖并常驻
+ * （dsh-base/package.json 里就有 `@deepseek-ai/dsh-system-prompt`），dsh-persona 也是同样写法。
+ *
+ * 更保守的替代写法（不采用，但记录在案）：保持 `inject = ['tools']`，改用
+ * `ctx.inject(['systemPrompt'], (scope) => scope.systemPrompt.context({...}))` ——
+ * 这是 dsh-sandbox-policy / dsh-user-approval / dsh-subagent 的官方惯例，
+ * 好处是 systemPrompt 缺失时工具面照样活着。I4a 按本次任务规格采用静态 inject。
+ */
+export const inject = ['tools', 'systemPrompt']
 
 /** recall 的 L1 输出总长硬上限（字符）。 */
 export const RECALL_MAX_CHARS = 2000
@@ -743,4 +764,42 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
       })
     }),
   }))
+
+  // ── I4a：稳定记忆索引注入（systemPrompt 尾部动态块）────────────────────────
+  // 用 **context()**（不是 section()）：section 贡献的是 prompt 正文段，而 context 是
+  // 「有序动态上下文」——引擎把它渲染成 `Current runtime context...` 快照，交给
+  // RuntimeContextProjection.project() 变成**本轮消息列表尾部的一条 user 消息**，
+  // 且文本与上一份相同就一条消息都不发（store 里的 project() 去重）。这正是我们要的「尾部块」。
+  //
+  // 关掉时**连注册都不做**（不是「注册了但返回空串」）：引擎的注册是按 scope 增删的，
+  // 不注册 ⇒ contexts 里根本没有这一项 ⇒ 零额外开销、也不可能输出任何字符。
+  //
+  // fail-open 三层：
+  //  1) 只读缓存实例挂在 apply 闭包里（模块级零可变状态，键严格是 {path,size,mtimeMs}）；
+  //  2) buildInjectionIndex() 内部整体 try/catch，catch 里不再抛；
+  //  3) 这里的箭头函数再包一层 try/catch —— 即使将来 2) 被改出异常，也绝不让引擎的 assemble() 炸。
+  // 注册本身也 try/catch：注册失败只意味着「没有注入」，4 个工具照常可用。
+  const injectionCache = createInjectionCache()
+  try {
+    const promptHost = ctx as unknown as {
+      systemPrompt?: { context?: (contribution: unknown) => unknown }
+    }
+    if (promptHost.systemPrompt !== undefined && resolveInjectionOptions(cfg.injection).enabled) {
+      promptHost.systemPrompt.context?.({
+        name: INJECTION_CONTEXT_NAME,
+        order: INJECTION_CONTEXT_ORDER,
+        // text 用函数形式：引擎在每次 assemble() 现算（`entry.text(context)`），
+        // 于是库变了下一轮就跟着变；库不变时因缓存与确定性排序而逐字节相同。
+        text: () => {
+          try {
+            return buildInjectionIndex(cfg, injectionCache).text
+          } catch {
+            return ''
+          }
+        },
+      })
+    }
+  } catch {
+    /* 注册失败不抛：宁可没有注入，也不能让插件加载失败或让 assemble 抛 */
+  }
 }

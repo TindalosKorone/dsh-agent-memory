@@ -1,0 +1,201 @@
+✖ I4a：注册面是 context() 的 {name, order, text}，order 是显式数字且大于 120（尾部） (41.23177ms)
+✖ I4a：注入文本是单行、无 { }、与请求无关（换参数/换缓存实例同字节） (14.286771ms)
+✔ I4a：injection.enabled=false ⇒ 一个 context 都不注册、文本为空串（零字符） (11.893906ms)
+✔ I4a：工具面照旧是 4 个（inject 增加 systemPrompt 不改既有工具契约） (36.496302ms)
+✔ I4a：口径解析有默认值、越界夹到天花板、非法类型回落（解析本身不抛） (0.453489ms)
+✖ I4a：空库 ⇒ 注册成功、给最小占位（记忆 0 条），不抛、不注入垃圾 (4.625989ms)
+✔ I4a：2000 条 + 长标签 ⇒ 注入文本长度 <= maxChars 且带如实省略标记 (183.238698ms)
+✔ I4a：手工改库塞进 300 字符超长标签 ⇒ 仍 <= maxChars（阶梯最后一级硬截断） (7.084063ms)
+✔ I4a：maxChars 极小/为 0 时也绝不超限（装不下标记就给空串） (0.33448ms)
+✔ I4a：锚点排序是确定口径（频次降序 → 码元升序），净化后相同的标签合并计数 (0.410625ms)
+✖ I4a：库不变时连续多次 assemble（多次取文本）逐字节完全相同 (30.729688ms)
+✖ I4a：库内容变了（条数/锚点变）⇒ 文本才跟着变（不是冻结在 boot 时刻） (12.17875ms)
+✖ I4a：缓存键严格是 {path,size,mtimeMs}：命中同值、文件改动后失效重读 (10.631458ms)
+✔ I4a fail-open：读库抛异常 ⇒ 注入空串、绝不抛（注册也成功） (23.860313ms)
+✔ I4a fail-open：stat 抛 / exists 抛 / 目录路径 ⇒ 都不抛且仍给出结论 (20.414479ms)
+✖ I4a fail-open：NDJSON 坏行/空行/非对象行 ⇒ 跳过坏行、不抛、计数只算好行 (17.915625ms)
+✔ I4a fail-open：systemPrompt.context 注册时抛 ⇒ apply 不抛、4 个工具照常注册 (31.919375ms)
+✖ I4a：真引擎 SystemPrompt.context 注册 + assemble：落在 contexts 里、快照含本行、5 次逐字节相同 (61.787812ms)
+✔ I4a：库的硬上限（maxRecords）与注入行里的「上限」一致（不各说各话） (15.91599ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 11
+ℹ fail 8
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 537.830677
+
+✖ failing tests:
+
+test at test/inject.test.mjs:91:1
+✖ I4a：注册面是 context() 的 {name, order, text}，order 是显式数字且大于 120（尾部） (41.23177ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + '记忆 3 条（上限 2000）｜标签锚点：失败关闭 / render / 协议｜细则用 memory_recall t1791503816363-0.7152202433532349'
+  - '记忆 3 条（上限 2000）｜标签锚点：失败关闭 / render / 协议｜细则用 memory_recall'
+  
+      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:100:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.start (node:internal/test_runner/test:1191:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '记忆 3 条（上限 2000）｜标签锚点：失败关闭 / render / 协议｜细则用 memory_recall t1791503816363-0.7152202433532349',
+    expected: '记忆 3 条（上限 2000）｜标签锚点：失败关闭 / render / 协议｜细则用 memory_recall',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/inject.test.mjs:104:1
+✖ I4a：注入文本是单行、无 { }、与请求无关（换参数/换缓存实例同字节） (14.286771ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + '记忆 3 条（上限 2000）｜标签锚点：失败关闭 / render / 协议｜细则用 memory_recall t1791503816382-0.9252323380478561'
+  - '记忆 3 条（上限 2000）｜标签锚点：失败关闭 / render / 协议｜细则用 memory_recall t1791503816383-0.2772225837369535'
+  
+      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:111:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '记忆 3 条（上限 2000）｜标签锚点：失败关闭 / render / 协议｜细则用 memory_recall t1791503816382-0.9252323380478561',
+    expected: '记忆 3 条（上限 2000）｜标签锚点：失败关闭 / render / 协议｜细则用 memory_recall t1791503816383-0.2772225837369535',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/inject.test.mjs:162:1
+✖ I4a：空库 ⇒ 注册成功、给最小占位（记忆 0 条），不抛、不注入垃圾 (4.625989ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + '记忆 0 条（上限 2000）｜细则用 memory_recall t1791503816437-0.7062979861361218'
+  - '记忆 0 条（上限 2000）｜细则用 memory_recall'
+  
+      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:165:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '记忆 0 条（上限 2000）｜细则用 memory_recall t1791503816437-0.7062979861361218',
+    expected: '记忆 0 条（上限 2000）｜细则用 memory_recall',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/inject.test.mjs:230:1
+✖ I4a：库不变时连续多次 assemble（多次取文本）逐字节完全相同 (30.729688ms)
+  AssertionError [ERR_ASSERTION]: 5 次取文本必须逐字节相同，实测 5 种
+  
+  5 !== 1
+  
+      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:240:10)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 5,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/inject.test.mjs:249:1
+✖ I4a：库内容变了（条数/锚点变）⇒ 文本才跟着变（不是冻结在 boot 时刻） (12.17875ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + '记忆 3 条（上限 2000）｜标签锚点：失败关闭 / render / 协议｜细则用 memory_recall t1791503816672-0.6527133171476458'
+  - '记忆 3 条（上限 2000）｜标签锚点：失败关闭 / render / 协议｜细则用 memory_recall'
+  
+      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:252:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '记忆 3 条（上限 2000）｜标签锚点：失败关闭 / render / 协议｜细则用 memory_recall t1791503816672-0.6527133171476458',
+    expected: '记忆 3 条（上限 2000）｜标签锚点：失败关闭 / render / 协议｜细则用 memory_recall',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/inject.test.mjs:260:1
+✖ I4a：缓存键严格是 {path,size,mtimeMs}：命中同值、文件改动后失效重读 (10.631458ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + '记忆 3 条（上限 2000）｜标签锚点：失败关闭 / render / 协议｜细则用 memory_recall t1791503816683-0.25764324364799585'
+  - '记忆 3 条（上限 2000）｜标签锚点：失败关闭 / render / 协议｜细则用 memory_recall t1791503816682-0.7897427378730715'
+  
+      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:272:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '记忆 3 条（上限 2000）｜标签锚点：失败关闭 / render / 协议｜细则用 memory_recall t1791503816683-0.25764324364799585',
+    expected: '记忆 3 条（上限 2000）｜标签锚点：失败关闭 / render / 协议｜细则用 memory_recall t1791503816682-0.7897427378730715',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/inject.test.mjs:332:1
+✖ I4a fail-open：NDJSON 坏行/空行/非对象行 ⇒ 跳过坏行、不抛、计数只算好行 (17.915625ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + '记忆 3 条（上限 2000）｜标签锚点：失败关闭 / render / 协议｜细则用 memory_recall t1791503816745-0.9497974482325529'
+  - '记忆 3 条（上限 2000）｜标签锚点：失败关闭 / render / 协议｜细则用 memory_recall'
+  
+      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:337:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '记忆 3 条（上限 2000）｜标签锚点：失败关闭 / render / 协议｜细则用 memory_recall t1791503816745-0.9497974482325529',
+    expected: '记忆 3 条（上限 2000）｜标签锚点：失败关闭 / render / 协议｜细则用 memory_recall',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/inject.test.mjs:355:1
+✖ I4a：真引擎 SystemPrompt.context 注册 + assemble：落在 contexts 里、快照含本行、5 次逐字节相同 (61.787812ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + '记忆 3 条（上限 2000）｜标签锚点：失败关闭 / render / 协议｜细则用 memory_recall t1791503816840-0.9594722126178499'
+  - '记忆 3 条（上限 2000）｜标签锚点：失败关闭 / render / 协议｜细则用 memory_recall'
+  
+      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:388:12)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '记忆 3 条（上限 2000）｜标签锚点：失败关闭 / render / 协议｜细则用 memory_recall t1791503816840-0.9594722126178499',
+    expected: '记忆 3 条（上限 2000）｜标签锚点：失败关闭 / render / 协议｜细则用 memory_recall',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

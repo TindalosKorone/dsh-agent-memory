@@ -1,0 +1,9 @@
+# 红证 4 的「只摘内层」对照：内层（buildInjectionIndex 的 catch）真抛了，
+# 但外层（apply 注册的 text() 里的 catch）把它兜成空串 ⇒ 引擎 assemble 路径依旧 fail-open。
+# 这就是双层兜底的意义；下面 disable 文件是「两层同时摘掉」的真红。
+
+A) 直接调用 buildInjectionIndex（内层已摘）:
+   抛出: 注入的读故障
+B) 经 apply() 注册的 text()（外层兜住）:
+   返回: "" （未抛）
+   注册成功: true | 注入字符数: 0

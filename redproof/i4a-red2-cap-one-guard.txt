@@ -1,0 +1,96 @@
+# 红证 2 的「只摘一层」对照：只去掉构建阶梯的截断，保留 buildInjectionIndex 里那道
+# 防御性兜底截断（text.slice(0, maxChars)）。结果：长度断言仍然绿（被兜底压住），
+# 红的是「truncated/省略标记」断言 —— 说明这两道闸门相互独立，任一道都在守上限。
+
+✔ I4a：注册面是 context() 的 {name, order, text}，order 是显式数字且大于 120（尾部） (23.654479ms)
+✔ I4a：注入文本是单行、无 { }、与请求无关（换参数/换缓存实例同字节） (11.868281ms)
+✔ I4a：injection.enabled=false ⇒ 一个 context 都不注册、文本为空串（零字符） (10.572813ms)
+✔ I4a：工具面照旧是 4 个（inject 增加 systemPrompt 不改既有工具契约） (24.802552ms)
+✔ I4a：口径解析有默认值、越界夹到天花板、非法类型回落（解析本身不抛） (0.576042ms)
+✔ I4a：空库 ⇒ 注册成功、给最小占位（记忆 0 条），不抛、不注入垃圾 (5.775989ms)
+✖ I4a：2000 条 + 长标签 ⇒ 注入文本长度 <= maxChars 且带如实省略标记 (148.390729ms)
+✖ I4a：手工改库塞进 300 字符超长标签 ⇒ 仍 <= maxChars（阶梯最后一级硬截断） (9.564011ms)
+✖ I4a：maxChars 极小/为 0 时也绝不超限（装不下标记就给空串） (9.550834ms)
+✔ I4a：锚点排序是确定口径（频次降序 → 码元升序），净化后相同的标签合并计数 (0.409531ms)
+✔ I4a：库不变时连续多次 assemble（多次取文本）逐字节完全相同 (40.427657ms)
+✔ I4a：库内容变了（条数/锚点变）⇒ 文本才跟着变（不是冻结在 boot 时刻） (13.493177ms)
+✔ I4a：缓存键严格是 {path,size,mtimeMs}：命中同值、文件改动后失效重读 (15.412135ms)
+✔ I4a fail-open：读库抛异常 ⇒ 注入空串、绝不抛（注册也成功） (21.434062ms)
+✔ I4a fail-open：stat 抛 / exists 抛 / 目录路径 ⇒ 都不抛且仍给出结论 (10.282135ms)
+✔ I4a fail-open：NDJSON 坏行/空行/非对象行 ⇒ 跳过坏行、不抛、计数只算好行 (10.788333ms)
+✔ I4a fail-open：systemPrompt.context 注册时抛 ⇒ apply 不抛、4 个工具照常注册 (19.029323ms)
+✔ I4a：真引擎 SystemPrompt.context 注册 + assemble：落在 contexts 里、快照含本行、5 次逐字节相同 (66.833282ms)
+✔ I4a：库的硬上限（maxRecords）与注入行里的「上限」一致（不各说各话） (13.881563ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 16
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 467.521093
+
+✖ failing tests:
+
+test at test/inject.test.mjs:177:1
+✖ I4a：2000 条 + 长标签 ⇒ 注入文本长度 <= maxChars 且带如实省略标记 (148.390729ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:183:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/inject.test.mjs:194:1
+✖ I4a：手工改库塞进 300 字符超长标签 ⇒ 仍 <= maxChars（阶梯最后一级硬截断） (9.564011ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:199:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/inject.test.mjs:203:1
+✖ I4a：maxChars 极小/为 0 时也绝不超限（装不下标记就给空串） (9.550834ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(planInjectionLine(9, 2000, anchors, 8).text.length <= 8)
+  
+      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:205:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
