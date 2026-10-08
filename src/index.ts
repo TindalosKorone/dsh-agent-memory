@@ -19,7 +19,7 @@ import {
   RecordTooLargeError, StoreChangedExternallyError,
   type MemoryConfig,
 } from './store.js'
-import { cmpId, decay, diversify, lexicalScore, rrf } from './pure.js'
+import { cmpId, decay, diversify, absoluteDisp, lexicalScore, matchLevel, rrf, corpusStats, tagCoverage, resolveScoreOptions, type MatchLevel } from './pure.js'
 
 export const name = '@dsh-agent/dsh-agent-memory'
 
@@ -30,6 +30,11 @@ export const inject = ['tools']
 export const RECALL_MAX_CHARS = 2000
 /** recall 单次取回条数上限。 */
 export const RECALL_LIMIT_MAX = 50
+/**
+ * 候选数 <= 该值时跳过多样性重排（第三方做法：小候选集只重排、拿不到多样性收益、纯添乱）。
+ * 与 pure.ts 的 diversify.minCandidates 对应；召回层显式传 5。
+ */
+export const DIVERSITY_MIN_CANDIDATES = 5
 
 const KIND_ENUM = [...KINDS]
 
@@ -45,9 +50,44 @@ export interface ExpandedRecord {
   hits: number
 }
 
-/** 每条 L1 行：`id | kind | title | tags | score`。**不含 body**。 */
-export function formatL1(rec: MemoryRecord, score: number): string {
-  return `${rec.id} | ${rec.kind} | ${rec.title} | ${rec.tags.join(',')} | ${score.toFixed(4)}`
+/**
+ * 一条 L1 的打分视图（全部是绝对标度上的数值，与候选批次无关）。
+ * 列序固定为 `rel | cov | match | score`，见 formatL1。
+ */
+export interface L1ScoreView {
+  /** 含多样性惩罚的最终展示分 disp(final)；列表按它降序 ⇒ 打印天然单调不增。 */
+  score: number
+  /** 惩罚前的相关度 disp(rel)，与 score 同一绝对标度（所以恒有 score <= rel）。 */
+  rel: number
+  /** VCP 式标签覆盖率（I1.2 仅诊断，不门控）。 */
+  cov: number
+  /** 绝对判定：raw 与 WEAK_THRESHOLD / STRONG_THRESHOLD 比较。 */
+  match: MatchLevel
+}
+
+/** 召回的结构化行（与 lines 一一对应，便于消费方不用解析字符串）。 */
+export interface L1Row {
+  id: string
+  kind: string
+  title: string
+  tags: string[]
+  rel: number
+  cov: number
+  match: MatchLevel
+  score: number
+}
+
+/**
+ * 每条 L1 行：`id | kind | title | tags | rel | cov | match | score`。**不含 body**。
+ *
+ * 约定：
+ *  - **score 恒为最后一个字段**（4 位小数），既有「行尾是分数」的格式契约继续成立；
+ *  - 表头（单一表头行）必须如实说明这四列的含义与绝对标度常数；
+ *  - score = disp(rel × (1 − β·maxSim))，rel = disp(rel)，cov = 覆盖率，match = 绝对判定。
+ */
+export function formatL1(rec: MemoryRecord, view: L1ScoreView): string {
+  return `${rec.id} | ${rec.kind} | ${rec.title} | ${rec.tags.join(',')} | `
+    + `${view.rel.toFixed(4)} | ${view.cov.toFixed(4)} | ${view.match} | ${view.score.toFixed(4)}`
 }
 
 /**
@@ -221,8 +261,12 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
   // ── 工具 2：召回（只给 L1 索引，绝不返回 body）──────────────────────────
   host.tools.register(defineTool({
     name: 'memory_recall',
-    description: '按查询召回记忆索引（L1）。每条一行：id | kind | title | tags | score。'
-      + '**绝不返回 body**：要正文请拿 id 调 memory_expand。score 是词法相关度与新鲜度两路 RRF 融合后按最高分归一化到 0..1 的相对分。'
+    description: '按查询召回记忆索引（L1）。每条一行：'
+      + 'id | kind | title | tags | rel | cov | match | score。'
+      + '**绝不返回 body**：要正文请拿 id 调 memory_expand。'
+      + 'score 是含多样性惩罚的最终分（按它降序，绝对标度，不随批次归一化）；rel 是惩罚前相关度；'
+      + 'cov 是标签覆盖率（仅诊断）；match 是绝对判定 none/weak/strong（由 BM25 原始分与绝对阈值比较得出）。'
+      + '与库无关的查询不会拿到满分：无证据候选 rel/score 均为 0.0000、match=none（只奖不罚，不整批否决）。'
       + `总输出超过 ${RECALL_MAX_CHARS} 字符会截断并如实说明。`,
     parameters: {
       query: { type: 'string', required: true, description: '查询串（中文/英文均可；空串表示只按新鲜度排）' },
@@ -241,7 +285,32 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
           matched: { type: 'integer', required: true },
           shown: { type: 'integer', required: true },
           truncated: { type: 'boolean', required: true },
+          /** 绝对标度常数与阈值：如实回报本次使用的口径（不随批次变化）。 */
+          scaleA: { type: 'number', required: true },
+          scaleB: { type: 'number', required: true },
+          weakThreshold: { type: 'number', required: true },
+          strongThreshold: { type: 'number', required: true },
+          diversityBeta: { type: 'number', required: true },
+          diversityApplied: { type: 'boolean', required: true },
           lines: { type: 'array', items: { type: 'string' }, required: true },
+          rows: {
+            type: 'array',
+            required: true,
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                id: { type: 'string', required: true },
+                kind: { type: 'string', required: true },
+                title: { type: 'string', required: true },
+                tags: { type: 'array', items: { type: 'string' }, required: true },
+                rel: { type: 'number', required: true },
+                cov: { type: 'number', required: true },
+                match: { type: 'string', required: true },
+                score: { type: 'number', required: true },
+              },
+            },
+          },
           text: { type: 'string', required: true },
         },
       },
@@ -255,10 +324,18 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
 
       const records = loadRecords(cfg)
       const now = nowMs(cfg)
+      // 打分口径：模块级绝对常数（可经 cfg.score 覆盖），**没有任何批次相关量**。
+      const scoreCfg = resolveScoreOptions(cfg.score)
+      // 语料统计（N / avgdl / df）每次调用现算：第三方明确记录过「模块级可变全局与并发不兼容」。
+      const stats = corpusStats(records)
+
+      // 相关度主分：BM25（字段内部各自统计）+ 字段权重，落在 0..1 绝对标度。
+      const relById = new Map<string, number>()
+      for (const r of records) relById.set(r.id, lexicalScore(query, r, stats))
 
       // 路 1：词法相关度（只保留正分）
       const lexical = records
-        .map((r) => ({ id: r.id, s: lexicalScore(query, r) }))
+        .map((r) => ({ id: r.id, s: relById.get(r.id) ?? 0 }))
         .filter((x) => x.s > 0)
         .sort((a, b) => (b.s - a.s) || cmpId(a.id, b.id))
         .map((x) => x.id)
@@ -270,20 +347,58 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
 
       const fused = rrf([lexical, freshness], { k: 60, alpha: 0.6 })
       const byId = new Map(records.map((r) => [r.id, r]))
-      const top = fused.length > 0 ? fused[0]?.score ?? 0 : 0
-      const candidates = fused
-        .map((e) => ({ id: e.id, score: top > 0 ? e.score / top : 0, tags: byId.get(e.id)?.tags ?? [] }))
-      const picked = diversify(candidates, { lambda: 0.7, limit })
+
+      // 候选：排序层用原始相关度 rel 与融合秩 rank；展示层再用绝对映射 disp（两层解耦）。
+      // 只奖不罚：无任何词法证据的候选 rel 就是 0，不做统一扣分、也不整批否决。
+      const candidates = fused.map((e, idx) => {
+        const rec = byId.get(e.id)
+        const tags = Array.isArray(rec?.tags) ? (rec?.tags ?? []) : []
+        return {
+          id: e.id,
+          score: relById.get(e.id) ?? 0,
+          tags,
+          rank: idx,
+          cov: tagCoverage(query, tags, stats),
+        }
+      })
+
+      // 候选 <= 5 时跳过多样性（小候选集拿不到多样性收益，纯添乱）。
+      const beta = candidates.length <= DIVERSITY_MIN_CANDIDATES ? 0 : scoreCfg.beta
+      // 多样性乘进同一个分数：final = rel × (1 − β·maxSim)；列表按 final 降序 ⇒ 打印天然单调。
+      const picked = diversify(candidates, { beta, limit })
 
       const lines: string[] = []
+      const rows: L1Row[] = []
       for (const item of picked) {
         const rec = byId.get(item.id)
         if (rec === undefined) continue
-        lines.push(formatL1(rec, item.score))
+        const raw = item.score
+        const view: L1ScoreView = {
+          score: absoluteDisp(item.final, scoreCfg.scaleA, scoreCfg.scaleB),
+          rel: absoluteDisp(raw, scoreCfg.scaleA, scoreCfg.scaleB),
+          cov: item.cov,
+          match: matchLevel(raw, scoreCfg.weak, scoreCfg.strong),
+        }
+        lines.push(formatL1(rec, view))
+        rows.push({
+          id: rec.id,
+          kind: rec.kind,
+          title: rec.title,
+          tags: [...rec.tags],
+          rel: view.rel,
+          cov: view.cov,
+          match: view.match,
+          score: view.score,
+        })
       }
 
+      // 表头必须如实说明四列含义与绝对标度（单行：recall 用例按 split('\n') 切片核对行）。
       const header = `记忆召回（L1 索引，不含正文）：query=${JSON.stringify(query)} | 库内 ${records.length} 条 | `
-        + `融合候选 ${fused.length} 条 | 本次显示 ${lines.length} 条（limit=${limit}）`
+        + `融合候选 ${fused.length} 条 | 本次显示 ${lines.length} 条（limit=${limit}）| `
+        + '列序：id | kind | title | tags | rel(惩罚前相关度) | cov(标签覆盖率,仅诊断) | match(绝对判定) | score(含多样性惩罚的最终分,按此降序) | '
+        + `绝对标度 disp=clip((raw-${scoreCfg.scaleA})/(${scoreCfg.scaleB}-${scoreCfg.scaleA}))，常数不随批次变化；`
+        + `阈值 match：raw>=${scoreCfg.weak} 为 weak、>=${scoreCfg.strong} 为 strong，无证据为 none（不扣分）；`
+        + `多样性 beta=${beta}${beta === 0 ? '（候选<=5，已跳过）' : ''}`
       const fitted = fitLines(header, lines, RECALL_MAX_CHARS)
       const text = records.length === 0
         ? `${header}\n(记忆库为空：请先用 memory_remember 写入)`
@@ -298,7 +413,15 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
         matched: fused.length,
         shown: fitted.lines.length,
         truncated: fitted.truncated,
+        scaleA: scoreCfg.scaleA,
+        scaleB: scoreCfg.scaleB,
+        weakThreshold: scoreCfg.weak,
+        strongThreshold: scoreCfg.strong,
+        diversityBeta: beta,
+        diversityApplied: beta > 0,
         lines: fitted.lines,
+        // rows 与真正打印出来的 lines 一一对应（截断时同步裁剪，不给出没打印的行）。
+        rows: rows.slice(0, fitted.lines.length),
         text,
       })
     },

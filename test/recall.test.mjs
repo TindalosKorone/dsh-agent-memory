@@ -1,7 +1,15 @@
 // 用例 5：memory_recall 是 L1 —— 任何情况下都不得泄漏 body；正文只能经 memory_expand（L2）取回。
+// 另附 I1.2 打分口径的三条红证（判红点就写在用例名里）：
+//  A) 无关查询不得是满分（批内归一化会把它打成 1.0000）
+//  B) 短而相关必须赢过长而无关（关掉 BM25 的 b 就反超）
+//  C) 候选 <= 5 且 limit >= 候选数时，打印的 score 序列必须单调不增（多样性不并入分数就倒挂）
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { freshHome, tools } from './helpers.mjs'
+
+const SPLIT = ' | '
+const scoreOfLine = (line) => Number(line.split(SPLIT).at(-1))
+const idOfLine = (line) => line.split(SPLIT)[0]
 
 const SENTINEL = (i) => `BODYONLY-SENTINEL-${i}-zzq`
 
@@ -99,4 +107,120 @@ test('memory_recall 的 limit 参数被夹到 1..50', async () => {
   assert.equal((await recall.execute({ query: 'x', limit: 0 })).limit, 1)
   assert.equal((await recall.execute({ query: 'x', limit: 9999 })).limit, 50)
   assert.equal((await recall.execute({ query: 'x' })).limit, 5)
+})
+
+// ── I1.2 打分口径三条红证 ────────────────────────────────────────────────────
+
+test('打分红证 1（判红点）：无关查询不得是满分 ⇒ Top1 match !== strong 且 disp < 0.5', async () => {
+  const home = freshHome('recall-unrelated')
+  const defs = tools()
+  const remember = defs.get('memory_remember')
+  const recall = defs.get('memory_recall')
+
+  for (const [title, body] of [
+    ['dark theme css variables', 'the dark theme uses css variables'],
+    ['index rebuild steps', 'rebuild the search index nightly'],
+  ]) {
+    const w = await remember.execute({ kind: 'fact', title, body, tags: ['ui', 'ops'], source: 'test:recall' })
+    assert.equal(w.ok, true)
+  }
+
+  // 与库完全无关的查询（库内全是 ASCII，查询是中文）
+  const r = await recall.execute({ query: '今天天气怎么样', limit: 5 })
+  assert.equal(r.ok, true)
+  assert.ok(r.rows.length > 0, '无关查询也必须如实返回候选：不得整批否决、不得返回空')
+
+  const top = r.rows[0]
+  assert.notEqual(top.match, 'strong', `Top1 不得判成 strong：${JSON.stringify(top)}`)
+  assert.ok(top.score < 0.5, `Top1 展示分必须 < 0.5，实际 ${top.score}`)
+  assert.equal(top.rel, 0, '无任何证据 ⇒ 相关度为 0（只奖不罚，不统一扣分）')
+
+  // 打印列（最后一列）必须和结构化行一致 —— 判红（换回批内归一化）时这里会变成 1.0000
+  const printed = scoreOfLine(r.lines[0])
+  assert.ok(printed < 0.5, `打印分不得是 1.0000，实际 ${printed}`)
+  assert.equal(printed, 0)
+  assert.equal(r.diversityApplied, false)
+})
+
+test('打分红证 2（判红点）：短而相关必须赢过长而无关（BM25 长度归一）', async () => {
+  const home = freshHome('recall-length')
+  const defs = tools()
+  const remember = defs.get('memory_remember')
+  const recall = defs.get('memory_recall')
+
+  // 8 条短填充，把 body 的 avgdl 拉回正常量级（否则长文档自己就能抬高 avgdl）
+  const filler = 'lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor '
+  for (let i = 0; i < 8; i += 1) {
+    const w = await remember.execute({
+      kind: 'fact', title: `filler note number ${i}`, body: `plain filler text number ${i} with noise`,
+      tags: ['filler'], source: 'test:recall',
+    })
+    assert.equal(w.ok, true)
+  }
+  // 长而噪声：约 3000 字，把查询词反复堆了 5 次（词频高、内容无关）
+  const longBody = filler.repeat(40) + ' zetaword zetaword zetaword zetaword zetaword'
+  assert.ok(longBody.length >= 3000, `长文档必须 >= 3000 字，实际 ${longBody.length}`)
+  const long = await remember.execute({
+    kind: 'fact', title: 'long noise document', body: longBody, tags: ['noise'], source: 'test:recall',
+  })
+  // 短而相关：正文只有一个词元，就是查询词
+  const short = await remember.execute({
+    kind: 'fact', title: 'short focused note', body: 'zetaword', tags: ['zeta'], source: 'test:recall',
+  })
+  assert.equal(long.ok, true)
+  assert.equal(short.ok, true)
+
+  const r = await recall.execute({ query: 'zetaword', limit: 50 })
+  const ids = r.rows.map((row) => row.id)
+  assert.ok(ids.includes(short.id) && ids.includes(long.id), `两条都必须在候选里：${ids.join(',')}`)
+  // 失败信息给可读名次（红证时必须一眼看出是谁反超了谁）
+  const order = r.rows
+    .map((row) => (row.id === short.id ? 'SHORT-RELEVANT' : row.id === long.id ? 'LONG-NOISE' : 'other'))
+    .join(' > ')
+  assert.ok(
+    ids.indexOf(short.id) < ids.indexOf(long.id),
+    `短而相关必须排在长而噪声之前（判红点：把 BM25 的 b 设为 0 后长的那条会反超）：${order}`,
+  )
+  const printedIds = r.lines.map(idOfLine)
+  assert.ok(printedIds.indexOf(short.id) < printedIds.indexOf(long.id), '打印顺序必须一致')
+
+  // 只奖不罚：长噪声只是被长度归一稀释，不是被清零
+  const longRow = r.rows.find((row) => row.id === long.id)
+  assert.ok(longRow.rel > 0, '长文档应保留非零相关度（只稀释、不清零）')
+})
+
+test('打分红证 3（判红点）：候选 <= 5 时打印的 score 序列单调不增', async () => {
+  const home = freshHome('recall-monotone')
+  const defs = tools()
+  const remember = defs.get('memory_remember')
+  const recall = defs.get('memory_recall')
+
+  const pad = (n) => Array.from({ length: n }, (_, i) => `pad${i}`).join(' ')
+  // 3 条候选（<= 5）：A 命中 title+body、B/C 只命中 body（B 与 A 同标签、C 不同标签）
+  const seeds = [
+    { title: 'zetaword note a', body: `zetaword ${pad(4)}`, tags: ['x'] },
+    { title: 'plain note b', body: `zetaword zetaword zetaword ${pad(3)}`, tags: ['x'] },
+    { title: 'plain note c', body: `zetaword zetaword ${pad(4)}`, tags: ['y'] },
+  ]
+  for (const s of seeds) {
+    const w = await remember.execute({ kind: 'fact', ...s, source: 'test:recall' })
+    assert.equal(w.ok, true)
+  }
+
+  const r = await recall.execute({ query: 'zetaword', limit: 5 })
+  assert.equal(r.rows.length, 3)
+
+  const printed = r.lines.map(scoreOfLine)
+  // 防断言空转：分数必须有区分度，否则「单调」没有说服力
+  assert.ok(new Set(printed).size >= 3, `分数必须有区分度：${printed.join(',')}`)
+  for (let i = 1; i < printed.length; i += 1) {
+    assert.ok(
+      printed[i] <= printed[i - 1],
+      `打印的 score 必须单调不增（判红点：强制开启多样性重排就会倒挂）：${printed.join(',')}`,
+    )
+  }
+  // 单调由两件事共同保证：候选 <= 5 跳过多样性 + 打印的是含惩罚的最终分。
+  assert.equal(r.diversityApplied, false, '候选 <= 5 必须跳过多样性')
+  assert.equal(r.diversityBeta, 0)
+  assert.ok(r.rows[0].rel > r.rows[1].rel && r.rows[1].rel > r.rows[2].rel, '相关度本身应严格递减')
 })

@@ -17,7 +17,7 @@
 import { existsSync as fsExists, mkdirSync as fsMkdir, readFileSync as fsRead, renameSync as fsRename, statSync as fsStat, unlinkSync as fsUnlink, writeFileSync as fsWrite } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { randomUUID } from 'node:crypto'
-import { decay, cmpId } from './pure.js'
+import { decay, cmpId, type ScoreOptions } from './pure.js'
 import { normalizeStoredRecord, type MemoryDraft, type MemoryRecord } from './protocol.js'
 
 export const DEFAULT_HOME = '/data/user/0/com.dsharnessmobile.shell/files/home/.dsh'
@@ -74,6 +74,12 @@ export interface MemoryConfig {
   now?: () => number
   /** id 生成器注入（测试用确定性 id）。 */
   newId?: (now: number) => string
+  /**
+   * 打分口径覆盖（I1.2）：展示分绝对标度常数 SCALE_A / SCALE_B、绝对阈值 WEAK / STRONG、
+   * 多样性惩罚系数 β。缺省一律用 pure.ts 里的模块级默认常数（见 resolveScoreOptions）。
+   * 注意：这里只放常数，**没有任何批次相关量**——展示分禁用批内归一化。
+   */
+  score?: ScoreOptions
 }
 
 function ops(cfg: MemoryConfig | undefined): FsOps {

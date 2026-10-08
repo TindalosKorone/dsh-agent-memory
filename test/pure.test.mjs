@@ -68,16 +68,27 @@ test('用例 4：rrf 同路重复 id 只记首次名次，且空/非法输入不
   assert.deepEqual(rrf([[]]), [])
 })
 
-test('lexicalScore 归一化到 0..1，且 tags 权重 > title > body', () => {
-  // 契约：score = Σ(字段权重 * 该字段命中查询词元数) / (6 * 查询词元数)
-  // ⇒ 单条命中：tags 3/6、title 2/6、body 1/6；只有每个字段都覆盖整个查询才可能到 1。
+test('lexicalScore（I1.2 改契约）：BM25 绝对标度 0..1，字段权重 tags > title > body', () => {
+  // 【本用例断言被有意改过】I1.1 契约是 Σ(字段权重×命中词元数)/(6×查询词元数)（tags 3/6、title 2/6、body 1/6）。
+  // I1.2 起主分改 BM25（第三方审计修 B），契约变为：
+  //   rel = Σ_f w_f·Σ_w idf_f(w)·sat_f(w,D)  ÷  Σ_f w_f·Σ_w idf_f(w)·(k1+1)，w = tags:3 / title:2 / body:1
+  // 单条自语料（N=1，各字段 |D|=avgdl=1 ⇒ sat=1）下：
+  //   命中字段 idf = log(1+(1-1+0.5)/(1+0.5)) = log(4/3)；未命中字段 idf = log(1+(1-0+0.5)/0.5) = log(4)。
   const rec = { title: 'alphaword', body: 'betaword', tags: ['gammaword'] }
+  const idfHit = Math.log(1 + 0.5 / 1.5)
+  const idfMiss = Math.log(1 + 1.5 / 0.5)
+  const weightOf = { tags: 3, title: 2, body: 1 }
+  const expected = (hitField) => {
+    let den = 0
+    for (const f of ['tags', 'title', 'body']) den += 2.2 * weightOf[f] * (f === hitField ? idfHit : idfMiss)
+    return (weightOf[hitField] * idfHit) / den
+  }
   const sTag = lexicalScore('gammaword', rec)
   const sTitle = lexicalScore('alphaword', rec)
   const sBody = lexicalScore('betaword', rec)
-  assert.equal(sTag, 3 / 6)
-  assert.equal(sTitle, 2 / 6)
-  assert.equal(sBody, 1 / 6)
+  assert.ok(Math.abs(sTag - expected('tags')) < 1e-12, `tags 命中分值：${sTag} vs ${expected('tags')}`)
+  assert.ok(Math.abs(sTitle - expected('title')) < 1e-12)
+  assert.ok(Math.abs(sBody - expected('body')) < 1e-12)
   assert.ok(sTag > sTitle, 'tags 权重必须高于 title')
   assert.ok(sTitle > sBody, 'title 权重必须高于 body')
 
@@ -86,9 +97,10 @@ test('lexicalScore 归一化到 0..1，且 tags 权重 > title > body', () => {
   const partial = { title: 'alphaword', body: '无关正文', tags: ['无关标签'] }
   assert.ok(lexicalScore('alphaword gammaword', spread) > lexicalScore('alphaword', partial))
 
-  // 每个字段都覆盖整个查询 ⇒ 恰好满分 1
+  // 每个字段都覆盖整个查询 ⇒ 三字段全命中、tf=1：rel = (3+2+1)·idf·1 / ((3+2+1)·idf·2.2) = 1/2.2
+  // （这正是 SCALE_B=0.45 的取法依据：强正样本映射到 1.0000）
   const perfect = { title: 'alphaword', body: 'alphaword', tags: ['alphaword'] }
-  assert.equal(lexicalScore('alphaword', perfect), 1)
+  assert.ok(Math.abs(lexicalScore('alphaword', perfect) - 1 / 2.2) < 1e-12)
 
   // 全域 0..1 与边界
   const probes = ['gammaword', 'alphaword betaword gammaword', '', '完全不相干的查询词', '深色主题']
