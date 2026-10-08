@@ -1,0 +1,30 @@
+{
+  "name": "@dsh-agent/dsh-agent-memory",
+  "description": "Agent-facing memory layer (increment 1, I1 foundation): four narrow tools (remember/recall/expand/prune) over a human-readable NDJSON store with a fail-closed write protocol, atomic writes, hard caps with score-based eviction, and zero runtime dependencies.",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib"
+  ],
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "build": "node node_modules/typescript/bin/tsc -p .",
+    "test": "node test/protocol.test.mjs && node test/cap.test.mjs && node test/pure.test.mjs && node test/recall.test.mjs && node test/lossless.test.mjs && node test/storage.test.mjs && node test/prune.test.mjs"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "4.0.4",
+    "@deepseek-ai/dsh-tools": "^0.2.0-rc.2"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "4.0.4",
+    "@deepseek-ai/dsh-tools": "0.2.0-rc.2",
+    "@types/node": "^24.0.0",
+    "typescript": "^5.5.0"
+  }
+}

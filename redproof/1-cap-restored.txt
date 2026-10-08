@@ -1,0 +1,12 @@
+✔ store 层：条数上限触发淘汰，淘汰的正是 recency*(1+hits) 最低者 (21.64526ms)
+✔ store 层：字节上限触发淘汰，淘汰后占用不超过 maxBytes (28.927917ms)
+✔ 工具层：环境变量收紧上限后，超限写入被淘汰且返回值如实报数 (154.296615ms)
+✔ 上限参数本身非法时回落到默认值（不会被 0 或负数搞成清库） (20.209166ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 243.844479
