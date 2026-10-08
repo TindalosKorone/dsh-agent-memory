@@ -51,13 +51,16 @@ export interface ExpandedRecord {
 }
 
 /**
- * 一条 L1 的打分视图（全部是绝对标度上的数值，与候选批次无关）。
+ * 一条 L1 的打分视图。**注意是两种标度，表头必须写清**：
+ *  - `rel`   = BM25 **原始相关度**（绝对标度，不随批次归一化），`match` 就是拿它与阈值比出来的
+ *              ⇒ 读者可用打印的 rel 自行验算 match（I1.3 自证要求）；
+ *  - `score` = `disp(final)` 映射到 0..1 的**展示分**（仅用于排序展示，与 rel 不同标度）。
  * 列序固定为 `rel | cov | match | score`，见 formatL1。
  */
 export interface L1ScoreView {
   /** 含多样性惩罚的最终展示分 disp(final)；列表按它降序 ⇒ 打印天然单调不增。 */
   score: number
-  /** 惩罚前的相关度 disp(rel)，与 score 同一绝对标度（所以恒有 score <= rel）。 */
+  /** 惩罚前的 BM25 原始相关度（**判定 match 所依据的量**；与 score 不同标度）。 */
   rel: number
   /** VCP 式标签覆盖率（I1.2 仅诊断，不门控）。 */
   cov: number
@@ -83,7 +86,7 @@ export interface L1Row {
  * 约定：
  *  - **score 恒为最后一个字段**（4 位小数），既有「行尾是分数」的格式契约继续成立；
  *  - 表头（单一表头行）必须如实说明这四列的含义与绝对标度常数；
- *  - score = disp(rel × (1 − β·maxSim))，rel = disp(rel)，cov = 覆盖率，match = 绝对判定。
+ *  - score = disp(rel × (1 − β·maxSim)) 展示分；rel = **BM25 原始相关度**（match 依据它）；cov = 覆盖率；match = 绝对判定。
  */
 export function formatL1(rec: MemoryRecord, view: L1ScoreView): string {
   return `${rec.id} | ${rec.kind} | ${rec.title} | ${rec.tags.join(',')} | `
@@ -264,8 +267,9 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
     description: '按查询召回记忆索引（L1）。每条一行：'
       + 'id | kind | title | tags | rel | cov | match | score。'
       + '**绝不返回 body**：要正文请拿 id 调 memory_expand。'
-      + 'score 是含多样性惩罚的最终分（按它降序，绝对标度，不随批次归一化）；rel 是惩罚前相关度；'
-      + 'cov 是标签覆盖率（仅诊断）；match 是绝对判定 none/weak/strong（由 BM25 原始分与绝对阈值比较得出）。'
+      + 'score 是含多样性惩罚的最终分（按它降序，映射到 0..1 的展示标度，不随批次归一化）；'
+      + 'rel 是 BM25 原始相关度（**阈值直接作用于它**，可据此自行验算 match）；'
+      + 'cov 是标签覆盖率（仅诊断）；match 是绝对判定 none/weak/strong（由 rel 与绝对阈值比较得出）。'
       + '与库无关的查询不会拿到满分：无证据候选 rel/score 均为 0.0000、match=none（只奖不罚，不整批否决）。'
       + `总输出超过 ${RECALL_MAX_CHARS} 字符会截断并如实说明。`,
     parameters: {
@@ -373,9 +377,13 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
         const rec = byId.get(item.id)
         if (rec === undefined) continue
         const raw = item.score
+        // I1.3 自证修正：`rel` 直接打印**判定所用的同一个量**（BM25 原始分 raw），
+        // 因为 `match` 就是 matchLevel(raw, weak, strong)。上一版把 rel 映射成 disp 再打印，
+        // 阈值却仍作用于 raw ⇒ 读者拿打印值复现不出 match（自证断裂，实测 rel=0.3440 却判 weak）。
+        // `score` 保留为映射到 0..1 的展示分 disp(final)，与 rel 不同标度，表头已如实说明。
         const view: L1ScoreView = {
           score: absoluteDisp(item.final, scoreCfg.scaleA, scoreCfg.scaleB),
-          rel: absoluteDisp(raw, scoreCfg.scaleA, scoreCfg.scaleB),
+          rel: raw,
           cov: item.cov,
           match: matchLevel(raw, scoreCfg.weak, scoreCfg.strong),
         }
@@ -392,12 +400,13 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
         })
       }
 
-      // 表头必须如实说明四列含义与绝对标度（单行：recall 用例按 split('\n') 切片核对行）。
+      // 表头必须如实说明四列含义与两种标度（单行：recall 用例按 split('\n') 切片核对行）。
       const header = `记忆召回（L1 索引，不含正文）：query=${JSON.stringify(query)} | 库内 ${records.length} 条 | `
         + `融合候选 ${fused.length} 条 | 本次显示 ${lines.length} 条（limit=${limit}）| `
         + '列序：id | kind | title | tags | rel(惩罚前相关度) | cov(标签覆盖率,仅诊断) | match(绝对判定) | score(含多样性惩罚的最终分,按此降序) | '
-        + `绝对标度 disp=clip((raw-${scoreCfg.scaleA})/(${scoreCfg.scaleB}-${scoreCfg.scaleA}))，常数不随批次变化；`
-        + `阈值 match：raw>=${scoreCfg.weak} 为 weak、>=${scoreCfg.strong} 为 strong，无证据为 none（不扣分）；`
+        + 'rel=BM25 原始相关度（绝对标度，不随批次归一化）——阈值直接作用于它，可据此自行验算 match；'
+        + `score=disp(final)=clip((final-${scoreCfg.scaleA})/(${scoreCfg.scaleB}-${scoreCfg.scaleA})) 映射到 0..1 的展示分（与 rel 不同标度，仅用于排序展示）；`
+        + `阈值 match：rel>=${scoreCfg.weak} 为 weak、>=${scoreCfg.strong} 为 strong，无证据为 none（不扣分）；`
         + `多样性 beta=${beta}${beta === 0 ? '（候选<=5，已跳过）' : ''}`
       const fitted = fitLines(header, lines, RECALL_MAX_CHARS)
       const text = records.length === 0

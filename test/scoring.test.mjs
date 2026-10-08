@@ -244,7 +244,11 @@ test('工具层：Top1 不再恒为 1.0000（绝对映射），且 rel/score 同
   assert.equal(r.rows[0].id, w.id)
   assert.ok(r.rows[0].score < 0.5, `Top1 不得是满分：${r.rows[0].score}`)
   assert.ok(r.rows[0].score < 1)
-  assert.equal(r.rows[0].score, r.rows[0].rel, '候选 <= 5 跳过多样性 ⇒ score === rel')
+  // I1.3 自证修正：rel 是判定所依据的 BM25 原始分，score 是映射到 0..1 的展示分（两种标度，
+  // 表头已声明）。可验算的是「用打印的 rel 复现 match」，而不是两列相等。
+  assert.equal(r.rows[0].match, matchLevel(r.rows[0].rel, r.weakThreshold, r.strongThreshold),
+    '用打印的 rel 与表头阈值必须能复现 match')
+  assert.ok(r.rows[0].score >= 0 && r.rows[0].score <= 1, `score 必须落在 0..1：${r.rows[0].score}`)
   assert.equal(r.scaleA, SCALE_A)
   assert.equal(r.scaleB, SCALE_B)
   assert.equal(r.weakThreshold, WEAK_THRESHOLD)
@@ -285,7 +289,11 @@ test('工具层：候选 > 5 才启用多样性；cov 作为诊断列不门控�
   assert.equal(scoreOfLine(r.lines[0]), Number(r.rows[0].score.toFixed(4)))
   for (const row of r.rows) {
     assert.ok(row.cov >= 0 && row.cov <= 1, `cov 必须落在 0..1：${row.cov}`)
-    assert.ok(row.score <= row.rel + 1e-12, 'score 含惩罚 ⇒ 恒 <= rel')
+    // I1.3：rel 与 score 是两种标度（rel=BM25 原始分，score=disp(final)），不再有 score<=rel
+    // 的跨标度关系；改为断言「match 可由打印的 rel 复现」。
+    assert.equal(row.match, matchLevel(row.rel, r.weakThreshold, r.strongThreshold),
+      '用打印的 rel 与表头阈值必须能复现 match')
+    assert.ok(row.score >= 0 && row.score <= 1, `score 必须落在 0..1：${row.score}`)
   }
 
   // 覆盖率极低（只命中一个外围标签）也不得整批否决 / 返回空
@@ -294,4 +302,64 @@ test('工具层：候选 > 5 才启用多样性；cov 作为诊断列不门控�
   assert.ok(low.rows.length > 0, '低覆盖不得返回空（第三方明确回退过这种门控）')
   assert.ok(low.rows.every((row) => row.cov >= 0 && row.cov <= 1))
   assert.ok(low.rows.some((row) => row.match === 'none' || row.match === 'weak'), '低覆盖不该被抬成 strong')
+})
+
+// ── I1.3：自证（打印的数必须能自行复现判定）────────────────────────────────
+
+test('I1.3 自证：每一行都可用打印的 rel 与表头阈值复现 match（两种标度不混用）', async () => {
+  freshHome('scoring-selfproof')
+  const defs = tools()
+  const remember = defs.get('memory_remember')
+  const recall = defs.get('memory_recall')
+
+  // 造出多种判定的样本。**关键靶子**：正文里恰好 3 个查询词元的记录，
+  // 实测 raw≈0.0285（判 none），而 disp(raw)≈0.0633（会被判 weak）——
+  // 只有落在「两种基准判定分歧」区间内的行，才能让本用例真正有区分力。
+  await remember.execute({
+    kind: 'fact', title: 'alpha beta gamma delta', body: 'alpha beta gamma delta epsilon',
+    tags: ['alpha', 'beta'], source: 'test:selfproof',
+  })
+  await remember.execute({
+    kind: 'fact', title: 'zeta appears once', body: 'unrelated filler words here',
+    tags: ['zeta'], source: 'test:selfproof',
+  })
+  await remember.execute({
+    kind: 'fact', title: 'omega standalone note', body: 'nothing shared at all',
+    tags: ['omega'], source: 'test:selfproof',
+  })
+  await remember.execute({
+    kind: 'fact', title: 'band probe note',
+    body: Array.from({ length: 20 }, (_, i) => (i < 3 ? 'bandword' : `filler${i}`)).join(' '),
+    tags: ['band'], source: 'test:selfproof',
+  })
+
+  let bandRows = 0
+  for (const query of ['alpha beta', 'zeta', 'bandword', 'nonexistent-token-xyz']) {
+    const r = await recall.execute({ query, limit: 3 })
+    assert.equal(r.ok, true)
+    for (const row of r.rows) {
+      // 判据：打印的 rel（= BM25 原始分）与打印的阈值 must 复现打印的 match。
+      assert.equal(row.match, matchLevel(row.rel, r.weakThreshold, r.strongThreshold),
+        `query=${query} 行 ${row.id}：rel=${row.rel} 阈值=${r.weakThreshold}/${r.strongThreshold} 却判 ${row.match}`)
+      // rel 是绝对标度、不随批次归一化 ⇒ 无关查询不得出现满分。
+      assert.ok(Number.isFinite(row.rel) && row.rel >= 0, `rel 必须是非负有限数：${row.rel}`)
+      // score 是映射后的展示分，必须落在 0..1。
+      assert.ok(row.score >= 0 && row.score <= 1, `score 必须落在 0..1：${row.score}`)
+      // 记录「两种基准判定分歧」的行数——它是本用例区分力的来源。
+      const relAsDisp = absoluteDisp(row.rel, r.scaleA, r.scaleB)
+      if (matchLevel(relAsDisp, r.weakThreshold, r.strongThreshold) !== row.match) bandRows += 1
+    }
+  }
+
+  // 夹具自检：若一条分歧行都没有，本用例对「把 rel 换成 disp」这种回归**没有区分力**
+  //（这正是第一版红证没变红的原因：夹具全落在两种基准判定相同的区间）。
+  assert.ok(bandRows > 0,
+    `夹具必须覆盖「两种基准判定分歧」的区间，否则本判据是死的（实测 bandRows=${bandRows}）`)
+
+  // 无关查询：Top1 必须不是 strong（且不应是 1.0 满分）。
+  const r0 = await recall.execute({ query: 'nonexistent-token-xyz', limit: 3 })
+  if (r0.rows.length > 0) {
+    assert.notEqual(r0.rows[0].match, 'strong', '无关查询不得判 strong')
+    assert.ok(r0.rows[0].rel < r0.strongThreshold, `无关查询的 rel 必须低于 strong 阈值：${r0.rows[0].rel}`)
+  }
 })
