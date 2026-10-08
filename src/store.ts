@@ -17,7 +17,7 @@
 import { existsSync as fsExists, mkdirSync as fsMkdir, readFileSync as fsRead, renameSync as fsRename, statSync as fsStat, unlinkSync as fsUnlink, writeFileSync as fsWrite } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { randomUUID } from 'node:crypto'
-import { decay, cmpId, type ScoreOptions } from './pure.js'
+import { decay, cmpId, type ScoreOptions, type TriageOptions } from './pure.js'
 import { normalizeStoredRecord, type MemoryDraft, type MemoryRecord } from './protocol.js'
 
 export const DEFAULT_HOME = '/data/user/0/com.dsharnessmobile.shell/files/home/.dsh'
@@ -80,6 +80,15 @@ export interface MemoryConfig {
    * 注意：这里只放常数，**没有任何批次相关量**——展示分禁用批内归一化。
    */
   score?: ScoreOptions
+  /**
+   * 分诊口径覆盖（I2）：noveltyThreshold（默认 0.5，novelty >= 它 ⇒ 扩检索）、
+   * activationThreshold（默认 0.05，cov_max < 它 ⇒ lowConfidence，**只如实报告不否决**）、
+   * maxBasis（默认 6）、maxLayers（默认 3）、residualStop（默认 0.1）。
+   * 缺省一律用 pure.ts 的模块级默认常数（见 resolveTriageOptions）。
+   * 注意：这些常数只决定「取多少候选」与「是否如实标记低置信」，
+   * **不参与候选展示分**（展示分仍只走绝对区间映射，绝不批内归一化）。
+   */
+  triage?: TriageOptions
 }
 
 function ops(cfg: MemoryConfig | undefined): FsOps {

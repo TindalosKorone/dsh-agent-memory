@@ -1,0 +1,14 @@
+# I2 完成后全绿基线（node test/triage.test.mjs；本机 node --test 坏了，逐文件直跑）
+# 时间：2026-10-09T07:24:24+08:00
+✔ I2 自证：表头打印的 novelty/kBase/cov_max 与阈值必须能复算 expanded/lowConfidence（单行表头） (220.471302ms)
+✔ 工具层：分诊口径可配置（maxLayers=1 让「三层才解释完」的查询变成扩检索，且行数真的变多） (165.043281ms)
+✔ 边界：空库/空查询/单条库的分诊字段全部有限（不许 NaN/Infinity/undefined 泄漏） (39.144479ms)
+✔ I2 无损：低置信路径不得整批否决（行数、match、score 都照常给出） (159.65125ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1198.185155

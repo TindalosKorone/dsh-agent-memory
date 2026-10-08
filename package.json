@@ -1,6 +1,6 @@
 {
   "name": "@dsh-agent/dsh-agent-memory",
-  "description": "Agent-facing memory layer (increment 1, I1 foundation + I1.2 scoring calibration): four narrow tools (remember/recall/expand/prune) over a human-readable NDJSON store with a fail-closed write protocol, atomic writes, hard caps with score-based eviction, and zero runtime dependencies. I1.2 scoring: BM25 with per-field statistics, absolute-scale display (no batch normalization), VCP-style tag coverage as a diagnostic column, and MMR diversity multiplied into the printed score.",
+  "description": "Agent-facing memory layer (increment 1, I1 foundation + I1.2 scoring calibration + I2 residual-pyramid triage): four narrow tools (remember/recall/expand/prune) over a human-readable NDJSON store with a fail-closed write protocol, atomic writes, hard caps with score-based eviction, and zero runtime dependencies. I1.2 scoring: BM25 with per-field statistics, absolute-scale display (no batch normalization), VCP-style tag coverage as a diagnostic column, and MMR diversity multiplied into the printed score. I2 triage: a Gram-Schmidt residual pyramid over the tag-idf lexical space (novelty = 0.7*residualRatio + 0.3*directionConsistency) decides whether recall widens kBase -> kExpanded; all pyramid state is request-local (no module-level cache), and low confidence is only reported, never used to veto.",
   "version": "0.1.0",
   "type": "module",
   "main": "lib/index.js",
@@ -15,7 +15,8 @@
   "private": true,
   "scripts": {
     "build": "node node_modules/typescript/bin/tsc -p .",
-    "test": "node test/protocol.test.mjs && node test/cap.test.mjs && node test/pure.test.mjs && node test/scoring.test.mjs && node test/recall.test.mjs && node test/lossless.test.mjs && node test/storage.test.mjs && node test/prune.test.mjs"
+    "test": "node test/protocol.test.mjs && node test/cap.test.mjs && node test/pure.test.mjs && node test/scoring.test.mjs && node test/recall.test.mjs && node test/triage.test.mjs && node test/lossless.test.mjs && node test/storage.test.mjs && node test/prune.test.mjs",
+    "calibrate": "node scripts/calibrate.mjs"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "4.0.4",

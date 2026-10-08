@@ -1,0 +1,31 @@
+# 红证 3 关机制：src/pure.ts 把金字塔基提到模块级并在两次调用间复用（判红点：请求级隔离）
+# 补丁：residualPyramid 里新增模块级 PYRAMID_SHARED_BASIS，基从它取（跨请求累积）
+# 时间：2026-10-09T07:24:54+08:00
+✔ Gram-Schmidt：正交归一、跳过线性相关向量、保持张成（判红点：只归一化不正交化，两两内积就不为 0） (4.343125ms)
+✖ 能量守恒：explainedRatio 由独立的 gramSchmidt 复算得出，且 explained+residual=1（判红点：跳过正交化就对不上） (2.923073ms)
+✔ 投影熵 → logicalDepth：K=0/1 边界不出 NaN，均摊 → 0、集中 → 1（区分力自检：两者必须不同） (0.450573ms)
+✖ novelty 定义：0.7×残差 + 0.3×方向一致性；方向一致性的三个边界都可判（判红点：字面 1−|cos(R,u1)| 恒为 1） (15.592188ms)
+✔ 分诊口径解析：非法输入回落默认常数，层数/基规模被夹紧（不引入批次相关量） (0.391511ms)
+✔ 红证 1（判红点：把 expanded 强制为 false ⇒ 本条变红）：与库几乎无重合的查询必须扩检索且不返回空 (164.163021ms)
+✖ 红证 2（判红点：把 expanded 强制为 true ⇒ 本条变红）：与某条记录高度重合的查询不得扩检索 (56.581459ms)
+✖ 红证 3（判红点：把金字塔状态提到模块级并在两次调用间复用 ⇒ 本条变红）：请求级隔离 (343.374271ms)
+✔ I2 自证：表头打印的 novelty/kBase/cov_max 与阈值必须能复算 expanded/lowConfidence（单行表头） (255.628438ms)
+✖ 工具层：分诊口径可配置（maxLayers=1 让「三层才解释完」的查询变成扩检索，且行数真的变多） (109.989011ms)
+✖ 边界：空库/空查询/单条库的分诊字段全部有限（不许 NaN/Infinity/undefined 泄漏） (43.883542ms)
+✔ I2 无损：低置信路径不得整批否决（行数、match、score 都照常给出） (122.102448ms)
+ℹ tests 12
+ℹ pass 6
+ℹ fail 6
+✖ failing tests:
+✖ 能量守恒：explainedRatio 由独立的 gramSchmidt 复算得出，且 explained+residual=1（判红点：跳过正交化就对不上） (2.923073ms)
+  AssertionError [ERR_ASSERTION]: basisSize 必须等于正交基规模（query=alpha beta gamma）
+✖ novelty 定义：0.7×残差 + 0.3×方向一致性；方向一致性的三个边界都可判（判红点：字面 1−|cos(R,u1)| 恒为 1） (15.592188ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+✖ 红证 2（判红点：把 expanded 强制为 true ⇒ 本条变红）：与某条记录高度重合的查询不得扩检索 (56.581459ms)
+  AssertionError [ERR_ASSERTION]: 高覆盖查询不得扩检索（判红点：强制 true）
+✖ 红证 3（判红点：把金字塔状态提到模块级并在两次调用间复用 ⇒ 本条变红）：请求级隔离 (343.374271ms)
+  AssertionError [ERR_ASSERTION]: 第二次的分诊字段必须与「单独只跑第二次」逐字段一致（判红点：模块级复用状态就不同）
+✖ 工具层：分诊口径可配置（maxLayers=1 让「三层才解释完」的查询变成扩检索，且行数真的变多） (109.989011ms)
+  AssertionError [ERR_ASSERTION]: 三层解释完 ⇒ explainedRatio=1，实际 0
+✖ 边界：空库/空查询/单条库的分诊字段全部有限（不许 NaN/Infinity/undefined 泄漏） (43.883542ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:

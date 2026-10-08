@@ -19,7 +19,7 @@ import {
   RecordTooLargeError, StoreChangedExternallyError,
   type MemoryConfig,
 } from './store.js'
-import { cmpId, decay, diversify, absoluteDisp, lexicalScore, matchLevel, rrf, corpusStats, tagCoverage, resolveScoreOptions, type MatchLevel } from './pure.js'
+import { cmpId, decay, diversify, absoluteDisp, lexicalScore, matchLevel, rrf, corpusStats, tagCoverage, resolveScoreOptions, resolveTriageOptions, residualPyramid, type MatchLevel } from './pure.js'
 
 export const name = '@dsh-agent/dsh-agent-memory'
 
@@ -271,6 +271,10 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
       + 'rel 是 BM25 原始相关度（**阈值直接作用于它**，可据此自行验算 match）；'
       + 'cov 是标签覆盖率（仅诊断）；match 是绝对判定 none/weak/strong（由 rel 与绝对阈值比较得出）。'
       + '与库无关的查询不会拿到满分：无证据候选 rel/score 均为 0.0000、match=none（只奖不罚，不整批否决）。'
+      + 'I2 分诊：以候选标签向量为基、在标签 idf 词法空间里做 Gram-Schmidt 残差金字塔，'
+      + '得到 novelty（0.7×残差能量比 + 0.3×方向一致性）并据此决定是否扩检索'
+      + '（expanded=true 时把取回条数从 kBase 提到 kUsed），另给 explainedRatio/residualRatio/'
+      + 'basisSize/layers/logicalDepth 与 lowConfidence（低置信只是**如实报告**，绝不返回空、绝不整批否决）。'
       + `总输出超过 ${RECALL_MAX_CHARS} 字符会截断并如实说明。`,
     parameters: {
       query: { type: 'string', required: true, description: '查询串（中文/英文均可；空串表示只按新鲜度排）' },
@@ -296,6 +300,27 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
           strongThreshold: { type: 'number', required: true },
           diversityBeta: { type: 'number', required: true },
           diversityApplied: { type: 'boolean', required: true },
+          /**
+           * I2 分诊（残差金字塔）：全部是本查询自己的结论（请求级隔离，不跨请求复用）。
+           * kBase/kUsed 是条数口径：kUsed = expanded ? min(max(kBase, 2×kBase), 库内条数) : kBase。
+           */
+          expanded: { type: 'boolean', required: true },
+          kBase: { type: 'integer', required: true },
+          kUsed: { type: 'integer', required: true },
+          novelty: { type: 'number', required: true },
+          explainedRatio: { type: 'number', required: true },
+          residualRatio: { type: 'number', required: true },
+          basisSize: { type: 'integer', required: true },
+          layers: { type: 'integer', required: true },
+          logicalDepth: { type: 'number', required: true },
+          lowConfidence: { type: 'boolean', required: true },
+          /**
+           * 口径回显（I1.3 可复算铁律）：没有这三个数，读者拿到的 expanded/lowConfidence 复算不出来。
+           * expanded ⟺ novelty >= noveltyThreshold；lowConfidence ⟺ covMax < activationThreshold。
+           */
+          noveltyThreshold: { type: 'number', required: true },
+          activationThreshold: { type: 'number', required: true },
+          covMax: { type: 'number', required: true },
           lines: { type: 'array', items: { type: 'string' }, required: true },
           rows: {
             type: 'array',
@@ -368,8 +393,34 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
 
       // 候选 <= 5 时跳过多样性（小候选集拿不到多样性收益，纯添乱）。
       const beta = candidates.length <= DIVERSITY_MIN_CANDIDATES ? 0 : scoreCfg.beta
+
+      // ── I2 分诊：残差金字塔（Gram-Schmidt）→ 是否扩检索 ────────────────────
+      // 分诊口径：模块级默认常数（可经 cfg.triage 覆盖），**没有任何批次相关量**。
+      const triageCfg = resolveTriageOptions(cfg.triage)
+      // kBase = 本次本来要取的候选数（= limit）；扩检索预算 = min(2×kBase, 库内条数)
+      // （规格：kExpanded = max(limit, 2×limit) 且**不超过库内条数** —— 库容小于 kBase 时
+      //  kUsed 因此可能小于 kBase，但行为上不会少取候选：候选总数本身就 <= 库容，两种预算
+      //  下 diversify 都只会取到库里全部候选）。
+      const kBase = limit
+      const kExpanded = Math.min(Math.max(kBase, kBase * 2), records.length)
+      // 探测集：按（rel 降序 / 融合秩 / id 决胜）取前 kBase 个 —— 分诊只看「本来就会取的那些候选」。
+      // 全部是本次调用的局部量；**绝不**把基/能量场缓存到模块级（见 pure.ts 顶部隔离红线）。
+      const probe = [...candidates]
+        .sort((a, b) => (b.score - a.score) || (a.rank - b.rank) || cmpId(a.id, b.id))
+        .slice(0, kBase)
+      const triage = residualPyramid(query, probe, stats, triageCfg)
+      const expanded = triage.expanded
+      const kUsed = expanded ? kExpanded : kBase
+
       // 多样性乘进同一个分数：final = rel × (1 − β·maxSim)；列表按 final 降序 ⇒ 打印天然单调。
-      const picked = diversify(candidates, { beta, limit })
+      // 注意 limit 用 kUsed（扩检索时确实多取几条）；展示分仍是绝对映射，不随批次变化。
+      const picked = diversify(candidates, { beta, limit: kUsed })
+
+      // 低置信：cov_max < activationThreshold。**低置信只影响如实报告**：
+      // 不否决任何候选、不返回空（第三方明确回退过这种门控）。
+      let covMax = 0
+      for (const item of picked) if (Number.isFinite(item.cov) && item.cov > covMax) covMax = item.cov
+      const lowConfidence = covMax < triageCfg.activationThreshold
 
       const lines: string[] = []
       const rows: L1Row[] = []
@@ -401,13 +452,22 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
       }
 
       // 表头必须如实说明四列含义与两种标度（单行：recall 用例按 split('\n') 切片核对行）。
+      // I2 追加一段**分诊自证**：novelty 与阈值、kBase/kUsed、explainedRatio/residualRatio、
+      // cov_max 与 activationThreshold 全部打印 ⇒ 读者能用打印的数自行复算 expanded 与 lowConfidence。
       const header = `记忆召回（L1 索引，不含正文）：query=${JSON.stringify(query)} | 库内 ${records.length} 条 | `
         + `融合候选 ${fused.length} 条 | 本次显示 ${lines.length} 条（limit=${limit}）| `
         + '列序：id | kind | title | tags | rel(惩罚前相关度) | cov(标签覆盖率,仅诊断) | match(绝对判定) | score(含多样性惩罚的最终分,按此降序) | '
         + 'rel=BM25 原始相关度（绝对标度，不随批次归一化）——阈值直接作用于它，可据此自行验算 match；'
         + `score=disp(final)=clip((final-${scoreCfg.scaleA})/(${scoreCfg.scaleB}-${scoreCfg.scaleA})) 映射到 0..1 的展示分（与 rel 不同标度，仅用于排序展示）；`
         + `阈值 match：rel>=${scoreCfg.weak} 为 weak、>=${scoreCfg.strong} 为 strong，无证据为 none（不扣分）；`
-        + `多样性 beta=${beta}${beta === 0 ? '（候选<=5，已跳过）' : ''}`
+        + `多样性 beta=${beta}${beta === 0 ? '（候选<=5，已跳过）' : ''} | `
+        + `I2 分诊（词法空间残差金字塔）：novelty=${triage.novelty.toFixed(4)} ${expanded ? '>=' : '<'} 阈值 ${triageCfg.noveltyThreshold} ⇒ expanded=${expanded}；`
+        + `kBase=${kBase} -> kUsed=${kUsed}（分诊判定${expanded ? '扩检索' : '不扩检索'}）；`
+        + `explainedRatio=${triage.explainedRatio.toFixed(4)} + residualRatio=${triage.residualRatio.toFixed(4)} = 1；`
+        + `basisSize=${triage.basisSize} layers=${triage.layers} logicalDepth=${triage.logicalDepth.toFixed(4)}；`
+        + (lowConfidence
+          ? `低置信：cov_max=${covMax.toFixed(4)} < ${triageCfg.activationThreshold}（仅如实报告：不否决任何候选、不返回空）`
+          : `非低置信：cov_max=${covMax.toFixed(4)} >= ${triageCfg.activationThreshold}`)
       const fitted = fitLines(header, lines, RECALL_MAX_CHARS)
       const text = records.length === 0
         ? `${header}\n(记忆库为空：请先用 memory_remember 写入)`
@@ -428,6 +488,21 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
         strongThreshold: scoreCfg.strong,
         diversityBeta: beta,
         diversityApplied: beta > 0,
+        // I2 分诊字段（全部是本次调用的局部结论；rows 之外的返回体，schema 已同步声明）
+        expanded,
+        kBase,
+        kUsed,
+        novelty: triage.novelty,
+        explainedRatio: triage.explainedRatio,
+        residualRatio: triage.residualRatio,
+        basisSize: triage.basisSize,
+        layers: triage.layers,
+        logicalDepth: triage.logicalDepth,
+        lowConfidence,
+        // 口径回显：读者据此可自行复算 expanded 与 lowConfidence（I1.3 可复算铁律的延续）
+        noveltyThreshold: triageCfg.noveltyThreshold,
+        activationThreshold: triageCfg.activationThreshold,
+        covMax,
         lines: fitted.lines,
         // rows 与真正打印出来的 lines 一一对应（截断时同步裁剪，不给出没打印的行）。
         rows: rows.slice(0, fitted.lines.length),

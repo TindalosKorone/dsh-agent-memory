@@ -617,3 +617,353 @@ export function diversify<T extends DiversifyRecord>(
   }
   return out
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// I2：残差金字塔式分诊（词法空间里的 Gram-Schmidt）
+//
+// 没有 embedding，就用**词法向量空间**：维度 = 标签语料里的词元，权重 = 标签 idf
+// （走 tagWeight 的 idf 口径）。df=0 的词元取 idf 上界 ⇒ 与库完全无关的查询词也有非零能量，
+// 于是「无关查询」和「高度重合查询」在同一套算术下有可比的行为。查询向量与候选标签向量
+// 都在这个空间里 ⇒ 可以做真正的投影、残差与能量守恒。
+//
+// 【允许的批内归一化】：本节的归一化只作用在**查询场自身的能量分布**上
+// （explainedRatio / residualRatio / 投影熵的 p_i = e_i / Σe）。作用对象是查询场，
+// 不是候选集合 —— 与文件顶部纪律一致。**绝不**把这里的任何归一化用到候选展示分上：
+// 展示分只走 absoluteDisp 的固定绝对区间，（禁止 `disp = raw / max(raw over 本批)`）。
+//
+// 【I2 红线：请求级隔离 —— 后人不要为了「性能」把状态提到模块级】
+// 第三方先判「JS 单线程 ⇒ 无竞态」，后被推翻。一次召回是 async 的（要读文件、宿主会在
+// await 点让出）；只要有**任何模块级的**「最近一次的能量场 / 基 / 残差 / 上一次查询」，
+// 第二个请求的分诊结论就取决于第一个请求有没有刚好插在中间 —— 这是真竞态，不是理论问题。
+// 因此 residualPyramid 与调用它的召回路径**只使用函数内的局部变量**：基、正交化结果、
+// 投影系数、残差、能量累计全是本地量；不写模块级可变状态、不缓存「上一次查询」；
+// 语料统计 corpusStats 每次调用现算（本来就是这样，保持一致）。
+// 想优化就优化单次调用的常数因子（比如下面的稀疏点积只遍历较短的一侧），**不要**把状态
+// 提到模块级：test/triage.test.mjs 的「请求级隔离」用例会在两次不同查询之间注入一次事件
+// 循环让出，并与「单独只跑第二次（全新进程）」的结果逐字段比对；提回模块级必然判红。
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** 基的规模上限（参与 Gram-Schmidt 的候选标签向量个数）。 */
+export const MAX_BASIS = 6
+/** 投影层数上限。 */
+export const MAX_LAYERS = 3
+/** 提前停止的残差能量比例：残差 < 该比例 × 原始能量就停。 */
+export const RESIDUAL_STOP = 0.1
+/** novelty 里残差项的权重。 */
+export const NOVELTY_RESIDUAL_WEIGHT = 0.7
+/** novelty 里方向一致性项的权重（两项权重和 = 1 ⇒ novelty 天然落在 0..1）。 */
+export const NOVELTY_DIRECTION_WEIGHT = 0.3
+/** 分诊门控默认阈值：novelty >= 它 ⇒ 扩检索。 */
+export const DEFAULT_NOVELTY_THRESHOLD = 0.5
+/** 低置信默认阈值：cov_max < 它 ⇒ lowConfidence（**只如实报告，绝不否决/返回空**）。 */
+export const DEFAULT_ACTIVATION_THRESHOLD = 0.05
+/** 稀疏算术的零判定阈值（能量量级，1e-12 足够小且不吞掉真实的微小能量）。 */
+export const PYRAMID_EPS = 1e-12
+
+/** 分诊口径（全部有模块级默认常数，可经工具配置覆盖）。 */
+export interface TriageOptions {
+  noveltyThreshold?: number
+  activationThreshold?: number
+  maxBasis?: number
+  maxLayers?: number
+  residualStop?: number
+}
+
+/** 已解析（always 有值）的分诊口径。 */
+export interface ResolvedTriageOptions {
+  noveltyThreshold: number
+  activationThreshold: number
+  maxBasis: number
+  maxLayers: number
+  residualStop: number
+}
+
+function clampInt(raw: unknown, fallback: number, lo: number, hi: number): number {
+  const v = typeof raw === 'number' && Number.isFinite(raw) ? Math.floor(raw) : fallback
+  return v < lo ? lo : v > hi ? hi : v
+}
+
+/** 解析分诊配置：显式配置 > 模块级默认；非法值一律回落，绝不接受 NaN/负层数。 */
+export function resolveTriageOptions(opts?: TriageOptions): ResolvedTriageOptions {
+  const o = opts ?? {}
+  return {
+    noveltyThreshold: clamp01(finiteOr(o.noveltyThreshold, DEFAULT_NOVELTY_THRESHOLD)),
+    activationThreshold: clamp01(finiteOr(o.activationThreshold, DEFAULT_ACTIVATION_THRESHOLD)),
+    maxBasis: clampInt(o.maxBasis, MAX_BASIS, 1, 32),
+    maxLayers: clampInt(o.maxLayers, MAX_LAYERS, 1, 8),
+    residualStop: clamp01(finiteOr(o.residualStop, RESIDUAL_STOP)),
+  }
+}
+
+/** 稀疏向量：词元 → 权重（只存非零项，未出现的词元视为 0）。 */
+export type SparseVector = ReadonlyMap<string, number>
+
+/** 丢掉落不到词法空间里的项（键非字符串、权重非有限正数）。 */
+function sanitizeVector(v: SparseVector): Map<string, number> {
+  const out = new Map<string, number>()
+  for (const [k, w] of v) {
+    if (typeof k !== 'string' || k === '') continue
+    if (!Number.isFinite(w) || w <= 0) continue
+    out.set(k, w)
+  }
+  return out
+}
+
+/**
+ * 稀疏点积。只遍历较短的一侧（常数因子优化），且按该侧的插入顺序累加
+ * ⇒ 同一输入必然同一浮点结果（不依赖 Map 大小差异带来的遍历顺序漂移）。
+ */
+export function sparseDot(a: SparseVector, b: SparseVector): number {
+  const [small, big] = a.size <= b.size ? [a, b] : [b, a]
+  let sum = 0
+  for (const [k, w] of small) {
+    const other = big.get(k)
+    if (other !== undefined) sum += w * other
+  }
+  return Number.isFinite(sum) ? sum : 0
+}
+
+/** ‖v‖²。 */
+export function sparseNorm2(v: SparseVector): number {
+  let sum = 0
+  for (const w of v.values()) if (Number.isFinite(w)) sum += w * w
+  return Number.isFinite(sum) ? sum : 0
+}
+
+function sparseScale(v: SparseVector, k: number): Map<string, number> {
+  const out = new Map<string, number>()
+  if (!Number.isFinite(k) || k === 0) return out
+  for (const [key, w] of v) {
+    const val = w * k
+    if (val !== 0) out.set(key, val)
+  }
+  return out
+}
+
+function sparseSub(a: SparseVector, b: SparseVector): Map<string, number> {
+  const out = new Map<string, number>()
+  for (const [k, w] of a) if (w !== 0) out.set(k, w)
+  for (const [k, w] of b) {
+    const val = (out.get(k) ?? 0) - w
+    if (val === 0) out.delete(k)
+    else out.set(k, val)
+  }
+  return out
+}
+
+/**
+ * 标签 idf 加权的词元向量：`tokenize(tokens)` 去重后逐项取 tagWeight(t) = idf(df, tagN)。
+ * 词元按首次出现顺序入表 ⇒ 同输入同顺序（浮点求和顺序固定）。
+ */
+export function tagVector(tokens: ReadonlyArray<string>, stats: CorpusStats): Map<string, number> {
+  const out = new Map<string, number>()
+  for (const t of tokens) {
+    if (typeof t !== 'string' || t === '' || out.has(t)) continue
+    const w = tagWeight(t, stats)
+    if (!Number.isFinite(w) || w <= 0) continue
+    out.set(t, w)
+  }
+  return out
+}
+
+/**
+ * 经典 Gram-Schmidt 正交化（返回**正交归一**基）：
+ * 逐个减掉与已接受单位基向量的投影，再归一化；范数 <= PYRAMID_EPS 的向量
+ * （零向量，或与已有基线性相关）直接丢弃 —— 这正是「基的规模」只增不虚的原因。
+ *
+ * 数值说明：维度很小（词元数 + 最多 maxBasis 个基），一次正交化足够稳定，
+ * 仍显式跳过退化向量，保证输出里不出现 NaN/Infinity。
+ */
+export function gramSchmidt(vectors: ReadonlyArray<SparseVector>): Array<Map<string, number>> {
+  const basis: Array<Map<string, number>> = []
+  for (const rawVec of vectors) {
+    let v = sanitizeVector(rawVec)
+    if (sparseNorm2(v) <= PYRAMID_EPS) continue
+    for (const u of basis) {
+      const proj = sparseDot(v, u)
+      if (proj === 0) continue
+      // 注意：必须按 u 的全部词元做减法（v 里没有的维度要补上 −proj·u_k），
+      // 只遍历 v 自己的键会漏掉 u 独有的维度 ⇒ 残差不再与 u 正交（实测内积 0.0595）。
+      v = sparseSub(v, sparseScale(u, proj))
+    }
+    const n2 = sparseNorm2(v)
+    if (n2 <= PYRAMID_EPS) continue
+    const inv = 1 / Math.sqrt(n2)
+    const unit = new Map<string, number>()
+    for (const [k, w] of v) unit.set(k, w * inv)
+    basis.push(unit)
+  }
+  return basis
+}
+
+/** 投影能量分布 → 熵与逻辑深度。 */
+export interface ProjectionEntropy {
+  /** 香农熵（bit），落在 [0, log2(K)]。 */
+  entropy: number
+  /** K = 参与投影且能量 > 0 的基个数。 */
+  k: number
+  /** 逻辑深度 = 1 − H / log2(K)，落在 [0,1]。 */
+  logicalDepth: number
+}
+
+/**
+ * 投影熵 → 逻辑深度。
+ *
+ * p_i = e_i / Σe（e_i 是第 i 层的投影能量 c_i²，**这是查询场自身的归一化，不是候选展示分**），
+ * H = −Σ p_i·log2 p_i，logicalDepth = 1 − H / log2(K)，K = 能量 > 0 的层数：
+ *   - 能量集中在一个方向（K=1，或某一层独占）⇒ H=0 ⇒ logicalDepth=1；
+ *   - 能量在 K 个方向上均摊 ⇒ H=log2(K) ⇒ logicalDepth=0。
+ * 边界（不许 NaN）：K=0（没有基/没有投影）⇒ {0,0,0}；K=1 ⇒ H=0 且 log2(1)=0，
+ * `1 − 0/0` 会出 NaN，所以**显式定义 logicalDepth = 0**（只有一个方向承载全部能量时
+ * 没有「分布」可言，逻辑深度无信息，取 0 而不是 NaN）。
+ */
+export function projectionEntropy(energies: ReadonlyArray<number>): ProjectionEntropy {
+  const positive: number[] = []
+  let total = 0
+  for (const e of energies) {
+    if (typeof e === 'number' && Number.isFinite(e) && e > PYRAMID_EPS) {
+      positive.push(e)
+      total += e
+    }
+  }
+  if (positive.length === 0 || !(total > 0)) return { entropy: 0, k: 0, logicalDepth: 0 }
+  let h = 0
+  for (const e of positive) {
+    const p = e / total
+    h -= p * Math.log2(p)
+  }
+  if (!Number.isFinite(h) || h < 0) h = 0
+  const maxH = Math.log2(positive.length)
+  const logicalDepth = positive.length <= 1 || !(maxH > 0) ? 0 : clamp01(1 - h / maxH)
+  return { entropy: h, k: positive.length, logicalDepth }
+}
+
+/** 一个基候选（召回路径传的是「按分数排好序的前 kBase 个候选」）。 */
+export interface PyramidBasisItem {
+  id?: string
+  tags?: unknown
+}
+
+/** 残差金字塔的分诊结果（全部落在 [0,1]，除 basisSize/layers/projectedBasis 是计数）。 */
+export interface PyramidResult {
+  /** 新颖度 = 0.7 × residualRatio + 0.3 × directionConsistency。 */
+  novelty: number
+  /** ‖P‖²/‖q‖²：被基解释掉的能量比例。 */
+  explainedRatio: number
+  /** ‖R‖²/‖q‖²：剩下的能量比例（实现上取 1 − explainedRatio ⇒ 两者和恒为 1）。 */
+  residualRatio: number
+  /** 见下方长注释里的定义。 */
+  directionConsistency: number
+  /** 投影熵（bit）。 */
+  projectionEntropy: number
+  /** 逻辑深度。 */
+  logicalDepth: number
+  /** 正交归一基的规模（≤ maxBasis，已丢弃线性相关向量）。 */
+  basisSize: number
+  /** 实际投影的层数（≤ maxLayers；提前满足停止条件会更少）。 */
+  layers: number
+  /** K = 参与投影且能量 > 0 的基个数。 */
+  projectedBasis: number
+  /** 本次使用的 novelty 阈值（打印出来，读者才能自行复算 expanded）。 */
+  noveltyThreshold: number
+  /** 是否扩检索：novelty >= noveltyThreshold。**与 lowConfidence 无关**（低置信不否决）。 */
+  expanded: boolean
+}
+
+/**
+ * 残差金字塔：在词法向量空间里对基做 Gram-Schmidt 正交化，逐层投影查询向量，
+ * 用「被解释的能量比例 / 残差方向是否是新方向 / 投影熵」三件事给查询分诊。
+ *
+ * 分工：本函数只算分诊量（纯函数，无 IO、无全局状态）；扩检索与低置信报告在召回层做，
+ * 因为那要碰候选集与展示分。
+ *
+ * directionConsistency（**我的定义，必须写清，因为字面写法是退化量**）：
+ * 先记一个结构性事实：基做过 Gram-Schmidt，投影是**正交投影**，于是
+ * R = q − Σ_{i≤layers} c_i·u_i 必然与**所有已参与投影的基向量**正交，特别地 ⟨R, u_1⟩ ≡ 0。
+ * 所以「残差方向与第一层投影方向的余弦」的字面写法 1 − |cos(R, u_1)| 恒等于 1
+ * （只要 layers ≥ 1 且 R ≠ 0）—— 它不携带任何信息，还会给每个有残差的查询白送 0.3 分。
+ * 这个量的本意是「残差是不是一个新方向」，所以我把定义挪到**尚未参与投影的基向量**上：
+ *
+ *   directionConsistency = 1 − max_{j > layers} |cos(R, u_j)|      （u_j 是单位基向量）
+ *
+ * 语义：残差若仍落在「基里还留着、这几层没用上」的方向上 ⇒ 不是新方向（→0）；
+ * 残差若与所有未投影基向量都正交 ⇒ 基给不出这个方向（→1）。
+ * 边界（都不许出 NaN）：
+ *   - ‖R‖² ≈ 0（查询被完全解释，或查询本身没有词元能量）⇒ 没有残差方向 ⇒ 定义 0
+ *     （于是「完全被解释 ⇒ novelty = 0」，不会因为余项白拿分）；
+ *   - 未投影基为空（layers = basisSize）而 R ≠ 0 ⇒ max 取 0 ⇒ 定义 1
+ *     （残差按构造与本基子空间正交，确实是新方向）；
+ *   - 一个基向量都没有（basisSize = 0）而 R ≠ 0 ⇒ 同样 1（没有任何方向能解释它）。
+ */
+export function residualPyramid(
+  query: unknown,
+  basisCandidates: ReadonlyArray<PyramidBasisItem | null | undefined>,
+  stats: CorpusStats,
+  opts: TriageOptions = {},
+): PyramidResult {
+  // ★ 请求级隔离：以下全部是局部变量。这里没有、也不许有模块级缓存（见本文件顶部红线）。
+  const cfg = resolveTriageOptions(opts)
+  const q = tagVector(tokenize(query), stats)
+  const qEnergy = sparseNorm2(q)
+
+  // 基：从高分候选里取前 maxBasis 个（调用方已按 rel 降序 / 融合秩 / id 排好）。
+  const raw: Array<Map<string, number>> = []
+  for (const cand of basisCandidates) {
+    if (raw.length >= cfg.maxBasis) break
+    if (cand === null || cand === undefined) continue
+    const v = tagVector(tokenize(normalizedTags(cand.tags).join(' ')), stats)
+    if (v.size === 0) continue
+    raw.push(v)
+  }
+  const ortho = gramSchmidt(raw)
+
+  // 逐层投影：最多 maxLayers 层；每层后残差能量 < residualStop × 原始能量就停。
+  const energies: number[] = []
+  let residualVec = new Map<string, number>(q)
+  let projEnergy = 0
+  if (qEnergy > PYRAMID_EPS) {
+    for (const u of ortho) {
+      if (energies.length >= cfg.maxLayers) break
+      const c = sparseDot(q, u)
+      const e = c * c
+      energies.push(e)
+      projEnergy += e
+      if (c !== 0) residualVec = sparseSub(residualVec, sparseScale(u, c))
+      if (qEnergy - projEnergy < cfg.residualStop * qEnergy) break
+    }
+  }
+
+  const explainedRatio = qEnergy > PYRAMID_EPS ? clamp01(projEnergy / qEnergy) : 0
+  // 守恒：residualRatio 直接取 1 − explainedRatio（代数上等于 ‖R‖²/‖q‖²，
+  // 且天然有限、和恒为 1，不会因为浮点除零泄 NaN）。
+  const residualRatio = clamp01(1 - explainedRatio)
+
+  const rEnergy = sparseNorm2(residualVec)
+  let directionConsistency = 0
+  if (rEnergy > PYRAMID_EPS) {
+    let maxCos = 0
+    for (let j = energies.length; j < ortho.length; j += 1) {
+      const u = ortho[j]
+      if (u === undefined) continue
+      const cos = Math.abs(sparseDot(residualVec, u) / Math.sqrt(rEnergy))
+      if (Number.isFinite(cos) && cos > maxCos) maxCos = cos
+    }
+    directionConsistency = clamp01(1 - maxCos)
+  }
+
+  const ent = projectionEntropy(energies)
+  const novelty = clamp01(NOVELTY_RESIDUAL_WEIGHT * residualRatio + NOVELTY_DIRECTION_WEIGHT * directionConsistency)
+  return {
+    novelty,
+    explainedRatio,
+    residualRatio,
+    directionConsistency,
+    projectionEntropy: ent.entropy,
+    logicalDepth: ent.logicalDepth,
+    basisSize: ortho.length,
+    layers: energies.length,
+    projectedBasis: ent.k,
+    noveltyThreshold: cfg.noveltyThreshold,
+    expanded: novelty >= cfg.noveltyThreshold,
+  }
+}

@@ -1,0 +1,29 @@
+# 红证 1 关机制：src/index.ts 把 triage.expanded 强制为 false（判红点：低覆盖必须扩检索）
+# 补丁：const expanded = triage.expanded  ->  const expanded = false
+# 时间：2026-10-09T07:24:30+08:00
+✔ Gram-Schmidt：正交归一、跳过线性相关向量、保持张成（判红点：只归一化不正交化，两两内积就不为 0） (4.183177ms)
+✔ 能量守恒：explainedRatio 由独立的 gramSchmidt 复算得出，且 explained+residual=1（判红点：跳过正交化就对不上） (1.756146ms)
+✔ 投影熵 → logicalDepth：K=0/1 边界不出 NaN，均摊 → 0、集中 → 1（区分力自检：两者必须不同） (0.412084ms)
+✔ novelty 定义：0.7×残差 + 0.3×方向一致性；方向一致性的三个边界都可判（判红点：字面 1−|cos(R,u1)| 恒为 1） (0.435209ms)
+✔ 分诊口径解析：非法输入回落默认常数，层数/基规模被夹紧（不引入批次相关量） (0.271406ms)
+✖ 红证 1（判红点：把 expanded 强制为 false ⇒ 本条变红）：与库几乎无重合的查询必须扩检索且不返回空 (221.128334ms)
+✔ 红证 2（判红点：把 expanded 强制为 true ⇒ 本条变红）：与某条记录高度重合的查询不得扩检索 (51.991458ms)
+✔ 红证 3（判红点：把金字塔状态提到模块级并在两次调用间复用 ⇒ 本条变红）：请求级隔离 (360.107187ms)
+✖ I2 自证：表头打印的 novelty/kBase/cov_max 与阈值必须能复算 expanded/lowConfidence（单行表头） (206.540625ms)
+✖ 工具层：分诊口径可配置（maxLayers=1 让「三层才解释完」的查询变成扩检索，且行数真的变多） (162.189323ms)
+✖ 边界：空库/空查询/单条库的分诊字段全部有限（不许 NaN/Infinity/undefined 泄漏） (8.378489ms)
+✖ I2 无损：低置信路径不得整批否决（行数、match、score 都照常给出） (172.94099ms)
+ℹ tests 12
+ℹ pass 7
+ℹ fail 5
+✖ failing tests:
+✖ 红证 1（判红点：把 expanded 强制为 false ⇒ 本条变红）：与库几乎无重合的查询必须扩检索且不返回空 (221.128334ms)
+  AssertionError [ERR_ASSERTION]: 与库几乎无重合的查询必须判 expanded=true（判红点：强制 false）
+✖ I2 自证：表头打印的 novelty/kBase/cov_max 与阈值必须能复算 expanded/lowConfidence（单行表头） (206.540625ms)
+  AssertionError [ERR_ASSERTION]: 用打印的 novelty 与阈值必须复现 expanded（判红点：表头与实际结论不一致）
+✖ 工具层：分诊口径可配置（maxLayers=1 让「三层才解释完」的查询变成扩检索，且行数真的变多） (162.189323ms)
+  AssertionError [ERR_ASSERTION]: novelty≈0.5545 >= 0.5 ⇒ 扩检索
+✖ 边界：空库/空查询/单条库的分诊字段全部有限（不许 NaN/Infinity/undefined 泄漏） (8.378489ms)
+  AssertionError [ERR_ASSERTION]: 空库: expanded 必须等于 novelty >= noveltyThreshold
+✖ I2 无损：低置信路径不得整批否决（行数、match、score 都照常给出） (172.94099ms)
+  AssertionError [ERR_ASSERTION]: 低置信: expanded 必须等于 novelty >= noveltyThreshold

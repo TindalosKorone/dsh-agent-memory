@@ -1,0 +1,15 @@
+# I2 全量验收：tsc + 逐个测试文件（本机 node --test 坏，逐文件直跑）
+# 时间：2026-10-09T07:25:44+08:00  commit 前工作区
+$ node node_modules/typescript/bin/tsc -p .
+TSC_EXIT=0
+
+test/cap.test.mjs                pass=4    fail=0
+test/lossless.test.mjs           pass=4    fail=0
+test/protocol.test.mjs           pass=23   fail=0
+test/prune.test.mjs              pass=3    fail=0
+test/pure.test.mjs               pass=7    fail=0
+test/recall.test.mjs             pass=7    fail=0
+test/scoring.test.mjs            pass=11   fail=0
+test/storage.test.mjs            pass=13   fail=0
+test/triage.test.mjs             pass=12   fail=0
+TOTAL pass=84 fail=0（原有 8 个文件 72 例 + 新增 triage 12 例）
