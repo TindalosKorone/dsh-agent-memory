@@ -8,39 +8,12 @@
 
 - **适合**：跨会话留结论 —— 事实、教训、偏好、指路。
 - **不适合**：多用户 / 多租户共享记忆；「一问就自动想起相关内容」的场景（本插件不自动召回）。
-- 边界：**单机、单用户、单 profile**，记忆库是一个本地文件（`$DSH_HOME/agent-memory/memory.ndjson`），默认上限 2000 条 / 4 MiB，超限按 `recency*(1+hits)` 淘汰。
-- 本机正在用：203 条真实记忆（2026-10-09 实测；会随使用增长，现值以 `memory_recall` 的 `total` 或注入行的「记忆 N 条」为准）。
-
-## 功能
-
-- `memory_remember`：写入并落盘，写入协议**失败关闭**（字段不合规即拒收，不落盘，并给出可照做的修复指引）
-- `memory_recall`：按查询召回 **L1 索引**（每条一行 10 列，**绝不回 body**）
-- `memory_expand`：按 id 取回 **L2 正文**，取回会累加 `hits`
-- `memory_prune`：同 kind 同标题合并，再按分淘汰（`dryRun` 默认 true，不动磁盘）
-- 两条注入贡献：尾部索引行（`systemPrompt.context`，`order` 200，≤240 字符）+ 稳定规则段（`systemPrompt.section`，`order` 3200）
-- 零运行时依赖；数据是人类可读的 NDJSON
 
 ## 安装
-
-### 官方安装（推荐）
 
 ```bash
 dsh plugin --profile web add github:TindalosKorone/dsh-agent-memory
 ```
-
-- `dsh plugin --profile <名> <参数>` 就是把参数**原样转发给 pnpm**，在 `$DSH_HOME/profiles/<名>/` 里执行；上面这条等价于在该 profile 目录里跑 `pnpm add github:TindalosKorone/dsh-agent-memory`。
-- 本包在 `package.json` 里声明了 `dsh.bundle.patch`（指向包内的 [cordis.patch.yml](cordis.patch.yml)）。装完 dsh 的 plugin-manager 会把本包登记进 profile 的 `dsh.profile.bundles`，那个文件里的 `insert` 行就是插件的挂载点 —— **不需要**手改 profile 的 `cordis.patch.yml`，也**不需要**软链。
-- **装下来即可加载**：编译产物 `lib/` 已随包入库，安装时不需要构建、不需要 TypeScript，也不受 pnpm 对依赖构建脚本的审批策略影响。
-- **必须重启 DSH**：引擎在**启动时**载入插件模块，不重启不生效。
-
-### 本地开发 / 离线安装（不是推荐路径）
-
-```bash
-node node_modules/typescript/bin/tsc -p .                                        # 改完源码先重建 lib/
-dsh plugin --profile web add link:/storage/emulated/0/deepseek/dsh-agent-memory    # 以软链方式装进 profile
-```
-
-`link:` 装的是**指向本仓的软链**，所以改完源码重建 `lib/`、重启 DSH 即可（若改用 `file:`，装下去的是安装那一刻的拷贝，改完必须重跑这条命令）。老的手工做法（自己 `ln -s` 进 profile 再手改 profile 的 `cordis.patch.yml`）已无必要。
 
 ## 怎么用
 
