@@ -52,6 +52,6 @@ dsh plugin --profile web add github:TindalosKorone/dsh-agent-memory
 - [docs/design.md](docs/design.md) — 分期实现、7 条硬不变量、两条注入机制、为什么不自动召回
 - [docs/recall-contract.md](docs/recall-contract.md) — 10 列逐列含义、打分常数、写入协议与 fail-closed 闸门
 - [docs/development.md](docs/development.md) — 构建、测试纪律与红证、脚本、环境事实
-- [docs/limitations.md](docs/limitations.md) — 7 条诚实局限、标定出处、发布注意
+- [docs/limitations.md](docs/limitations.md) — 9 条诚实局限、标定出处、发布注意
 - [redproof/](redproof/) — 红证取证目录（每条机制一份「能判红」的证据）
 - [NOTICE](NOTICE) / [LICENSE](LICENSE)

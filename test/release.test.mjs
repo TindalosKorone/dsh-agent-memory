@@ -84,7 +84,7 @@ test('修正 3：入库面文件（已跟踪 + 未跟踪但不被忽略）里不
     console.log('release.test: 无 git 检出处，跳过「入库面文件路径扫描」这一半（如实降级）')
     return
   }
-  assert.ok(files.length > 100, `git ls-files 至少应列出上百个文件，实际 ${files.length}`)
+  assert.ok(files.length > 100, `入库面（已跟踪 ∪ 未跟踪但不被忽略）至少应列出上百个文件，实际 ${files.length}`)
 
   const hits = []
   for (const f of files) {

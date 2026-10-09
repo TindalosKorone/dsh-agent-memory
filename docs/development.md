@@ -18,7 +18,7 @@ node node_modules/typescript/bin/tsc -p .
 npm test
 ```
 
-`npm test` 展开为一串**逐文件直跑**的 `node test/x.test.mjs`（18 个测试文件）。当前状态：**172 pass / 0 fail**（2026-10-09 实测；`ℹ pass` 汇总行累加，18 个文件各一行）。
+`npm test` 展开为一串**逐文件直跑**的 `node test/x.test.mjs`（19 个测试文件）。当前状态：**197 pass / 0 fail**（2026-10-09 实测；`ℹ pass` 汇总行累加，19 个文件各一行）。
 
 也可以一次跑完并落证据：
 
@@ -27,7 +27,7 @@ bash redproof/run-all.sh            # 默认写 redproof/full-suite.txt
 bash redproof/run-all.sh 证据路径   # 自定义输出；有 fail 时退出码非 0
 ```
 
-**汇总行**：每个测试文件末尾由 Node 测试运行器打印 `ℹ pass N` / `ℹ fail N`。`run-all.sh` 就是靠 sed 取这两行做汇总（`TOTAL | pass=172 | fail=0`）。
+**汇总行**：每个测试文件末尾由 Node 测试运行器打印 `ℹ pass N` / `ℹ fail N`。`run-all.sh` 就是靠 sed 取这两行做汇总（`TOTAL | files=19 | pass=197 | fail=0`）。
 
 **为什么不是 `node --test`**：本机 `node --test` **坏**（见第 5 节第 1 条），所以测试全部按文件逐个直跑。这是本机环境事实，不是设计选择。
 
@@ -37,9 +37,9 @@ bash redproof/run-all.sh 证据路径   # 自定义输出；有 fail 时退出�
 
 本项目的**红证取证目录**：每条机制都附一份「**能判红**」的证据。做法是先把机制**人为禁用/改坏**（`*-disable.txt` 是禁用后的失败输出），确认测试确实变红；再恢复（`*-restored.txt`）确认变绿。所以目录里成对出现 `…-disable.txt` / `…-restored.txt`。
 
-被跟踪内容：**143 个文件** = 136 个 `.txt` 取证日志 + 4 个探针 `.mjs` + `run-all.sh` + 2 个 `lineformat-*.json`。
+被跟踪内容：**228 个文件** = 204 个 `.txt` 取证日志 + 17 个探针 `.mjs` + 2 个 `.sh` + 5 个 `.json`。
 
-4 个探针脚本（非测试）：
+探针脚本（非测试；共 17 个 `.mjs`，下表列主要几个）：
 
 | 脚本 | 用法 |
 | --- | --- |
@@ -102,9 +102,9 @@ node scripts/import-gotchas.mjs --source gotchas.md --write  # 落盘（先备�
 | --- | --- |
 | `src/*.ts` | 6 个源文件（`index.ts` / `inject.ts` / `json.ts` / `protocol.ts` / `pure.ts` / `store.ts`） |
 | `lib/*.js` + `lib/types/*.d.ts` | tsc 构建产物（6 个 `.js` + 6 个 `.d.ts`），**随包入库** —— 官方安装不跑构建 |
-| `test/*.mjs` | 19 个测试文件（184 pass / 0 fail，2026-10-09 实测）；另有 `helpers.mjs` 与 `isolation-probe.mjs` 两个非测试文件 |
+| `test/*.mjs` | 19 个测试文件（197 pass / 0 fail，2026-10-09 实测）；另有 `helpers.mjs` 与 `isolation-probe.mjs` 两个非测试文件 |
 | `scripts/*.mjs` | 5 个脚本（标定 / 导入 / 负样本 / 注入实测 / 松耦合探针） |
-| `redproof/` | 181 个被跟踪红证取证文件（168 个 `.txt` + 9 个探针 `.mjs` + 2 个 `.sh` + 2 个 `lineformat-*.json`） |
+| `redproof/` | 228 个被跟踪红证取证文件（204 个 `.txt` + 17 个探针 `.mjs` + 2 个 `.sh` + 5 个 `.json`） |
 | `docs/` | 4 个工程文档（设计 / 召回契约 / 开发 / 局限） |
 | `package.json` / `tsconfig.json` | 包与编译配置 |
 | `cordis.patch.yml` | 本包的 bundle patch（`package.json` 的 `dsh.bundle.patch` 指向它；官方安装后由它挂载插件，不需要手改 profile 的 patch） |

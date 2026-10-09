@@ -142,8 +142,8 @@ id | kind | title | tags | graph | via | rel | cov | match | score
 - `final=(rel+graph)×多样性因子`；因子 `= 1-β×maxSim`（`β 默认 0.3`，`maxSim` 是该行与已选行的最大标签 Jaccard 相似度）。
 - 多样性因子**仅当候选数 > 5 时施加**；**是否施加见结构化字段 `diversityApplied`**。
 - 因此多样性被启用时，`score` **无法仅由打印出的 rel/graph 精确复算**（β 与 maxSim 都不在打印列里）；而 `match` **始终可由打印的 rel + 表头阈值 + 表头回显的内容量闸门输入（`contentTokens`/`contentTokenMin`）复算**。
-- **内容量闸门（本次新增）**：`match = 无内容量(qTok=0) ? none : (qTok < contentTokenMin ? strong 封顶 weak : 阈值判定)`；`qTok` = 去重查询词元里在库内任一分词字段出现过的个数，默认阈值 `CONTENT_TOKEN_MIN = 2`，可用配置 `score.contentTokenMin` 覆盖（设 1 即关闸门）。它**只封顶 strong**：短查询照样返回行、照样能判 weak，**绝不整批否决**；`rel` 的语义与四个已标定常数一个字都不动。
-- **表头回显（按分支给，绝不写无条件样板）**：封顶支 `内容量qTok=<N><<min>⇒strong封顶weak`、不封顶支 `内容量qTok=<N>≥<min>⇒闸门未生效`。（判红点：删掉这段、只回显一半，或把不封顶支改回无条件样板 ⇒ `test/header.test.mjs` 与 `test/scoring.test.mjs` 变红；真机缺陷出处 `redproof/i10-*`。）
+- **内容量闸门（本次新增；i11 起加例外倍数 `GATE_MARGIN`）**：`match = 无内容量(qTok=0) ? none : (qTok < contentTokenMin ? (base=strong 且 rel < gateMargin×strong ? strong 封顶 weak : base) : 阈值判定)`；`qTok` = 去重查询词元里在库内任一分词字段出现过的个数，默认阈值 `CONTENT_TOKEN_MIN = 2`，可用配置 `score.contentTokenMin` 覆盖（设 1 即关闸门）。它**只封顶 strong**：短查询照样返回行、照样能判 weak，**绝不整批否决**；`rel` 的语义与四个已标定常数一个字都不动。
+- **表头回显（按分支给，绝不写无条件样板，三支）**：贴线封顶支 `内容量qTok=<N><<min>且rel<<M>×strong⇒strong封顶weak`、例外放行支 `内容量qTok=<N><<min>但rel≥<M>×strong⇒不压级`、闸门未生效支 `内容量qTok=<N>≥<min>⇒闸门未生效`。（判红点：删掉这段、只回显一半，或把不封顶支改回无条件样板 ⇒ `test/header.test.mjs` 与 `test/scoring.test.mjs` 变红；真机缺陷出处 `redproof/i10-*`。）
 - `graph` 是标签图传播给的**辅助**奖励（有硬上限 `graphBonusCap`，**不会压过词法相关度**）。
 - `via` 是该行来源：`direct`（词法直接命中）或 `tag:<标签>`（由该标签的图传播到达）。
 - `cov` 是标签覆盖率（**仅诊断**，不门控、不整批否决）。
