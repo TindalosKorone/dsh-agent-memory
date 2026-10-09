@@ -628,7 +628,7 @@ function seedContentGateCorpus(home) {
   writeFileSync(memFile(home), lines.join('\n') + '\n', 'utf8')
 }
 
-test('内容量闸门（工具层）：单内容词元查询 rel>=strong 也只判 weak，行照样返回；关闸门即回到 strong', async () => {
+test('内容量闸门（工具层）：单内容词元查询 rel>=strong 也只判 weak，行照样返回；关闸门即回到 strong；回显按分支给（不封顶支不得照抄封顶样板）', async () => {
   const home = freshHome('scoring-content-gate')
   seedContentGateCorpus(home)
   const r = await tools().get('memory_recall').execute({ query: 'zzgate', limit: 3 })
@@ -644,10 +644,11 @@ test('内容量闸门（工具层）：单内容词元查询 rel>=strong 也只�
   assert.equal(row.match, expectMatch(r, row.rel), '打印量（rel+阈值+qTok）必须复现 match')
   assert.ok(r.rows.length > 0, '低内容量不得返回空（不整批否决）')
 
-  // 表头必须逐字回显闸门的两个输入与规则（否则 match 复算不出来）
+  // 表头必须逐字回显闸门的两个输入与规则（否则 match 复算不出来）。
+  // ★ 本支 = **封顶支**（qTok=1 < min=2）：回显必须写封顶规则，且该行判 weak（上面已断言）。
   const header = r.text.split('\n')[0]
   assert.ok(header.includes('内容量qTok=1<2⇒strong封顶weak'),
-    `表头必须回显内容量闸门的输入与规则：${header}`)
+    `封顶支表头必须回显内容量闸门的输入与规则：${header}`)
 
   // 判红点：把阈值设成 1（等价关掉闸门）⇒ 同一行必须回到 strong
   const off = await tools({ score: { contentTokenMin: 1 } }).get('memory_recall').execute({ query: 'zzgate', limit: 3 })
@@ -655,8 +656,14 @@ test('内容量闸门（工具层）：单内容词元查询 rel>=strong 也只�
   const offRow = off.rows.find((x) => x.id === 'mem_gate_target')
   assert.equal(offRow.rel, row.rel, '关闸门绝不该改 rel（只改判定）')
   assert.equal(offRow.match, 'strong', '关掉闸门后必须回到 strong —— 这正是本用例的判红点')
-  assert.ok(off.text.split('\n')[0].includes('内容量qTok=1<1⇒strong封顶weak'),
-    '闸门回显必须跟着配置走（阈值 1 时 qTok<1 恒不成立）')
+  // ★ 本支 = **不封顶支**（阈值 1 ⇒ qTok<1 恒不成立，闸门对本次查询没生效）。
+  //   旧实现在这一支照抄封顶样板，打出 `qTok=1<1⇒strong封顶weak`：不等式假、且与 match=strong 自相矛盾。
+  //   判红点：把回显改回无条件样板 ⇒ 下面的 `!includes('封顶')` 与 `≥` 断言立刻变红。
+  const offHeader = off.text.split('\n')[0]
+  assert.ok(!offHeader.includes('封顶'),
+    `不封顶支的回显不得出现「封顶」字样（无条件样板在此支是假的）：${offHeader}`)
+  assert.ok(offHeader.includes('内容量qTok=1≥1⇒闸门未生效'),
+    `不封顶支表头必须按分支回显「未封顶/闸门未生效」且逐字回显两个闸门输入：${offHeader}`)
 
   // 话题侧防误伤：两个内容词元的查询（阈值 2）不被封顶
   const two = await tools().get('memory_recall').execute({ query: 'zzgate note', limit: 3 })
@@ -665,6 +672,12 @@ test('内容量闸门（工具层）：单内容词元查询 rel>=strong 也只�
   assert.ok(twoRow.rel >= two.strongThreshold, `夹具自检：两词元查询 rel 必须 >= strong：${twoRow.rel}`)
   assert.equal(twoRow.match, 'strong', '内容量达标（qTok>=阈值）的查询不得被封顶')
   assert.equal(twoRow.match, expectMatch(two, twoRow.rel), '打印量必须复现 match')
+  // ★ 本支同样 = **不封顶支**（qTok=2 >= min=2，真机 query=`虚拟屏` 的同类情形）：回显必须准确。
+  const twoHeader = two.text.split('\n')[0]
+  assert.ok(!twoHeader.includes('封顶'),
+    `qTok>=阈值时回显不得出现「封顶」字样：${twoHeader}`)
+  assert.ok(twoHeader.includes('内容量qTok=2≥2⇒闸门未生效'),
+    `qTok>=阈值时必须回显「未封顶」，不得照抄封顶样板：${twoHeader}`)
 })
 
 test('内容量闸门：标定一致性（CONTENT_TOKEN_MIN=2 + 标定注释可核对）', () => {

@@ -88,14 +88,25 @@ test('I5 表头自检：单行、<= 428 字符，且可复算信息一个都不�
   // match 的恒可复算同样必须在表头（判红点：删掉 (恒可复算) ⇒ 本条变红）
   assert.ok(header.includes('否则 none(恒可复算)'),
     `表头必须写明 match 恒可由 rel + 阈值复算：${header}`)
-  // ⑩ 内容量闸门（本次新增）：闸门的**两个输入**（qTok 与阈值）必须逐字回显，规则必须写明 ——
+  // ⑩ 内容量闸门：闸门的**两个输入**（qTok 与阈值）必须逐字回显，规则必须**按分支**写明 ——
   //    否则「低内容量 ⇒ strong 封顶 weak」这条判定读者复算不出来（I1.3 铁律的延续）。
+  //    本夹具 query='alpha' ⇒ qTok=1 < 2，走**封顶支**。
   //    判红点：删掉这段回显（或只回显 qTok 不回显阈值）⇒ 本条变红。
   assert.equal(r.contentTokenMin, 2, '内容量闸门默认阈值必须是 2（标定见 src/pure.ts）')
   assert.ok(Number.isInteger(r.contentTokens) && r.contentTokens >= 0,
     `结构化字段 contentTokens 必须是非负整数：${r.contentTokens}`)
   assert.ok(header.includes(`内容量qTok=${r.contentTokens}<${r.contentTokenMin}⇒strong封顶weak`),
-    `表头必须逐字回显内容量闸门的输入与规则（qTok=${r.contentTokens} 阈值=${r.contentTokenMin}）：${header}`)
+    `封顶支表头必须逐字回显内容量闸门的输入与规则（qTok=${r.contentTokens} 阈值=${r.contentTokenMin}）：${header}`)
+  // ⑩b 不封顶支（qTok >= 阈值，真机 query=`虚拟屏` 的同类情形）：回显**不得**照抄封顶样板 ——
+  //     旧实现是无条件样板，在这一支打出 `qTok=5<2` 这种假不等式且与 match=strong 自相矛盾。
+  //     判红点：把回显改回无条件样板 ⇒ 下面两条立刻变红（`!includes('封顶')` 先红）。
+  const free = await recall.execute({ query: 'alpha beta', limit: 5 })
+  const freeHeader = free.text.split('\n')[0]
+  assert.equal(free.contentTokens, 2, `夹具前提：两词元查询必须真的 qTok=2（实测 ${free.contentTokens}）`)
+  assert.ok(!freeHeader.includes('封顶'),
+    `不封顶支的回显不得出现「封顶」字样（在 qTok>=阈值 时它是假的）：${freeHeader}`)
+  assert.ok(freeHeader.includes(`内容量qTok=${free.contentTokens}≥${free.contentTokenMin}⇒闸门未生效`),
+    `不封顶支表头必须按分支回显「未封顶」并逐字回显两个闸门输入：${freeHeader}`)
 
   // 反向（防回涨）：非结论性诊断不得再占表头字符预算——它们仍逐字在结构化返回字段/rows 里。
   for (const gone of ['basisSize=', 'layers=', 'logicalDepth=', 'explainedRatio=', 'residualRatio=',

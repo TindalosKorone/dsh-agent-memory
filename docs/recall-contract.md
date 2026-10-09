@@ -67,7 +67,7 @@ id | kind | title | tags | graph | via | rel | cov | match | score
         : rel >= strong ? strong : rel >= weak ? weak : none
   ```
 
-  表头逐字打印 `内容量qTok=<N><<min>⇒strong封顶weak`，结构化字段是 `contentTokens` / `contentTokenMin`，所以复算不需要翻源码。
+  表头**按分支**逐字打印闸门回显（绝不写无条件样板）：封顶支 `内容量qTok=<N><<min>⇒strong封顶weak`、不封顶支 `内容量qTok=<N>≥<min>⇒闸门未生效`（不封顶支的措辞刻意不含「封顶」二字，好让测试直接断言该支无此字样）。结构化字段是 `contentTokens` / `contentTokenMin`，所以复算不需要翻源码。
 - **内容量闸门只封顶 `strong`，绝不整批否决**：`qTok`（**内容词元数** = 去重查询词元里在库内任一分词字段出现过的个数）不足 `contentTokenMin`（默认 2）时，`strong` 降为 `weak`；`weak` / `none` 两档逐字不变，**行照样返回**。`qTok = 0` 时 `rel` 必然为 0，`none` 是本来就成立的结论。
   为什么需要它：`rel` 的分母是「查询自身的理论 BM25 上界」，**单内容词元**的查询几乎能独自顶到那个上界 ⇒ 比值虚高。真实 204 条库实测：完全无关的 `ok` / `做` / `b` 分别拿到 rel `0.1867` / `0.1829` / `0.1707`，修前都判 `strong`；而真话题 `虚拟屏`（3 个字符但 5 个内容词元）rel `0.5549` 不受影响。判据取「内容词元数」而不是字符数：字符数闸门会把 `虚拟屏` 一起压掉。
 - **`score` 不保证可精确复算**：`score = disp(final)`，其中 `final = (rel + graph) × 多样性因子`，多样性因子 `= 1 − β·maxSim`（β 默认 0.3，`maxSim` 是该行与**已选行**的最大标签 Jaccard 相似度），且该因子**只在候选数 > 5 时施加**（候选 <= 5 时恒为 1）。由于 **β 与 maxSim 都不是打印列**，多样性被启用时 `score` 无法仅由打印的 `rel` / `graph` 精确复算。这是如实声明的限制，不是实现疏漏。
@@ -108,9 +108,9 @@ id | kind | title | tags | graph | via | rel | cov | match | score
 
 表头是**单行**的，总长上界为 `HEADER_MAX_CHARS = 448` 字符。这个上界由**构造**保证，与查询串多长无关：
 
-- **固定部分**（与查询无关）：列序 / `rel` 语义与 `match` 依据 / 两个阈值 / **内容量闸门输入与规则**（`内容量qTok=<N><<min>⇒strong封顶weak`）/ `disp(final)` 公式与两个标度常数 / `limit` 是硬显示上限 / I2 结论 / 低置信 / I3 结论。其中标度常数经 `formatHeaderConstant()` **定宽回显**（宽度上限 `HEADER_CONST_MAX_CHARS = 9`）：放得下就精确回显，放不下就用 `≈` 标注为**近似值**并降精度（精确值仍逐字在结构化字段 `scaleA`/`scaleB`/`weakThreshold`/`strongThreshold` 上）。
+- **固定部分**（与查询无关）：列序 / `rel` 语义与 `match` 依据 / 两个阈值 / **内容量闸门输入与规则，按分支回显**（封顶支 `内容量qTok=<N><<min>⇒strong封顶weak`，不封顶支 `内容量qTok=<N>≥<min>⇒闸门未生效`）/ `disp(final)` 公式与两个标度常数 / `limit` 是硬显示上限 / I2 结论 / 低置信 / I3 结论。其中标度常数经 `formatHeaderConstant()` **定宽回显**（宽度上限 `HEADER_CONST_MAX_CHARS = 9`）：放得下就精确回显，放不下就用 `≈` 标注为**近似值**并降精度（精确值仍逐字在结构化字段 `scaleA`/`scaleB`/`weakThreshold`/`strongThreshold` 上）。
 - **有界的 `query=` 回显**：回显预算 = `HEADER_MAX_CHARS` 减去固定部分**现算**；先按**码点**截断原始查询串，**再**做 JSON 转义（顺序不能反，否则会切断 `\"`、`\\`、`\n`、`\u00XX` 这类转义序列），放不下就继续缩短并如实标注 `…(截断)`。转义后一定单行。**完整查询串永远原样在结构化字段 `query` 上**，回显只是给人看的短标识。
-- **回显位宽代价（本次已产生，后人注意）**：内容量闸门那次回显把「默认标度 + 3 条库」的固定部分从 384 顶到 **404**，最坏观测（`Number.MAX_VALUE` 常数）**414**，实测表头最坏 **447**（上界 448，只剩 1 个字符余量）。为腾字符，同一次改动压掉了 `候选N;`（候选数仍在结构化字段 `matched` 上）并收紧了 I3 段的括号与分隔符（判据文字一字未改）。**往表头再加文本前，必须先跑 `test/header.test.mjs` 的两条最坏情况用例。**
+- **回显位宽代价（本次已产生，后人注意）**：内容量闸门那次回显把「默认标度 + 3 条库」的固定部分从 384 顶到 **404**，最坏观测（`Number.MAX_VALUE` 常数）**414**，实测表头最坏 **447**（上界 448，只剩 1 个字符余量）。**按分支回显不改变这条最坏值**：两条最坏情况用例都落在封顶支（边界字符查询 `qTok=0`、极值常数夹具 `query=alpha` 的 `qTok=1`），而不封顶支比封顶支**短 7 个字符**（17 vs 24）。为腾字符，同一次改动压掉了 `候选N;`（候选数仍在结构化字段 `matched` 上）并收紧了 I3 段的括号与分隔符（判据文字一字未改）。**往表头再加文本前，必须先跑 `test/header.test.mjs` 的两条最坏情况用例。**
 
 > 历史坑：旧文档/旧注释写的是「单行、<= 400 字符」。那个数字只在 3 个短查询夹具（388~399）上量过，从未覆盖最坏情况 —— 200 字符含边界字符的查询实测表头 742 字符、360 字符的查询 932 字符；换一组回显更宽的标度常数（22 位小数）也能把固定部分顶到 413。现在两条路径分别由上面的定宽回显与有界回显堵死，并由 `test/header.test.mjs` 的最坏情况用例（长边界查询 + `Number.MAX_VALUE` 常数 + 三位数库规模统计）钉住。**真正的上界一直是 `HEADER_MAX_CHARS = 448`**；`test/header.test.mjs` 里那个更紧的「常配短查询 <= 428」只是收紧位（闸门回显前是 400），不是总量上界。
 
@@ -127,7 +127,7 @@ id | kind | title | tags | graph | via | rel | cov | match | score
 - 多样性因子**仅当候选数 > 5 时施加**；**是否施加见结构化字段 `diversityApplied`**。
 - 因此多样性被启用时，`score` **无法仅由打印出的 rel/graph 精确复算**（β 与 maxSim 都不在打印列里）；而 `match` **始终可由打印的 rel + 表头阈值 + 表头回显的内容量闸门输入（`contentTokens`/`contentTokenMin`）复算**。
 - **内容量闸门（本次新增）**：`match = 无内容量(qTok=0) ? none : (qTok < contentTokenMin ? strong 封顶 weak : 阈值判定)`；`qTok` = 去重查询词元里在库内任一分词字段出现过的个数，默认阈值 `CONTENT_TOKEN_MIN = 2`，可用配置 `score.contentTokenMin` 覆盖（设 1 即关闸门）。它**只封顶 strong**：短查询照样返回行、照样能判 weak，**绝不整批否决**；`rel` 的语义与四个已标定常数一个字都不动。
-- **表头回显**：`内容量qTok=<N><<min>⇒strong封顶weak`（判红点：删掉这段或只回显一半 ⇒ `test/header.test.mjs` 与 `test/scoring.test.mjs` 变红）。
+- **表头回显（按分支给，绝不写无条件样板）**：封顶支 `内容量qTok=<N><<min>⇒strong封顶weak`、不封顶支 `内容量qTok=<N>≥<min>⇒闸门未生效`。（判红点：删掉这段、只回显一半，或把不封顶支改回无条件样板 ⇒ `test/header.test.mjs` 与 `test/scoring.test.mjs` 变红；真机缺陷出处 `redproof/i10-*`。）
 - `graph` 是标签图传播给的**辅助**奖励（有硬上限 `graphBonusCap`，**不会压过词法相关度**）。
 - `via` 是该行来源：`direct`（词法直接命中）或 `tag:<标签>`（由该标签的图传播到达）。
 - `cov` 是标签覆盖率（**仅诊断**，不门控、不整批否决）。

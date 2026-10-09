@@ -68,13 +68,15 @@ export const RECALL_LIMIT_MAX = 50
  * 回显的预算由 `HEADER_MAX_CHARS` 减去固定部分**现算**（不是常数），因此
  * 「表头总长 <= HEADER_MAX_CHARS」是由构造保证的，与查询长度无关。
  *
- * 取值依据（本机实测，2026-10-09 内容量闸门落地后重测）：固定部分在「默认标度 + 3 条库」下
- * **404 字符**（I7c 时是 384；闸门回显 `内容量qTok=N<2⇒strong封顶weak` 换来 +20）；
+ * 取值依据（本机实测，2026-10-09 内容量闸门**按分支回显**后重测）：固定部分在「默认标度 + 3 条库」下
+ * **404 字符**（I7c 时是 384；闸门回显封顶支 `内容量qTok=N<2⇒strong封顶weak` 换来 +20）；
  * 固定部分的最坏观测是「`Number.MAX_VALUE` 极值常数 + 两位数库规模」下的 **414**。
  * 于是表头 = 9（`L1:query=`）+ 查询回显 + 1（分隔）+ 固定部分 <= 9 + 24 + 1 + 414 = 448 ——
- * 由 `echoBudget` 的 `-1` 与有界回显共同保证。实测最坏 447（负数极值常数 + 240 字符边界查询）。
- * 余量只有 1~4 个字符，**往表头加文本前必须先跑 test/header.test.mjs 的最坏情况两条用例**。
- * 覆盖最坏情况的用例见 test/header.test.mjs 的「长查询/边界字符」段与「固定部分」段。
+ * 由 `echoBudget` 的 `-1` 与有界回显共同保证。实测最坏 447（负数极值常数 + 240 字符边界查询，两条
+ * 最坏情况用例都在**封顶支**：边界字符查询 qTok=0、极值常数夹具 query=alpha qTok=1）；
+ * 不封顶支回显比封顶支**短**（`…≥min⇒闸门未生效` 17 字符 vs `…<min⇒strong封顶weak` 24 字符），
+ * 所以本次修复不改变最坏总长。余量只有 1~4 个字符，**往表头加文本前必须先跑 test/header.test.mjs
+ * 的最坏情况两条用例**。覆盖最坏情况的用例见 test/header.test.mjs 的「长查询/边界字符」段与「固定部分」段。
  */
 export const HEADER_MAX_CHARS = 448
 /**
@@ -783,8 +785,10 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
       //   ① 列序（RECALL_COLUMNS 的列名与顺序，由它派生）——行按 ` | ` 切片读列，列序本身就是契约；
       //   ② rel=BM25 原始相关度、且是 match 的判定依据——否则 match 无法复算；
       //   ③ match 两个阈值数字 + 否则 none + (恒可复算)——复算 none/weak/strong 的依据；
-      //   ③b 内容量闸门（本次新增）：`内容量qTok=N<min⇒strong封顶weak` —— qTok 与阈值都是**闸门输入**，
-      //      少一个 match 就复算不出来（判据/阈值标定见 pure.ts 的 CONTENT_TOKEN_MIN 注释）；
+      //   ③b 内容量闸门（本次新增，按分支回显）：封顶支 `内容量qTok=N<min⇒strong封顶weak`、
+      //      不封顶支 `内容量qTok=N≥min⇒闸门未生效` —— qTok 与阈值都是**闸门输入**，
+      //      少一个 match 就复算不出来（判据/阈值标定见 pure.ts 的 CONTENT_TOKEN_MIN 注释；
+      //      无条件样板的旧缺陷见 redproof/i10-*）。
       //   ④ score=disp(final) 的公式与两个标度常数——复算展示分的唯一依据；
       //   ⑤ limit 是硬显示上限——防止把「内部候选池预算」误读成显示上限；
       //   ⑥ I2 结论：novelty、novelty 阈值、expanded、kBase->kUsed——复算 expanded；
@@ -831,17 +835,27 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
       const constWeak = formatHeaderConstant(scoreCfg.weak)
       const constStrong = formatHeaderConstant(scoreCfg.strong)
       // 固定部分（与**查询串**完全无关）：长度由库规模统计与上面四个定宽常数决定。
-      // 内容量闸门（本次新增）：`;内容量qTok=N<min⇒strong封顶weak`。
-      //   - qTok 与 min 都逐字回显 ⇒ 读者用「打印的 rel + 两个阈值 + 这两个数」仍能**恒可复算** match；
-      //   - 无内容量（qTok=0）时 rel 必为 0，matchLevel 已经给出 none，故闸门只写 strong→weak 这一档；
-      //   - 为了给这段腾字符，同一次改动压掉了 `候选N;`（min(limit,候选数) 语义在工具描述与结构化
+      // 内容量闸门回显（`;内容量…`）**按分支给，绝不写无条件样板**（真机缺陷修复，见 redproof/i10-*）：
+      //   - 封顶支（qTok < min）：`;内容量qTok=N<min⇒strong封顶weak` —— 本就准确，逐字保留；
+      //   - 不封顶支（qTok >= min）：`;内容量qTok=N≥min⇒闸门未生效` —— 旧实现这一支照抄封顶样板，
+      //     于是真机上 query=`虚拟屏`（qTok=5）打出 `qTok=5<2⇒strong封顶weak`：不等号两边说谎，
+      //     而且那一行的 match 恰恰是 strong（根没封顶）。表头是读者复算 match 的唯一依据（I1.3），
+      //     **它不能撒谎**。措辞刻意不含「封顶」二字，好让测试直接断言不封顶支回显无该字样；
+      //   - qTok=0 落在封顶支（0 < min 恒成立），语义与旧实现逐字一致：规则句 `qTok<min⇒strong封顶weak`
+      //     仍可复算出 none（qTok=0 ⇒ rel 必为 0 ⇒ matchLevel 给 none；封顶只动 strong，不动该结论）；
+      //   - 两支都逐字回显 qTok 与 min 两个**闸门输入** ⇒ match 仍**恒可复算**（I1.3 铁律）；
+      //   - 两支长度：封顶支 24 字符、不封顶支 17 字符（不封顶更短 ⇒ 不抬高最坏总长）。
+      //   - 为了给这段腾字符，闸门落地那次压掉了 `候选N;`（min(limit,候选数) 语义在工具描述与结构化
       //     字段 matched/shown 上）并把 I3 段的括号与两处分隔符收紧（判据语一字未改）。
+      const gateEcho = contentTokens < scoreCfg.contentTokenMin
+        ? `内容量qTok=${contentTokens}<${scoreCfg.contentTokenMin}⇒strong封顶weak`
+        : `内容量qTok=${contentTokens}≥${scoreCfg.contentTokenMin}⇒闸门未生效`
       const tail = `;limit=${limit} 是硬显示上限;`
         + `列序:${RECALL_COLUMNS.join('|')};`
         + 'rel=BM25原始相关度,match 依据;'
         + `score=disp(final)=clip((final-${constA})/(${constB}-${constA}));`
         + `match:rel>=${constWeak} weak、>=${constStrong} strong、否则 none(恒可复算);`
-        + `内容量qTok=${contentTokens}<${scoreCfg.contentTokenMin}⇒strong封顶weak;`
+        + `${gateEcho};`
         + `${triageSeg};`
         + `${lowConfSeg};`
         + `I3:final=rel+graph×多样性,候选>5时启用,开时不可由 rel/graph 复算,graph硬上限<=${graphCfg.bonusCap}，图${graphSize.nodes}节点/${graphSize.edges}边，`

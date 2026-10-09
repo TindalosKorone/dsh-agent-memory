@@ -1,0 +1,11 @@
+真库: /data/data/com.dsharnessmobile.shell/files/home/.dsh/agent-memory/memory.ndjson
+写前 sha256: 939be67e4c14862217f64d1ed89fc388d007a8bdbd3af1628e398c4854a98c3a
+
+query=ok 库容=205 qTok=1/2 => 封顶支，strong 行数=0
+表头: L1:query="ok";limit=5 是硬显示上限;列序:id|kind|title|tags|graph|via|rel|cov|match|score;rel=BM25原始相关度,match 依据;score=disp(final)=clip((final-0.0199)/(0.3666-0.0199));match:rel>=0.0382 weak、>=0.1507 strong、否则 none(恒可复算);内容量qTok=1<2⇒strong封顶weak;I2:novelty=1.0000 >= 阈值 0.5,expanded=true，kBase=5 -> kUsed=10;低置信:cov_max=0.0000 < 0.05;I3:final=rel+graph×多样性,候选>5时启用,开时不可由 rel/graph 复算,graph硬上限<=0.018，图120节点/348边，枢纽被压38，reachable=0
+
+query=虚拟屏 库容=205 qTok=5/2 => 不封顶支，strong 行数=5
+表头: L1:query="虚拟屏";limit=5 是硬显示上限;列序:id|kind|title|tags|graph|via|rel|cov|match|score;rel=BM25原始相关度,match 依据;score=disp(final)=clip((final-0.0199)/(0.3666-0.0199));match:rel>=0.0382 weak、>=0.1507 strong、否则 none(恒可复算);内容量qTok=5≥2⇒闸门未生效;I2:novelty=0.5382 >= 阈值 0.5,expanded=true，kBase=5 -> kUsed=10;非低置信:cov_max=0.4852 >= 0.05;I3:final=rel+graph×多样性,候选>5时启用,开时不可由 rel/graph 复算,graph硬上限<=0.018，图120节点/348边，枢纽被压38，reachable=0
+
+写后 sha256: 939be67e4c14862217f64d1ed89fc388d007a8bdbd3af1628e398c4854a98c3a
+真库未被改动: YES

@@ -1,0 +1,26 @@
+== 修复版哈希（红证前）==
+src/index.ts  56bd3bdf8f1c335184208f78857640231dee48e6b201a62134a0f9d6b325887e
+lib/index.js   52dc23b21aaf62104982e9b283e910310fa42b8238f455ee34d05d8e6c80b53f
+
+== 关掉按分支回显（改回无条件样板）并重建 ==
+已关；lib/index.js 7706bda4e60f84f88b3cda6a9f14122eba89a2fe765e3b58465e805f0c636833
+
+== 判红实测 ==
+--- test/scoring.test.mjs exit=1
+ℹ pass 19 | ℹ fail 1
+✖ 内容量闸门（工具层）：单内容词元查询 rel>=strong 也只判 weak，行照样返回；关闸门即回到 strong；回显按分支给（不封顶支不得照抄封顶样板） (85.367187ms)
+✖ failing tests:
+✖ 内容量闸门（工具层）：单内容词元查询 rel>=strong 也只判 weak，行照样返回；关闸门即回到 strong；回显按分支给（不封顶支不得照抄封顶样板） (85.367187ms)
+    ✖ 内容量闸门（工具层）：单内容词元查询 rel>=strong 也只判 weak，行照样返回；关闸门即回到 strong；回显按分支给（不封顶支不得照抄封顶样板） (85.367187ms)
+    ✖ 内容量闸门（工具层）：单内容词元查询 rel>=strong 也只判 weak，行照样返回；关闸门即回到 strong；回显按分支给（不封顶支不得照抄封顶样板） (85.367187ms)
+    AssertionError [ERR_ASSERTION]: 不封顶支的回显不得出现「封顶」字样（无条件样板在此支是假的）：L1:query="zzgate";limit=3 是硬显示上限;列序:id|kind|title|tags|graph|via|rel|cov|match|score;rel=BM25原始相关度,match 依据;score=disp(final)=clip((final
+--- test/header.test.mjs exit=1
+ℹ pass 3 | ℹ fail 1
+✖ I5 表头自检：单行、<= 428 字符，且可复算信息一个都不少 (202.309688ms)
+✖ failing tests:
+✖ I5 表头自检：单行、<= 428 字符，且可复算信息一个都不少 (202.309688ms)
+    AssertionError [ERR_ASSERTION]: 不封顶支的回显不得出现「封顶」字样（在 qTok>=阈值 时它是假的）：L1:query="alpha beta";limit=5 是硬显示上限;列序:id|kind|title|tags|graph|via|rel|cov|match|score;rel=BM25原始相关度,match 依据;score=disp(final)=cl
+
+== 恢复修复版并重建 ==
+src/index.ts  56bd3bdf8f1c335184208f78857640231dee48e6b201a62134a0f9d6b325887e
+lib/index.js   52dc23b21aaf62104982e9b283e910310fa42b8238f455ee34d05d8e6c80b53f
