@@ -1,0 +1,22 @@
+# I5 表头减肥：涉及文件的 sha256（改后 = 判红前 = 恢复后，逐字节一致）
+# 生成命令：sha256sum src/index.ts test/header.test.mjs
+# 校验命令：sha256sum -c（下面这 2 行即校验清单；redproof/i5-final-full-suite.txt 就是在这两个哈希下跑出来的）
+
+9073bbbf6e7a352e2d5b0c112b9271aa1733ab4b026d0db96fe8fc841644c3d4  src/index.ts
+c6341357ca059d163420b2d2b094d03da3d5718d29285322bda19449c17a2e2c  test/header.test.mjs
+
+# 表头长度与行预算（同一夹具：40 条记录、query="深色主题"、limit=20）
+#   旧长表头 1066 字符 => shown=7（redproof/i5-header-old-measure.txt）
+#   新短表头  388 字符 => shown=14（redproof/i5-header-new-measure.txt）
+
+# 判红点（只改行为面，不动测试里任何期望值）：把 src/index.ts 的整份表头回退成 git e390f23 的
+#   「包含完整常数数字的长表头」（git checkout -- src/index.ts；3 条记录的夹具下 1049 字符），再 tsc。
+# 判红实测（redproof/i5-header-red.txt，node test/header.test.mjs exit=1 / pass=0 / fail=2）：
+#   ✖ I5 表头自检：AssertionError 表头必须 <= 400 字符（旧表头实测 1049~1066），实际 1049
+#   ✖ I5 结构性断言（本次核心）：AssertionError 显示行数必须与标度常数无关：
+#       默认标度 0.0187/0.342/0.0363/0.1476 => shown=5 / scaleA=0/scaleB=0.45/weak=0.06/strong=0.16 => shown=6
+#       / scaleB=1.2345 => shown=5 / scaleB 回显 17 位小数 => shown=5        （2 !== 1）
+#     ⇒ 旧长表头回显常数，两组标度相差 11 个字符就让显示行数从 5 变成 6 —— 正是本次要修的病。
+# 恢复：cp .tmp-test/final-index.ts src/index.ts；sha256sum -c 全 OK（见上）；
+#   恢复后 test/header.test.mjs exit=0 / pass=2 / fail=0（redproof/i5-header-restored.txt）；
+#   全量 16 个测试文件 156 pass / 0 fail（redproof/i5-final-full-suite.txt）。

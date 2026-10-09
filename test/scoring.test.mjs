@@ -276,17 +276,18 @@ test('工具层：候选 > 5 才启用多样性；cov 作为诊断列不门控�
   const remember = defs.get('memory_remember')
   const recall = defs.get('memory_recall')
 
-  // 6 条候选（仍满足「候选 > 5 ⇒ 开多样性」）：标定后表头更长，8 条候选的 8 行会越过
-  // RECALL_MAX_CHARS=2000 的字符预算，使「rows.length 恰好等于候选数」变成在测字符预算。
-  for (let i = 0; i < 6; i += 1) {
+  // 8 条候选（> 5 ⇒ 开多样性）。I5 表头减肥后行预算回来了：表头 <= 400 字符 ⇒
+  // 8 行（每行约 112 字符）离 RECALL_MAX_CHARS=2000 还很远，本用例重新回到旧口径
+  // 「rows.length 恰好等于候选数」（原先为绕开长表头的字符预算被压成 6/limit=6）。
+  for (let i = 0; i < 8; i += 1) {
     const r = await remember.execute({
       kind: 'fact', title: `theme note number ${i}`, body: `dark theme details ${i}`,
       tags: ['theme', 'shared'], source: 'test:scoring',
     })
     assert.equal(r.ok, true)
   }
-  const r = await recall.execute({ query: 'dark theme', limit: 6 })
-  assert.equal(r.rows.length, 6, '候选 > 5 ⇒ 走多样性分支，且 6 行都在字符预算内')
+  const r = await recall.execute({ query: 'dark theme', limit: 8 })
+  assert.equal(r.rows.length, 8, '候选 > 5 ⇒ 走多样性分支，且 8 行都在字符预算内')
   assert.equal(r.truncated, false, '夹具必须留在字符预算内，否则下面的多样性断言会被截断干扰')
   assert.equal(r.diversityApplied, true)
   assert.equal(r.diversityBeta, DEFAULT_DIVERSITY_BETA)

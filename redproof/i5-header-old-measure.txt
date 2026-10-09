@@ -1,0 +1,9 @@
+== 旧长表头（git e390f23 的 src/index.ts）==
+== 默认配置 limit=20 ==
+headerLen = 1066
+shown = 7 truncated = true
+header 单行? true
+--- header 全文 ---
+记忆召回（L1 索引，不含正文）：query="深色主题" | 库内 40 条 | 融合候选 40 条 | 本次显示 20 条（limit=20 是硬显示上限：返回行数恒为 min(limit,可用候选数)，扩检索只放大内部候选池、不增加返回行数）| 列序：id | kind | title | tags | graph(图奖励,辅助,已应用硬上限) | via(来源:direct 或 tag:<标签>) | rel(惩罚前相关度) | cov(标签覆盖率,仅诊断) | match(绝对判定) | score(展示分 disp(final)，行尾，按此降序) | rel=BM25 原始相关度（绝对标度，不随批次归一化）——阈值直接作用于它，可据此自行验算 match（图奖励不改 rel、不改 match）；score=disp(final)=clip((final-0.0187)/(0.342-0.0187)) 映射到 0..1 的展示分（与 rel 不同标度，仅用于排序展示）；阈值 match：rel>=0.0363 为 weak、>=0.1476 为 strong，无证据为 none（不扣分）；多样性 beta=0.3 | I2 分诊（词法空间残差金字塔）：novelty=1.0000 >= 阈值 0.5 ⇒ expanded=true；kBase=20 -> kUsed=40（分诊判定扩检索：kUsed 是内部候选池预算，显示行数仍受硬上限 limit=20 约束）；explainedRatio=0.0000 + residualRatio=1.0000 = 1；basisSize=6 layers=3 logicalDepth=0.0000；低置信：cov_max=0.0000 < 0.05（仅如实报告：不否决任何候选、不返回空） | I3 图：final=rel+graph（graph 是辅助奖励，硬上限 0.018 ⇒ 压不过词法相关度；无图证据恒为 0，只奖不罚）；有序双向边 log(1+1W) 压缩，出流预算 1/节点，枢纽校正 (频次/中位数1)^-0.5；图 41 节点/40 有向边；枢纽被压 0 个；传播种子 0、到达标签 0、展开状态 0、最深 0 跳，上限 maxHops=2/maxStates=64/maxFieldNeighbors=4，gamma=0.6/rho=0.15（不许沿刚来的那条边原路返回）；有图证据记忆 0 条（图新增可达 reachable=0 条）
+--- end ---
+极端常数 headerLen = 1067 shown = 7

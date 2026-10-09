@@ -123,7 +123,10 @@ export interface L1Row {
  *    ③ 前三列（id/kind/title/tags）不动 ⇒ 行首解析不变。
  *    如果把新列插在 match 与 score 之间或追加在尾部，①②必坏其一（要么行尾不再是分数，
  *    要么既有列的整体下标位移，既有读者会静默读错列）。
- *  - 表头（单一表头行）必须如实说明这些列的含义与绝对标度常数；
+ *  - 表头（单一表头行）必须写明列序与绝对标度常数；I5 减肥后它只保留**可复算所必需**的信息
+ *    （列序 / rel 语义与 match 依据 / 两个阈值 / disp(final) 公式与两个标度常数 / limit 是硬显示
+ *    上限 / I2 结论 novelty·阈值·expanded·kBase->kUsed / 低置信 cov_max·激活阈值 / I3 结论
+ *    final=rel+graph·graph 硬上限·图规模·枢纽被压数·reachable），详见下面构造处的注释；
  *  - final = rel + graph（再乘多样性惩罚）；rel = **BM25 原始相关度**（match 只依据它）。
  */
 export function formatL1(rec: MemoryRecord, view: L1ScoreView): string {
@@ -601,50 +604,56 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
         })
       }
 
-      // 表头必须如实说明四列含义与两种标度（单行：recall 用例按 split('\n') 切片核对行）。
-      // I2 追加一段**分诊自证**：novelty 与阈值、kBase/kUsed、explainedRatio/residualRatio、
-      // cov_max 与 activationThreshold 全部打印 ⇒ 读者能用打印的数自行复算 expanded 与 lowConfidence。
-      // I2.1 修 1：写明 limit 是硬显示上限、扩检索只放大内部候选池；
-      // I2.1 修 2：无词元能量时**如实写明「未分诊」**（不假装算过：两个比值回显 0/0）。
+      // ── I5 表头减肥：单行、<= 400 字符，只留「可复算所必需」的结论性数字 ──────────────
+      // 旧表头 1049~1066 字符（本机实测，随查询与条数变化），而 RECALL_MAX_CHARS=2000 ⇒ 每次只剩
+      // 7~9 行可见（40 条候选也只显示 7 行）。
+      // 更糟的是旧表头把标度常数**本身**回显了两遍（score 公式 + 阈值），于是改
+      // SCALE_A/SCALE_B/WEAK/STRONG 会连带改掉「能显示几行」——上一次标定落地时 6 个既有测试红，
+      // 其中 5 个就是这么被掰弯的（把 8 行改成 6 行、把夹具标题压短）。现在常数照旧回显
+      // （复算必需），但表头长度与它们的**小数位长度无关**地稳定；由 test/header.test.mjs 的
+      // 结构性断言「标度常数不得影响显示行数」钉住。
+      //
+      // 必须保留（一个都不能少，理由见括号）：
+      //   ① 列序（10 列的名字与顺序）——行按 ` | ` 切片读列，列序本身就是契约；
+      //   ② rel=BM25 原始相关度、且是 match 的判定依据——否则 match 无法复算；
+      //   ③ match 两个阈值数字——复算 none/weak/strong 唯一依据；
+      //   ④ score=disp(final) 的公式与两个标度常数——复算展示分的唯一依据；
+      //   ⑤ limit 是硬显示上限——防止把「内部候选池预算」误读成显示上限；
+      //   ⑥ I2 结论：novelty、novelty 阈值、expanded、kBase->kUsed——复算 expanded；
+      //   ⑦ 低置信：cov_max 与激活阈值——复算 lowConfidence；
+      //   ⑧ I3 结论：final=rel+graph、graph 硬上限、图规模、枢纽被压数量、reachable——复算排序。
+      //
+      // 压掉的（这些量**一个都没删**，仍逐字在结构化返回字段/rows 里，本来就不占文本预算）：
+      //   - 解释性 prose（「返回行数恒为…」「仅用于排序展示」「不扣分」这类长句）；
+      //   - 公式的文字展开（log(1+λW) 压缩、出流预算、枢纽校正指数、图 pivot 细节）；
+      //   - 重复出现的「内部候选池预算」解释（kUsed 的语义只保留在结构化字段 kUsed 上）；
+      //   - 非结论性诊断：basisSize/layers/logicalDepth、explainedRatio+residualRatio 守恒式、
+      //     maxHops/maxStates/maxFieldNeighbors/gamma/rho、种子数/到达标签数/展开状态数/跳数、
+      //     枢纽名单、以及多样性 beta（MMR 的 beta 要配整份候选集才能复算，单列它复算不了）。
+      // 另：旧表头那句「本次显示 N 条」在截断时**是错的**（打印的是 fitLines 之前的行数），
+      //     本次直接删掉；真实显示行数由结构化字段 shown 与截断附注如实给出。
       const triageSeg = triage.noQueryEnergy
-        ? `I2 分诊（词法空间残差金字塔）：novelty=0.0000（查询无词元能量 ‖q‖²≈0 ⇒ 未分诊，`
-          + `阈值 ${triageCfg.noveltyThreshold} 不参与门控）⇒ expanded=false；`
-          + `kBase=${kBase} -> kUsed=${kUsed}（未分诊 ⇒ 不扩检索，kUsed=kBase）；`
-          + 'explainedRatio=0.0000 residualRatio=0.0000（0/0 未定义：无词元能量可解释）；'
-        : `I2 分诊（词法空间残差金字塔）：novelty=${triage.novelty.toFixed(4)} ${expanded ? '>=' : '<'} 阈值 ${triageCfg.noveltyThreshold} ⇒ expanded=${expanded}；`
-          + `kBase=${kBase} -> kUsed=${kUsed}（分诊判定${expanded ? '扩检索' : '不扩检索'}：kUsed 是内部候选池预算，显示行数仍受硬上限 limit=${limit} 约束）；`
-          + `explainedRatio=${triage.explainedRatio.toFixed(4)} + residualRatio=${triage.residualRatio.toFixed(4)} = 1；`
-      // I3 表头用的如实回显量（全部是本请求的局部结论）。
+        ? `I2:未分诊(‖q‖²≈0):novelty=0.0000,阈值 ${triageCfg.noveltyThreshold} 不门控,expanded=false,`
+          + `kBase=${kBase} -> kUsed=${kUsed},0/0`
+        : `I2:novelty=${triage.novelty.toFixed(4)} ${expanded ? '>=' : '<'} 阈值 ${triageCfg.noveltyThreshold},expanded=${expanded}，`
+          + `kBase=${kBase} -> kUsed=${kUsed}`
+      const lowConfSeg = lowConfidence
+        ? `低置信:cov_max=${covMax.toFixed(4)} < ${triageCfg.activationThreshold}`
+        : `非低置信:cov_max=${covMax.toFixed(4)} >= ${triageCfg.activationThreshold}`
+      // I3 表头用的如实回显量（全部是本请求的局部结论）；枢纽名单压给结构化字段 hubSuppressed。
       const hubSuppressedCount = tagGraph.hubSuppressed.length
-      const hubSuppressedList = tagGraph.hubSuppressed.length <= 4
-        ? tagGraph.hubSuppressed.join(',')
-        : `${tagGraph.hubSuppressed.slice(0, 4).join(',')}…`
       const reachableWithGraph = rewardList.filter((x) => x.bonus > 0).length
 
-      const header = `记忆召回（L1 索引，不含正文）：query=${JSON.stringify(query)} | 库内 ${records.length} 条 | `
-        + `融合候选 ${fused.length} 条 | 本次显示 ${lines.length} 条（limit=${limit} 是硬显示上限：`
-        + '返回行数恒为 min(limit,可用候选数)，扩检索只放大内部候选池、不增加返回行数）| '
-        + '列序：id | kind | title | tags | '
-        + `graph(图奖励,辅助,已应用硬上限) | via(来源:direct 或 tag:<标签>) | `
-        + 'rel(惩罚前相关度) | cov(标签覆盖率,仅诊断) | match(绝对判定) | score(展示分 disp(final)，行尾，按此降序) | '
-        + 'rel=BM25 原始相关度（绝对标度，不随批次归一化）——阈值直接作用于它，可据此自行验算 match（图奖励不改 rel、不改 match）；'
-        + `score=disp(final)=clip((final-${scoreCfg.scaleA})/(${scoreCfg.scaleB}-${scoreCfg.scaleA})) 映射到 0..1 的展示分（与 rel 不同标度，仅用于排序展示）；`
-        + `阈值 match：rel>=${scoreCfg.weak} 为 weak、>=${scoreCfg.strong} 为 strong，无证据为 none（不扣分）；`
-        + `多样性 beta=${beta}${beta === 0 ? '（候选<=5，已跳过）' : ''} | `
-        + triageSeg
-        + `basisSize=${triage.basisSize} layers=${triage.layers} logicalDepth=${triage.logicalDepth.toFixed(4)}；`
-        + (lowConfidence
-          ? `低置信：cov_max=${covMax.toFixed(4)} < ${triageCfg.activationThreshold}（仅如实报告：不否决任何候选、不返回空）`
-          : `非低置信：cov_max=${covMax.toFixed(4)} >= ${triageCfg.activationThreshold}`)
-        + ` | I3 图：final=rel+graph（graph 是辅助奖励，硬上限 ${graphCfg.bonusCap} ⇒ 压不过词法相关度；无图证据恒为 0，只奖不罚）；`
-        + `有序双向边 log(1+${graphCfg.lambda}W) 压缩，出流预算 ${graphCfg.outBudget}/节点，枢纽校正 (频次/中位数${tagGraph.medianIn})^-${graphCfg.hubEta}；`
-        + `图 ${graphSize.nodes} 节点/${graphSize.edges} 有向边；枢纽被压 ${hubSuppressedCount} 个`
-        + `${hubSuppressedCount > 0 ? `（${hubSuppressedList}）` : ''}；`
-        + `传播种子 ${seedTags.length}、到达标签 ${prop.propagated.length}、展开状态 ${prop.statesUsed}、最深 ${prop.hops} 跳，`
-        + `上限 maxHops=${graphCfg.maxHops}/maxStates=${graphCfg.maxStates}/maxFieldNeighbors=${graphCfg.maxFieldNeighbors}`
-        + `${prop.statesTruncated ? '（撞上 maxStates，已如实截断）' : ''}，`
-        + `gamma=${graphCfg.decay}/rho=${graphCfg.backflowRho}（不许沿刚来的那条边原路返回）；`
-        + `有图证据记忆 ${reachableWithGraph} 条（图新增可达 reachable=${reachable} 条）`
+      const header = `记忆召回L1:query=${JSON.stringify(query)} 库${records.length} 候选${fused.length};`
+        + `limit=${limit} 是硬显示上限(min(limit,候选数));`
+        + '列序:id|kind|title|tags|graph|via|rel|cov|match|score;'
+        + 'rel=BM25原始相关度,match 依据;'
+        + `score=disp(final)=clip((final-${scoreCfg.scaleA})/(${scoreCfg.scaleB}-${scoreCfg.scaleA}));`
+        + `match:rel>=${scoreCfg.weak} weak、>=${scoreCfg.strong} strong、否则 none;`
+        + `${triageSeg};`
+        + `${lowConfSeg};`
+        + `I3:final=rel+graph，graph硬上限<=${graphCfg.bonusCap}，图${graphSize.nodes}节点/${graphSize.edges}边，`
+        + `枢纽被压${hubSuppressedCount}，reachable=${reachable}`
       const fitted = fitLines(header, lines, RECALL_MAX_CHARS)
       const text = records.length === 0
         ? `${header}\n(记忆库为空：请先用 memory_remember 写入)`
@@ -687,7 +696,7 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
         graphNodes: graphSize.nodes,
         graphEdges: graphSize.edges,
         // 如实回显**全部**到达标签（上限本来就由 maxStates/maxHops 兜住，不会无界）；
-        // 表头为了长度只列前几个，结构化字段给全量，免得读者按被截断的名单复算不出来。
+        // I5 减肥后表头一个名单都不列（只报数量），结构化字段给全量，免得读者按被截断的名单复算不出来。
         propagatedTags: prop.propagated.map((p) => ({ tag: p.tag, activation: p.weight })),
         maxHops: graphCfg.maxHops,
         maxStates: graphCfg.maxStates,

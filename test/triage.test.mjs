@@ -517,15 +517,17 @@ test('I2 自证：表头打印的 novelty/kBase/cov_max 与阈值必须能复算
   assert.equal(Number(kk[1]), r.kBase)
   assert.equal(Number(kk[2]), r.kUsed)
 
-  const ratios = /explainedRatio=([0-9]+\.[0-9]+) \+ residualRatio=([0-9]+\.[0-9]+) = 1/.exec(header)
-  assert.ok(ratios, '表头必须如实打印守恒关系')
-  assert.ok(Math.abs((Number(ratios[1]) + Number(ratios[2])) - 1) < 1e-9)
-
-  const bg = /basisSize=(\d+) layers=(\d+) logicalDepth=([0-9]+\.[0-9]+)/.exec(header)
-  assert.ok(bg)
-  assert.equal(Number(bg[1]), r.basisSize)
-  assert.equal(Number(bg[2]), r.layers)
-  assert.equal(Number(bg[3]), Number(r.logicalDepth.toFixed(4)))
+  // I5 表头减肥：守恒式（explainedRatio + residualRatio = 1）与 basisSize/layers/logicalDepth
+  // 属于「非结论性诊断」，已按规格从表头移到结构化返回字段——表头只保留复算 expanded/lowConfidence
+  // 所必需的 novelty/阈值/kBase->kUsed/cov_max/激活阈值。**字段一个都没删**：下面用 checkTriageFields
+  // 逐条钉住它们的精确值（守恒式 = 1、basisSize/layers 非负整数、logicalDepth 落在 0..1）。
+  for (const key of ['explainedRatio', 'residualRatio', 'basisSize', 'layers', 'logicalDepth']) {
+    assert.notEqual(r[key], undefined, `${key} 必须仍在结构化字段里（表头减肥不许删字段）`)
+  }
+  assert.ok(!header.includes('explainedRatio='), `守恒式不该再占表头字符预算：${header}`)
+  assert.ok(!header.includes('basisSize='), `basisSize/layers 不该再占表头字符预算：${header}`)
+  checkTriageFields('I5 表头自证', r)
+  assert.ok(Math.abs((r.explainedRatio + r.residualRatio) - 1) < 1e-9, '守恒式仍必须成立（只是不再打印在表头）')
 
   const cov = /cov_max=([0-9]+\.[0-9]+) (<|>=) ([0-9.]+)/.exec(header)
   assert.ok(cov, `表头必须打印 cov_max 与激活阈值：${header}`)

@@ -347,14 +347,11 @@ test('I3 工具层：limit 仍是硬显示上限；空查询图面全静默；�
 
   for (const limit of [1, 2, 3, 9]) {
     const r = await recall.execute({ query: 'alpha', limit })
-    // limit 是硬显示上限（行数绝不超过 limit），但**另有一条字符预算** RECALL_MAX_CHARS：
-    // rows 与真正打印出来的 lines 一一对应，所以预算先于 limit 生效时会少打印几行。
-    // 2026-10-09 标定后表头里的常数更长了（scaleA/scaleB/阈值），9 行正好越过 2000 字符预算 ⇒
-    // 原期望 `rows.length === min(limit, matched+reachable)` 只在**未截断**时成立；
-    // 截断时精确期望是 r.shown（= 真正打印的行数），两者都是等式，不放宽成不等式。
-    const cap = Math.min(limit, r.matched + r.reachable)
-    assert.equal(r.rows.length, r.truncated ? r.shown : cap,
-      `limit=${limit} 的显示行数（truncated=${r.truncated}，字符预算 RECALL_MAX_CHARS=2000）`)
+    // limit 是硬显示上限。I5 表头减肥后（<= 400 字符）行预算回来了：本夹具在 limit<=9 时
+    // 不再撞 RECALL_MAX_CHARS=2000，所以恢复旧口径的**精确等式**（不放松成不等式）：
+    // 行数恒为 min(limit, 可用候选数)。原先把期望改成 `truncated ? shown : cap` 是为了绕开长表头。
+    assert.equal(r.rows.length, Math.min(limit, r.matched + r.reachable), `limit=${limit} 必须仍是硬显示上限`)
+    assert.equal(r.truncated, false, `表头减肥后 limit=${limit} 不该再撞字符预算（撞了说明表头又长回去了）`)
     assert.ok(r.rows.length <= limit, `行数绝不超过 limit=${limit}`)
     assert.equal(r.lines.length, r.rows.length)
     assert.equal(r.shown, r.lines.length, 'shown 必须等于真正打印的行数')
@@ -447,22 +444,21 @@ test('红证 2（判红点：去掉枢纽校正 hubEta=0 ⇒ 判据变红）：�
   freshHome('graph-red2')
   const defs = tools()
   const rem = defs.get('memory_remember')
-  // 夹具文本刻意压短（标题仍 >= 协议下限 8 字符，正文只需非空）：用较长的标题/正文时，
-  // 标定后表头多出的十来个字符会让第 9 行越过 RECALL_MAX_CHARS=2000 的字符预算
-  // （z 恰好是被截掉的最后一行），「z 必须出现」就变成在测字符预算而不是在测图奖励。
+  // I5 表头减肥后行预算回来了：夹具恢复成旧口径的正常长度（原先为绕开长表头的 2000 字符预算，
+  // 标题/正文/标签名被刻意压短：'alpha focused note'→'alpha a0'、decoy0→d0 等）。
   // A：查询词法最强（alpha 同时出现在 tags 与 title/body）
-  const a = await rem.execute({ kind: 'fact', title: 'alpha a0', body: 'a', tags: ['alpha', 'gamma'], source: 'test:graph' })
-  const hub = await rem.execute({ kind: 'fact', title: 'alpha h0', body: 'h', tags: ['alpha', '万能'], source: 'test:graph' })
-  // 万能标签横跨 7 条记录（入度远高于中位数）⇒ 必须被判成枢纽并压制。
+  const a = await rem.execute({ kind: 'fact', title: 'alpha focused note', body: 'alpha evidence here', tags: ['alpha', 'gamma'], source: 'test:graph' })
+  const hub = await rem.execute({ kind: 'fact', title: 'alpha hub record', body: 'alpha something else', tags: ['alpha', '万能'], source: 'test:graph' })
+  // 万能标签横跨 7 条记录（入度 6 >> 中位数 1）⇒ 必须被判成枢纽并压制。
   // decoy 只放 4 个：每个顶点都要吃一个 maxStates 名额，太多会把名额用光，
   // 万能标签（码元排在 ASCII 之后）展开时名额已尽 ⇒ zeta 一个都传不到（夹具失真，不是机制）。
   for (let i = 0; i < 4; i += 1) {
-    await rem.execute({ kind: 'fact', title: `d${i} note!`, body: 'x', tags: [`d${i}`, '万能'], source: 'test:graph' })
+    await rem.execute({ kind: 'fact', title: `d${i} note title`, body: `d${i} body text`, tags: [`decoy${i}`, '万能'], source: 'test:graph' })
   }
   // z / z2：与 alpha 无任何词法重合，只能经万能标签到达（万能 -> zeta）
-  const z = await rem.execute({ kind: 'fact', title: 'zeta tgt', body: 'z', tags: ['万能', 'zeta'], source: 'test:graph' })
-  const z2 = await rem.execute({ kind: 'fact', title: 'zeta ext', body: 'z', tags: ['万能', 'zeta'], source: 'test:graph' })
-  await rem.execute({ kind: 'fact', title: 'filler00', body: 'p', tags: ['x'], source: 'test:graph' })
+  const z = await rem.execute({ kind: 'fact', title: 'zeta target title', body: 'zeta body', tags: ['万能', 'zeta'], source: 'test:graph' })
+  const z2 = await rem.execute({ kind: 'fact', title: 'zeta extra title', body: 'zeta extra body', tags: ['万能', 'zeta'], source: 'test:graph' })
+  await rem.execute({ kind: 'fact', title: 'filler body item', body: 'plain jane text', tags: ['x'], source: 'test:graph' })
   assert.equal(hub.ok, true)
   assert.equal(z.ok, true)
   assert.equal(z2.ok, true)

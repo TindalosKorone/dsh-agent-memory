@@ -1,0 +1,9 @@
+== 新短表头（I5）==
+== 默认配置 limit=20 ==
+headerLen = 388
+shown = 14 truncated = true
+header 单行? true
+--- header 全文 ---
+记忆召回L1:query="深色主题" 库40 候选40;limit=20 是硬显示上限(min(limit,候选数));列序:id|kind|title|tags|graph|via|rel|cov|match|score;rel=BM25原始相关度,match 依据;score=disp(final)=clip((final-0.0187)/(0.342-0.0187));match:rel>=0.0363 weak、>=0.1476 strong、否则 none;I2:novelty=1.0000 >= 阈值 0.5,expanded=true，kBase=20 -> kUsed=40;低置信:cov_max=0.0000 < 0.05;I3:final=rel+graph，graph硬上限<=0.018，图41节点/40边，枢纽被压0，reachable=0
+--- end ---
+极端常数 headerLen = 389 shown = 14
