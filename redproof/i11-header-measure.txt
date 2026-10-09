@@ -1,0 +1,39 @@
+===== i11 表头字符预算实测（最终态：闸门例外 + 标定漂移 + scope）=====
+硬上界 HEADER_MAX_CHARS = 448（构造保证：scope 回显与 query 回显共享现算预算）
+
+[A] 固定部分（无 scope，含漂移段；3 条库；query=zzq qTok=0 便于读数）
+默认标度: qTok=0 header=442 echoed=5 tail=428
+22 位小数 scaleB: qTok=0 header=445 echoed=5 tail=431
+MAX_VALUE: qTok=0 header=448 echoed=5 tail=434
+负数极值: qTok=0 header=445 echoed=5 tail=431
+
+[B] 最坏表头（60 条库 ⇒ 漂移段必现；4 组标度配置 x 短/超长边界查询）
+默认标度 / short: qTok=1 header=437 prefix='L1:query=' echoed="\"alpha\""
+默认标度 / long: qTok=0 header=447 prefix='L1:query=' echoed=(long)
+22 位小数 scaleB / short: qTok=1 header=440 prefix='L1:query=' echoed="\"alpha\""
+22 位小数 scaleB / long: qTok=0 header=447 prefix='L1:query=' echoed=(long)
+MAX_VALUE / short: qTok=1 header=446 prefix='L1:query=' echoed="\"alpha\""
+MAX_VALUE / long: qTok=0 header=448 prefix='L1:query=' echoed=(long)
+负数极值 / short: qTok=1 header=443 prefix='L1:query=' echoed="\"alpha\""
+负数极值 / long: qTok=0 header=445 prefix='L1:query=' echoed=(long)
+
+[C] test/header.test.mjs 的 3 条库夹具（默认 tools() ⇒ 漂移段出现；该用例本体已把漂移阈值调到极大以隔离条件段，实测基表头 388/382/392）
+"alpha": qTok=1 len=435 shown=3
+"alpha beta": qTok=2 len=429 shown=3
+"   ": qTok=0 len=437 shown=3
+
+结论：含漂移段与最坏常数的实测最坏 = 448（MAX_VALUE + 240 字符边界查询 + 60 条库）；基表头（关漂移段）= 388/392，仍 <= 428/420 两条收紧位。
+
+[D] scope 参与的最坏组合（60 条库 ⇒ 漂移段必现；scope=p*64；短/超长查询）
+默认标度 / short: header=437 scopeEcho=no <=448: true
+默认标度 / long: header=447 scopeEcho=no <=448: true
+默认标度 / scope64: header=447 scopeEcho=yes <=448: true
+MAX_VALUE / short: header=446 scopeEcho=no <=448: true
+MAX_VALUE / long: header=448 scopeEcho=no <=448: true
+MAX_VALUE / scope64: header=444 scopeEcho=no <=448: true
+负数极值 / short: header=443 scopeEcho=no <=448: true
+负数极值 / long: header=445 scopeEcho=no <=448: true
+负数极值 / scope64: header=446 scopeEcho=no <=448: true
+
+说明：scope 回显与 query 回显**共享同一个现算预算**；当固定部分已占满（如 MAX_VALUE 极值常数）时，
+scope 回显整段省略以保住 448 硬上界（精确 scope 仍在结构化字段 scope 与每行 rows[].scope 上）。

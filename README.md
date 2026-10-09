@@ -17,11 +17,11 @@ dsh plugin --profile web add github:TindalosKorone/dsh-agent-memory
 
 ## 怎么用
 
-1. `memory_remember`：写一条。`kind` 四选一（`fact` / `lesson` / `preference` / `pointer`），`title` 单行 8..120 字符，`tags` 1..12 个，`source` 非空。
+1. `memory_remember`：写一条。`kind` 四选一（`fact` / `lesson` / `preference` / `pointer`），`title` 单行 8..120 字符，`tags` 1..12 个，`source` 非空；`scope` **可选**（建议 `project:<名>`，省略 = `global`，非空单行 <= 64 字符）。
 2. `memory_recall`：按查询召回索引，每条一行 10 列
    `id | kind | title | tags | graph | via | rel | cov | match | score`。
-   `limit` 默认 5、最大 50，且是**硬显示上限**。
-   `match` 恒可由打印出的 `rel`、表头两个阈值与表头回显的**内容量闸门**输入（`contentTokens`/`contentTokenMin`/`gateMargin`）复算（`qTok` 不足**且** `rel < gateMargin×strong` 时 `strong` 封顶 `weak`，短查询照样返回行；单个高专有词元 `rel` 远超阈值则例外放行）；多样性启用时 `score` 不能仅由 `rel`/`graph` 复算。
+   `limit` 默认 5、最大 50，且是**硬显示上限**；`scope` **可选**：不传 = 不过滤（与过去完全一致），传了 = 只返回该 scope **或** `global` 的记录（`global` 永远包含），表头回显 `;scope=<值>`，结构化 `rows` 另带 `scope` 字段（打印行仍是 10 列）。
+   `match` 恒可由打印出的 `rel`、表头两个阈值与表头回显的**内容量闸门**输入（`contentTokens`/`contentTokenMin`/`gateMargin`）复算（`qTok` 不足**且** `rel < gateMargin×strong` 时 `strong` 封顶 `weak`，短查询照样返回行；单个高专有词元 `rel` 远超阈值则例外放行）；多样性启用时 `score` 不能仅由 `rel`/`graph` 复算。库规模离标定点超过阈值时，表头会如实加一句「建议重跑 calibrate --write」（**只在 recall 表头，不进自动注入**）。
 3. `memory_expand`：拿 `recall` 回的 `id` 取正文（L2）。
 4. `memory_prune`：同 kind 同标题合并（留最新、累加 hits），再按 `score = recency*(1+hits)` 从低到高淘汰；`dryRun: false` 才真删。
 

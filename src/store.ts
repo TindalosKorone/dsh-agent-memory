@@ -415,6 +415,7 @@ export function appendRecord(draft: MemoryDraft, cfg: MemoryConfig = {}): Append
     tags: [...draft.tags],
     source: draft.source,
     hits: 0,
+    scope: draft.scope,
   }
   const size = checkRecordSize(record, cfg)
   if (!size.ok) throw new RecordTooLargeError(size.bytes, size.limit, resolveMaxBytes(cfg))

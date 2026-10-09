@@ -157,6 +157,11 @@ export interface L1Row {
     cov: number;
     match: MatchLevel;
     score: number;
+    /**
+     * 该行作用域（本次新增）。**打印行仍是 10 列**（`RECALL_COLUMNS` 不动）：scope 只进结构化 rows，
+     * 由 test/columns.test.mjs 钉住「rows 键序 = RECALL_COLUMNS + scope」。
+     */
+    scope: string;
 }
 /**
  * 每条 L1 行：`RECALL_COLUMNS.join(' | ')`（列名与列序的唯一来源就是 RECALL_COLUMNS，本注释不再抄一遍）。**不含 body**。

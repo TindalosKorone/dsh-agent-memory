@@ -19,6 +19,11 @@ export interface MemoryRecord {
   source: string
   /** 被 expand 取回的次数，参与淘汰分 recency * (1 + hits)。 */
   hits: number
+  /**
+   * 作用域（本次新增，向后兼容）：约定 `project:<名>`，缺省/旧记录一律视为 `global`。
+   * recall 传了 scope 时，只返回 `scope === 该值` **或** `scope === global` 的记录。
+   */
+  scope: string
 }
 
 /** 通过校验后的待落盘草稿（id/ts/hits 由存储层补）。 */
@@ -28,6 +33,7 @@ export interface MemoryDraft {
   body: string
   tags: string[]
   source: string
+  scope: string
 }
 
 export interface DraftInput {
@@ -36,6 +42,7 @@ export interface DraftInput {
   body?: unknown
   tags?: unknown
   source?: unknown
+  scope?: unknown
 }
 
 export type Validation =
@@ -47,10 +54,32 @@ export const TITLE_MAX = 120
 export const TAG_MIN = 1
 export const TAG_MAX = 12
 export const TAG_LEN_MAX = 32
+/** scope 的缺省值：不传 scope 就落在这个作用域；recall 传了 scope 时它**永远**被包含。 */
+export const DEFAULT_SCOPE = 'global'
+/** scope 长度上限（去空白、净化之后按码元计）。 */
+export const SCOPE_MAX = 64
 
 /** 标签归一化：只做 trim + 小写化（不做同义词归一，保证全库稳定复用）。 */
 export function normalizeTag(tag: string): string {
   return tag.trim().toLowerCase()
+}
+
+/**
+ * scope 净化（它会被回显到 L1 表头，必须单行、无模板占位）：
+ * 去首尾空白，并把 `{{` / `}}` 降级成单个花括号（`{{`/`}}` 在提示词模板里有特殊含义）。
+ * 换行由写入校验**拒绝**（fail-closed）；只读路径（recall 的筛选参数）另有 sanitizeScopeArg。
+ */
+export function normalizeScope(raw: string): string {
+  return raw.trim().split('{{').join('{').split('}}').join('}')
+}
+
+/**
+ * 只读路径（recall 的 scope 筛选参数）的宽松净化：不失败关闭，只保证**永远不会**把
+ * 换行/超长串带进表头 —— 剥掉行分隔符、净化占位、截断到 SCOPE_MAX。空串表示「未提供」。
+ */
+export function sanitizeScopeArg(raw: string): string {
+  const oneLine = raw.replace(/[\n\r\u2028\u2029]/g, ' ')
+  return normalizeScope(oneLine).slice(0, SCOPE_MAX)
 }
 
 /** title 必须是单行：除 \n / \r 外，也把 Unicode 行分隔符一并拒绝。 */
@@ -145,7 +174,27 @@ export function validateDraft(input: DraftInput | null | undefined): Validation 
     return fail('empty-source', 'source 去首尾空白后为空', 'source 必须非空，写明出处，例如 session:abc123 或 file:src/index.ts')
   }
 
-  return { ok: true, value: { kind, title, body, tags, source } }
+  // scope（本次新增，**可选**）：不传 ⇒ 落 DEFAULT_SCOPE=global（默认行为与过去完全一致）。
+  // 传了就必须校验（它会被回显到 L1 表头）：string、单行、净化后非空、长度 <= SCOPE_MAX。
+  let scope = DEFAULT_SCOPE
+  if (src.scope !== undefined) {
+    if (typeof src.scope !== 'string') {
+      return fail('bad-scope', `scope 类型是 ${typeof src.scope}，不是 string`, 'scope 必须是 string（可省略；省略即视为 global）')
+    }
+    if (LINE_BREAK.test(src.scope)) {
+      return fail('scope-multiline', 'scope 含换行符（\\n / \\r / U+2028 / U+2029）', 'scope 必须单行；建议用 project:<名> 这种短标识')
+    }
+    const normalized = normalizeScope(src.scope)
+    if (normalized === '') {
+      return fail('empty-scope', 'scope 去首尾空白后为空', `scope 要么省略（视为 ${DEFAULT_SCOPE}），要么给一个非空字符串，例如 project:demo`)
+    }
+    if (normalized.length > SCOPE_MAX) {
+      return fail('scope-too-long', `scope 归一化后有 ${normalized.length} 个字符`, `scope 长度必须 <= ${SCOPE_MAX}，建议 project:<名> 这种短标识`)
+    }
+    scope = normalized
+  }
+
+  return { ok: true, value: { kind, title, body, tags, source, scope } }
 }
 
 /** 从 NDJSON 单行还原记录；不可用的行返回 undefined（坏行不该拖垮整库）。 */
@@ -159,6 +208,9 @@ export function normalizeStoredRecord(value: unknown): MemoryRecord | undefined 
   if (!Array.isArray(r.tags)) return undefined
   const tags = r.tags.filter((t): t is string => typeof t === 'string')
   const hits = typeof r.hits === 'number' && Number.isFinite(r.hits) && r.hits > 0 ? Math.floor(r.hits) : 0
+  // 向后兼容：旧记录没有 scope 字段（或为空/非法）⇒ 一律视为 DEFAULT_SCOPE=global。
+  const rawScope = typeof r.scope === 'string' ? sanitizeScopeArg(r.scope) : ''
+  const scope = rawScope === '' ? DEFAULT_SCOPE : rawScope
   // 重建为固定键序，保证落盘字节数稳定
-  return { id: r.id, ts: r.ts, kind: r.kind as Kind, title: r.title, body: r.body, tags: [...tags], source: r.source, hits }
+  return { id: r.id, ts: r.ts, kind: r.kind as Kind, title: r.title, body: r.body, tags: [...tags], source: r.source, hits, scope }
 }

@@ -1,0 +1,29 @@
+===== i11 三项合计：最终态全量一次循环（19 文件）=====
+Fri Oct  9 17:33:37 CST 2026
+HEAD: 0fa02dc
+protocol: pass=28 fail=0
+cap: pass=4 fail=0
+pure: pass=7 fail=0
+scoring: pass=23 fail=0
+recall: pass=8 fail=0
+triage: pass=15 fail=0
+lossless: pass=4 fail=0
+storage: pass=13 fail=0
+prune: pass=3 fail=0
+inject: pass=27 fail=0
+loose-inject: pass=4 fail=0
+anchor: pass=11 fail=0
+graph: pass=18 fail=0
+calibrate: pass=10 fail=0
+import-gotchas: pass=7 fail=0
+header: pass=4 fail=0
+columns: pass=5 fail=0
+description: pass=3 fail=0
+release: pass=2 fail=0
+TOTAL pass=196
+src hashes:
+e992cd6817fdc5030e90ca40b687235d7ed745161c6a5c1923607a2b2a1dac3d  src/pure.ts
+dc454dc08b6efb9b9c2418d320f46bb3f9272ec34346b8297a7ba78efeaae962  src/index.ts
+c1a1c1b536dd6b92b914a2b600d8398031557c2915fd2be4736a00862e8bdd3f  src/protocol.ts
+64c3a365f128a4709665e171772ceb00ce91b4b1a93bd995a35fd1b5a2229128  src/store.ts
+2a9d4cabdf3ad2dccfecd4e96770f9afe86c14cb2602a210c1953170a0de18b5  scripts/calibrate.mjs

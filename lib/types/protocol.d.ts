@@ -17,6 +17,11 @@ export interface MemoryRecord {
     source: string;
     /** 被 expand 取回的次数，参与淘汰分 recency * (1 + hits)。 */
     hits: number;
+    /**
+     * 作用域（本次新增，向后兼容）：约定 `project:<名>`，缺省/旧记录一律视为 `global`。
+     * recall 传了 scope 时，只返回 `scope === 该值` **或** `scope === global` 的记录。
+     */
+    scope: string;
 }
 /** 通过校验后的待落盘草稿（id/ts/hits 由存储层补）。 */
 export interface MemoryDraft {
@@ -25,6 +30,7 @@ export interface MemoryDraft {
     body: string;
     tags: string[];
     source: string;
+    scope: string;
 }
 export interface DraftInput {
     kind?: unknown;
@@ -32,6 +38,7 @@ export interface DraftInput {
     body?: unknown;
     tags?: unknown;
     source?: unknown;
+    scope?: unknown;
 }
 export type Validation = {
     ok: true;
@@ -46,8 +53,23 @@ export declare const TITLE_MAX = 120;
 export declare const TAG_MIN = 1;
 export declare const TAG_MAX = 12;
 export declare const TAG_LEN_MAX = 32;
+/** scope 的缺省值：不传 scope 就落在这个作用域；recall 传了 scope 时它**永远**被包含。 */
+export declare const DEFAULT_SCOPE = "global";
+/** scope 长度上限（去空白、净化之后按码元计）。 */
+export declare const SCOPE_MAX = 64;
 /** 标签归一化：只做 trim + 小写化（不做同义词归一，保证全库稳定复用）。 */
 export declare function normalizeTag(tag: string): string;
+/**
+ * scope 净化（它会被回显到 L1 表头，必须单行、无模板占位）：
+ * 去首尾空白，并把 `{{` / `}}` 降级成单个花括号（`{{`/`}}` 在提示词模板里有特殊含义）。
+ * 换行由写入校验**拒绝**（fail-closed）；只读路径（recall 的筛选参数）另有 sanitizeScopeArg。
+ */
+export declare function normalizeScope(raw: string): string;
+/**
+ * 只读路径（recall 的 scope 筛选参数）的宽松净化：不失败关闭，只保证**永远不会**把
+ * 换行/超长串带进表头 —— 剥掉行分隔符、净化占位、截断到 SCOPE_MAX。空串表示「未提供」。
+ */
+export declare function sanitizeScopeArg(raw: string): string;
 /** 可照抄的最小可用调用示例（每个失败指引都带上它）。 */
 export declare const EXAMPLE_CALL = "{\"kind\":\"fact\",\"title\":\"\u7528\u6237\u504F\u597D\u6DF1\u8272\u4E3B\u9898\",\"body\":\"\u7528\u6237\u5728\u8BBE\u7F6E\u91CC\u9009\u62E9\u4E86\u6DF1\u8272\u4E3B\u9898\u3002\",\"tags\":[\"preference\",\"ui\"],\"source\":\"session:demo\"}";
 /**

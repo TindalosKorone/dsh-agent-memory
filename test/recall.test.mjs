@@ -228,3 +228,88 @@ test('打分红证 3（判红点）：候选 <= 5 时打印的 score 序列单�
   assert.equal(r.diversityBeta, 0)
   assert.ok(r.rows[0].rel > r.rows[1].rel && r.rows[1].rel > r.rows[2].rel, '相关度本身应严格递减')
 })
+
+// ── ② scope（项目/工作区维度）：向后兼容 + 过滤 + 表头回显 ──────────────────────
+//
+// 契约（都能判红）：
+//  (a) **不传** scope ⇒ 行为与过去完全一致（不过滤，三条都召回）；
+//  (b) 传 `project:a` ⇒ 只出 `project:a` 与 `global` 的记录（global 永远包含，跨项目经验通用）；
+//  (c) 表头回显 `;scope=project:a`（过滤结果对读者可见）；
+//  (d) 打印行仍是 10 列（RECALL_COLUMNS 不动），但结构化 rows 带 scope 字段。
+// 判红点：去掉过滤 ⇒ (b) 变红（project:b 会漏出来）。
+
+test('② scope：不传不过滤（三条都可召回）；传 project:a 只出 project:a 与 global；表头回显 scope；行仍 10 列', async () => {
+  freshHome('recall-scope')
+  const defs = tools()
+  const remember = defs.get('memory_remember')
+  const recall = defs.get('memory_recall')
+
+  const seeds = [
+    { scope: undefined, title: '作用域探针全局记录', body: '作用域探针 正文 global' },
+    { scope: 'project:a', title: '作用域探针项目甲记录', body: '作用域探针 正文 alpha' },
+    { scope: 'project:b', title: '作用域探针项目乙记录', body: '作用域探针 正文 beta' },
+  ]
+  const ids = {}
+  for (const [i, s] of seeds.entries()) {
+    const w = await remember.execute({
+      kind: 'fact', title: s.title, body: s.body, tags: ['scope-probe'], source: 'test:scope',
+      ...(s.scope === undefined ? {} : { scope: s.scope }),
+    })
+    assert.equal(w.ok, true)
+    ids[s.scope ?? 'global'] = w.id
+  }
+
+  // (a) 不传 scope ⇒ 不过滤：三条都在
+  const all = await recall.execute({ query: '作用域探针', limit: 10 })
+  assert.equal(all.total, 3, 'total 仍是库容量')
+  assert.equal(all.scope, '', '不传 scope 时结构化 scope 必须是空串（未过滤）')
+  assert.equal(all.scopeRecords, 3)
+  const allIds = new Set(all.rows.map((row) => row.id))
+  for (const key of ['global', 'project:a', 'project:b']) {
+    assert.ok(allIds.has(ids[key]), `不传 scope 必须能召回 ${key}：${[...allIds].join(',')}`)
+  }
+  assert.ok(all.rows.every((row) => typeof row.scope === 'string'), 'rows 必须带 scope 字段')
+  assert.ok(!all.text.split('\n')[0].includes(';scope='), '不传 scope 时表头不得出现 scope 回显')
+  // (d) 打印行仍是 10 列（RECALL_COLUMNS 不动）
+  for (const line of all.lines) {
+    assert.equal(line.split(' | ').length, 10, `打印行必须仍是 10 列：${line}`)
+    assert.equal(line.split(' | ').at(-1), Number(line.split(' | ').at(-1)).toFixed(4), 'score 仍在行尾')
+  }
+
+  // (b) 传 project:a ⇒ 只出 project:a 与 global
+  const a = await recall.execute({ query: '作用域探针', scope: 'project:a', limit: 10 })
+  assert.equal(a.scope, 'project:a')
+  assert.equal(a.total, 3, '库容量不因过滤而变')
+  assert.equal(a.scopeRecords, 2, 'project:a ⇒ project:a + global 共 2 条参与')
+  const aIds = new Set(a.rows.map((row) => row.id))
+  assert.ok(aIds.has(ids['project:a']), '必须含 project:a 自己的记录')
+  assert.ok(aIds.has(ids.global), 'global 永远包含（跨项目经验通用）')
+  assert.ok(!aIds.has(ids['project:b']), `project:b 的记录不得漏出来（判红点：去掉过滤 ⇒ 这里变红）：${[...aIds].join(',')}`)
+  assert.ok(a.rows.every((row) => row.scope === 'project:a' || row.scope === 'global'),
+    `过滤后每行的 scope 只能是 project:a 或 global：${a.rows.map((row) => row.scope).join(',')}`)
+
+  // (c) 表头回显 scope（过滤结果对读者可见）
+  const aHeader = a.text.split('\n')[0]
+  assert.ok(aHeader.includes(';scope=project:a'), `表头必须回显 scope 过滤值：${aHeader}`)
+
+  // (b2) 传 project:b ⇒ 只出 project:b 与 global（对称）
+  const b = await recall.execute({ query: '作用域探针', scope: 'project:b', limit: 10 })
+  const bIds = new Set(b.rows.map((row) => row.id))
+  assert.ok(bIds.has(ids['project:b']) && bIds.has(ids.global) && !bIds.has(ids['project:a']),
+    `project:b ⇒ 只出 project:b 与 global：${[...bIds].join(',')}`)
+
+  // (e) 只读路径的宽松净化：scope 里的换行不得把表头拆成两行（写入协议拒绝换行，recall 只净化）
+  const nasty = await recall.execute({ query: '作用域探针', scope: 'project:a\nproject:b', limit: 10 })
+  const nastyHeader = nasty.text.split('\n')[0]
+  assert.ok(!nasty.text.includes('project:a\nproject:b'), 'scope 换行必须被净化（否则表头会断行）')
+  assert.ok(nastyHeader.startsWith('L1:query='), '表头结构不被 scope 参数破坏')
+  assert.ok(nastyHeader.includes(';scope=project:a project:b') || nastyHeader.includes(';scope=project:a…'),
+    `净化后的 scope 必须出现在表头（换行变空格）：${nastyHeader}`)
+
+  // (f) 超长 scope 不得打破表头上界（按剩余预算截断）
+  const long = await recall.execute({ query: '作用域探针', scope: 'p'.repeat(64), limit: 10 })
+  const longHeader = long.text.split('\n')[0]
+  assert.ok(longHeader.length <= 448, `超长 scope 下仍须 <= 448，实际 ${longHeader.length}`)
+  assert.ok(longHeader.includes(';scope='), '超长 scope 仍应给出（截断的）回显')
+  assert.equal(long.scope, 'p'.repeat(64), '结构化 scope 仍是精确值（截断只影响表头回显）')
+})

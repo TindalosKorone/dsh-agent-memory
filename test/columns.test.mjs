@@ -92,7 +92,7 @@ test('I6 防漂 2（判红点：让 formatL1 少渲染一列 / 调换列序 ⇒ 
 // （`… rel, cov, match, graph, via, score`）——同一份列清单有两个顺序，和 I6 那条列数漂移同类。
 // 修法是纯顺序对齐（字段名/类型/必填性一个字不改），并把键序也钉成断言。
 
-test('I6 防漂 3（判红点：把 schema 里 rel/cov 两个键换回 tags 之后（旧序）⇒ 本条变红）：rows.properties 键序 === RECALL_COLUMNS', () => {
+test('I6 防漂 3（判红点：把 schema 里 rel/cov 两个键换回 tags 之后（旧序）⇒ 本条变红）：rows.properties 键序 === RECALL_COLUMNS (+ scope)', () => {
   freshHome('columns-schema-order')
   const recall = tools().get('memory_recall')
   assert.ok(recall !== undefined, 'memory_recall 必须注册')
@@ -100,16 +100,18 @@ test('I6 防漂 3（判红点：把 schema 里 rel/cov 两个键换回 tags 之�
   assert.ok(props !== undefined && props !== null && typeof props === 'object',
     'schema 里必须有 rows.items.properties（列清单的可机读副本）')
   const keys = Object.keys(props)
-  assert.equal(keys.length, RECALL_COLUMNS.length,
-    `rows.properties 的键数必须等于列数 ${RECALL_COLUMNS.length}，实际 ${keys.length}：${keys.join('|')}`)
-  assert.deepEqual(keys, [...RECALL_COLUMNS],
-    `rows.properties 的键序必须逐项等于 RECALL_COLUMNS（旧序 rel,cov,match,graph,via 会在这里判红）：${keys.join('|')}`)
+  // 【② 点名变更】结构化 rows 在 10 列之后多了一个 scope 字段（打印行仍是 10 列，RECALL_COLUMNS 不动）。
+  assert.equal(keys.length, RECALL_COLUMNS.length + 1,
+    `rows.properties 的键数必须等于列数+1（多出的必须是 scope），实际 ${keys.length}：${keys.join('|')}`)
+  assert.deepEqual(keys, [...RECALL_COLUMNS, 'scope'],
+    `rows.properties 的键序必须是 RECALL_COLUMNS + scope（旧序 rel,cov,match,graph,via 会在这里判红）：${keys.join('|')}`)
 })
 
-test('I6 防漂 4（判红点：把 recallCells 字面量里两个键换位 ⇒ 本条变红）：取值表键序与真实 rows 键序都必须 === RECALL_COLUMNS', async () => {
+test('I6 防漂 4（判红点：把 recallCells 字面量里两个键换位 ⇒ 本条变红）：取值表键序 === RECALL_COLUMNS；真实 rows 键序 === RECALL_COLUMNS + scope', async () => {
   freshHome('columns-cells-order')
   // ① formatL1 的取值表（recallCells）字面量键序：同一份列清单不养第二个顺序。
-  const rec = { id: 'mem_probe', kind: 'fact', title: '探针', tags: ['a', 'b'], ts: 0, body: 'x', source: 's', hits: 0 }
+  //    注意：recallCells 是**打印用**的 10 列取值表，**不含 scope**（scope 只在结构化 rows 上）。
+  const rec = { id: 'mem_probe', kind: 'fact', title: '探针', tags: ['a', 'b'], ts: 0, body: 'x', source: 's', hits: 0, scope: 'global' }
   const view = { score: 0, rel: 0, cov: 0, match: 'none', graph: 0, via: 'direct' }
   const cells = recallCells(rec, view)
   assert.deepEqual(Object.keys(cells), [...RECALL_COLUMNS],
@@ -117,7 +119,8 @@ test('I6 防漂 4（判红点：把 recallCells 字面量里两个键换位 ⇒ 
   // 取值表的值也必须逐列可用（否则「键序对」可能是空转：键对但取值 undefined 会打印成 "undefined"）。
   for (const col of RECALL_COLUMNS) assert.equal(typeof cells[col], 'string', `第 ${col} 列必须有字符串取值`)
 
-  // ② 真实返回的 rows 对象键序（= JSON 序列化顺序，消费方直接看到的东西）也必须一致。
+  // ② 真实返回的 rows 对象键序（= JSON 序列化顺序，消费方直接看到的东西）：
+  //    10 列之后必须是 scope（② 点名变更；打印行仍是 10 列，所以这里比列清单多一个键）。
   const defs = tools()
   const remember = defs.get('memory_remember')
   for (let i = 0; i < 3; i += 1) {
@@ -130,7 +133,8 @@ test('I6 防漂 4（判红点：把 recallCells 字面量里两个键换位 ⇒ 
   const r = await defs.get('memory_recall').execute({ query: 'alpha', limit: 5 })
   assert.ok(r.rows.length > 0, '至少召回一条，否则本断言没有说服力')
   for (const row of r.rows) {
-    assert.deepEqual(Object.keys(row), [...RECALL_COLUMNS],
-      `真实 rows 的键序（JSON 顺序）必须等于 RECALL_COLUMNS：${Object.keys(row).join('|')}`)
+    assert.deepEqual(Object.keys(row), [...RECALL_COLUMNS, 'scope'],
+      `真实 rows 的键序（JSON 顺序）必须是 RECALL_COLUMNS + scope：${Object.keys(row).join('|')}`)
+    assert.equal(row.scope, 'global', '未传 scope 写入的记录必须是 global')
   }
 })

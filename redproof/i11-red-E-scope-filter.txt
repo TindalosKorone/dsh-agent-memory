@@ -1,0 +1,12 @@
+===== REDPROOF i11-red-E: 去掉 scope 过滤 =====
+变异：src/index.ts 的 records 恒等于 allRecords（非法/传了都不过滤）
+命令：node test/recall.test.mjs
+---
+✖ ② scope：不传不过滤（三条都可召回）；传 project:a 只出 project:a 与 global；表头回显 scope；行仍 10 列 (113.646719ms)
+ℹ tests 8
+ℹ pass 7
+ℹ fail 1
+✖ failing tests:
+✖ ② scope：不传不过滤（三条都可召回）；传 project:a 只出 project:a 与 global；表头回显 scope；行仍 10 列 (113.646719ms)
+  AssertionError [ERR_ASSERTION]: project:a ⇒ project:a + global 共 2 条参与
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {

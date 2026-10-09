@@ -8,6 +8,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { diskLines, diskText, freshHome, tools } from './helpers.mjs'
+import { validateDraft } from '../lib/protocol.js'
 
 const VALID = {
   kind: 'fact',
@@ -28,6 +29,7 @@ const hostRejects = [
   ['tags 类型错', { ...VALID, tags: 'preference' }, 'tags'],
   ['tag 项类型错', { ...VALID, tags: ['ui', 7] }, 'tags'],
   ['source 类型错', { ...VALID, source: 123 }, 'source'],
+  ['scope 类型错', { ...VALID, scope: 123 }, 'scope'],
 ]
 
 for (const [i, [label, input, field]] of hostRejects.entries()) {
@@ -62,6 +64,10 @@ const protoRejects = [
   ['tag 超长', { ...VALID, tags: ['x'.repeat(33)] }, 'bad-tag'],
   ['tag 全空白', { ...VALID, tags: ['   '] }, 'bad-tag'],
   ['source 全空白', { ...VALID, source: '   ' }, 'empty-source'],
+  // ② scope（可选，但给了就必须校验；它会被回显到表头）
+  ['scope 含换行', { ...VALID, scope: 'project:a\nproject:b' }, 'scope-multiline'],
+  ['scope 全空白', { ...VALID, scope: '   ' }, 'empty-scope'],
+  ['scope 超长', { ...VALID, scope: 'p'.repeat(65) }, 'scope-too-long'],
 ]
 
 for (const [i, [label, input, code]] of protoRejects.entries()) {
@@ -100,6 +106,39 @@ test('写入协议通过：合法记录落盘且 tags 归一化为 trim + 小写
   assert.deepEqual(rec.tags, ['preference', 'ui'], 'tags 必须保序且只做 trim + 小写化')
   assert.equal(rec.title, VALID.title.trim())
   assert.equal(rec.hits, 0)
+  // ② 不传 scope ⇒ 落 DEFAULT_SCOPE=global（默认行为与过去完全一致）
+  assert.equal(rec.scope, 'global', '省略 scope 必须落 global')
+})
+
+test('② scope 写入协议：合法 scope 归一化落盘（trim + {{}} 净化 + 单行），缺省视为 global', async () => {
+  const home = freshHome('protocol-scope')
+  const defs = tools()
+  const remember = defs.get('memory_remember')
+  // 缺省
+  const g = await remember.execute({ ...VALID, title: '缺省作用域的记录' })
+  assert.equal(g.ok, true)
+  // 显式 project:a（带首尾空白 + {{}} 占位）
+  const a = await remember.execute({ ...VALID, title: '项目甲的记录条目', scope: '  project:a  ' })
+  assert.equal(a.ok, true)
+  const p = await remember.execute({ ...VALID, title: '花括号净化的记录', scope: 'project:{{x}}' })
+  assert.equal(p.ok, true)
+  const recs = diskLines(home).map((l) => JSON.parse(l))
+  assert.equal(recs.length, 3)
+  assert.equal(recs[0].scope, 'global')
+  assert.equal(recs[1].scope, 'project:a', '首尾空白必须去掉')
+  assert.equal(recs[2].scope, 'project:{x}', '{{}} 必须净化为单花括号（它会回显到表头）')
+  // 长度恰好 64 必须放行（边界）
+  const home64 = freshHome('protocol-scope-64')
+  const ok64 = await tools().get('memory_remember').execute({ ...VALID, title: '六十四字符作用域记录', scope: 'p'.repeat(64) })
+  assert.equal(ok64.ok, true, '恰好 64 字符必须放行')
+  const too65 = await tools().get('memory_remember').execute({ ...VALID, title: '六十五字符作用域记录', scope: 'p'.repeat(65) })
+  assert.equal(too65.ok, false)
+  assert.equal(too65.code, 'scope-too-long')
+  // 直接单测 validateDraft 的 bad-scope 分支：工具层会被闸门 A（宿主 schema）提前拦下，
+  // 但协议层这一支仍必须失败关闭（纵深防御；不会因为宿主版本差异而漏过去）。
+  const bad = validateDraft({ ...VALID, scope: 123 })
+  assert.equal(bad.ok, false)
+  assert.equal(bad.code, 'bad-scope')
 })
 
 test('写入协议：title 先裁首尾空白再判长度（8 字符可过，7 字符被拒）', async () => {
