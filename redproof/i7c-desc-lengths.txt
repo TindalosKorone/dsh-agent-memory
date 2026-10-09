@@ -1,0 +1,15 @@
+修正 2：4 个工具描述的字符数前后对照（本机实测，node redproof/i7c-desc-lengths.mjs）
+
+| 工具 | 改动前 | 改动后 | 变化 |
+| --- | --- | --- | --- |
+| memory_remember | 189 | 189 | 0 |
+| memory_recall | **1182** | **261** | -921（目标 <= 300） |
+| memory_expand | 70 | 70 | 0 |
+| memory_prune | 128 | 128 | 0 |
+
+合计：1569 -> 648 字符（-921）。
+
+memory_recall 改动后的描述全文（261 字符）：
+按查询召回记忆索引（L1），**绝不返回 body**（要正文请拿 id 调 memory_expand）。每条一行：id | kind | title | tags | graph | via | rel | cov | match | score。rel=BM25 原始相关度（match 由 rel 与绝对阈值判定）；score=disp(final)，仅用于排序展示。**limit 是硬显示上限**（返回行数恒为 min(limit, 可用候选数)）。完整口径见 docs/recall-contract.md。
+
+删掉的细则去处：docs/recall-contract.md §10（由 test/description.test.mjs 对文档逐条钉住）。

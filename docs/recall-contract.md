@@ -101,3 +101,23 @@ id | kind | title | tags | graph | via | rel | cov | match | score
 > 历史坑：旧文档/旧注释写的是「单行、<= 400 字符」。那个数字只在 3 个短查询夹具（388~399）上量过，从未覆盖最坏情况 —— 200 字符含边界字符的查询实测表头 742 字符、360 字符的查询 932 字符；换一组回显更宽的标度常数（22 位小数）也能把固定部分顶到 413。现在两条路径分别由上面的定宽回显与有界回显堵死，并由 `test/header.test.mjs` 的最坏情况用例（长边界查询 + `Number.MAX_VALUE` 常数 + 三位数库规模统计）钉住。
 
 非结论性诊断（`basisSize`、`layers`、`logicalDepth`、`explainedRatio`+`residualRatio` 守恒、传播上限与 `gamma`/`rho`、种子与到达计数、多样性 β）不回显在表头，但**一个都没删**，仍逐字在结构化返回字段里。
+
+## 10. 工具描述瘦身（修正 2）：细则都在这里
+
+`memory_recall` 的工具描述只留模型**每次调用都要用**的五件事（10 列清单 / `rel`-`match`-`score` 语义 / `limit` 是硬显示上限 / 绝不返回 body / 指向本文件），已从 **1182 字符压到 <= 300 字符**。
+
+**描述里删掉的细则一条都没丢，全部逐字在本节** —— `test/description.test.mjs` 对本节逐条钉住。理由：描述既然把口径「指向本文件」，本文件就必须真的载着这些情报，否则那个指针本身就是一句谎。
+
+- `score=disp(final)` 是映射到 0..1 的展示分，按它降序、**不随批次归一化**。
+- `final=(rel+graph)×多样性因子`；因子 `= 1-β×maxSim`（`β 默认 0.3`，`maxSim` 是该行与已选行的最大标签 Jaccard 相似度）。
+- 多样性因子**仅当候选数 > 5 时施加**；**是否施加见结构化字段 `diversityApplied`**。
+- 因此多样性被启用时，`score` **无法仅由打印出的 rel/graph 精确复算**（β 与 maxSim 都不在打印列里）；而 `match` **始终可由打印的 rel + 表头阈值复算**。
+- `graph` 是标签图传播给的**辅助**奖励（有硬上限 `graphBonusCap`，**不会压过词法相关度**）。
+- `via` 是该行来源：`direct`（词法直接命中）或 `tag:<标签>`（由该标签的图传播到达）。
+- `cov` 是标签覆盖率（**仅诊断**，不门控、不整批否决）。
+- **无词法证据时 `rel=0`**；仅由标签图到达的记录 `graph>0`、`via=tag:<标签>`，其 `score` 取决于标度常数（可能为 0 也可能 >0），`match=none`（**只奖不罚，不整批否决**）。
+- **`limit` 是硬显示上限**：扩检索（`kBase -> kUsed`）只放大**内部**召回预算，**不增加返回行数**。
+- 查询无词元能量（`‖q‖²≈0`）时**不做分诊**：`novelty=0`、`expanded=false`、`kUsed=kBase`，`explainedRatio`/`residualRatio` 如实回显 `0/0`（未定义）。
+- 低置信只是**如实报告**：`lowConfidence` 置位时**绝不返回空、绝不整批否决**。
+
+**为什么不用工具 schema 的延迟加载**（对方提到的 `deferLoading`）：本机引擎**支持**这个字段（`defineTool({ deferLoading: true })`，见 `@deepseek-ai/dsh-tools/lib/index.js:864` 与类型 `lib/types/schema.d.ts:194-195`），但它属于**会话工具更新**机制而不是「同一请求内按需载入 schema」：路由必须声明 `toolUpdate`（`dsh-llm/lib/types/types.d.ts:365-374`）才有语义，未声明的路由只会把该字段剥掉（`dsh-llm/lib/index.js:787-793`）、零收益；而在 `addition-only` 模式下，**显式延迟加载的初始工具在首个保留的 `tool-addition` 块出现前一直保持延迟状态，声明延迟加载并不会激活它**（`dsh-llm/README.zh.md:162`），`tool-addition` 又只由 agent loop 在活跃工具集**会话中变化**时产生（`dsh-agent-loop/lib/index.js:1230-1235`）。本插件的 4 个工具在插件 apply 时就进入初始 `request/header`，此后不会有 `tool-addition` 块点名它们 ⇒ 采用 `deferLoading` 的风险是**模型从此看不到 memory_recall 本身**。结论：**不采用**，改为瘦身描述。

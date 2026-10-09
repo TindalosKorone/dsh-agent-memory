@@ -1,0 +1,29 @@
+✖ 修正 2：描述 <= 300 字符，且五件必备情报一个都不少（判红点：把细则塞回描述 ⇒ 长度断言变红） (9.364636ms)
+✔ 修正 2：描述里删掉的细则必须逐字在 docs/recall-contract.md 上（判红点：删掉文档里任一条 ⇒ 本条变红） (4.116927ms)
+✔ 反向：旧的不成立表述不得再出现在描述里（判红点：把描述改回旧那句 ⇒ 本条变红） (3.342865ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 2
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 26.62651
+
+✖ failing tests:
+
+test at test/description.test.mjs:45:1
+✖ 修正 2：描述 <= 300 字符，且五件必备情报一个都不少（判红点：把细则塞回描述 ⇒ 长度断言变红） (9.364636ms)
+  AssertionError [ERR_ASSERTION]: memory_recall 描述必须 <= 300 字符，实际 422：按查询召回记忆索引（L1），**绝不返回 body**（要正文请拿 id 调 memory_expand）。每条一行：id | kind | title | tags | graph | via | rel | cov | match | score。rel=BM25 原始相关度（match 由 rel 与绝对阈值判定）；score=disp(final)，仅用于排序展示。**limit 是硬显示上限**（返回行数恒为 min(limit, 可用候选数)）。完整口径见 docs/recall-contract.md。红证：把细则塞回描述 —— final=(rel+graph)×多样性因子（因子=1-β×maxSim，β 默认 0.3、maxSim 是该行与已选行的最大标签 Jaccard 相似度），多样性因子**仅当候选数 > 5 时施加**，因此多样性被启用时 score **无法仅由打印出的 rel/graph 精确复算**。
+      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/description.test.mjs:48:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.start (node:internal/test_runner/test:1191:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
