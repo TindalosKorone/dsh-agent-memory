@@ -1,0 +1,28 @@
+✖ 修正 3：package.json 的发布面（private / peerDependencies 范围 / publishConfig / files） (2.638438ms)
+✔ 修正 3：被跟踪文件里不得再有机器相关的应用私有前缀（判红点：把任一条路径写回被跟踪文件 ⇒ 本条变红） (146.981198ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 1
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 161.194323
+
+✖ failing tests:
+
+test at test/release.test.mjs:26:1
+✖ 修正 3：package.json 的发布面（private / peerDependencies 范围 / publishConfig / files） (2.638438ms)
+  AssertionError [ERR_ASSERTION]: peerDependencies.@deepseek-ai/cordis 不得是精确版本（宿主会被挡在门外）：4.0.4
+      at TestContext.<anonymous> (file://<repo>/test/release.test.mjs:41:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.start (node:internal/test_runner/test:1191:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

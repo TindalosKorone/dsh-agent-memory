@@ -16,7 +16,7 @@
 test at test/header.test.mjs:231:1
 ✖ 修正 1 最坏情况（固定部分）：标度常数回显宽度与库规模统计不能把表头顶过 HEADER_MAX_CHARS (1590.790676ms)
   AssertionError [ERR_ASSERTION]: 负数极值 / 短查询 alpha：表头必须 <= 448，实际 451：L1:query="" 候选60;limit=5 是硬显示上限;列序:id|kind|title|tags|graph|via|rel|cov|match|score;rel=BM25原始相关度,match 依据;score=disp(final)=clip((final--1.7976931348623157e+308)/(-1.7976931348623157e+308--1.7976931348623157e+308));match:rel>=0.0363 weak、>=0.1476 strong、否则 none(恒可复算);I2:novelty=0.6500 >= 阈值 0.5,expanded=true，kBase=5 -> kUsed=10;非低置信:cov_max=0.5000 >= 0.05;I3:final=rel+graph×多样性(候选>5时启用,开时不可由 rel/graph 复算)，graph硬上限<=0.018，图2节点/1边，枢纽被压0，reachable=0
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/header.test.mjs:260:14)
+      at TestContext.<anonymous> (file://<repo>/test/header.test.mjs:260:14)
       at async Test.run (node:internal/test_runner/test:1332:7)
       at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
     generatedMessage: false,

@@ -18,7 +18,8 @@ import * as pluginModule from '../lib/index.js'
 import { INJECTION_CONTEXT_NAME, INJECTION_CONTEXT_ORDER, buildInjectionIndex } from '../lib/inject.js'
 import { memoryPath } from '../lib/store.js'
 
-const ENGINE_BASE = '/data/data/com.dsharnessmobile.shell/files/usr/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai'
+// 引擎安装位置不硬编码本机路径：从 $PREFIX（DSH/Termux 的安装前缀）推。
+const ENGINE_BASE = `${process.env.PREFIX ?? ''}/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai`
 const { Context } = await import(`${ENGINE_BASE}/cordis/lib/index.js`)
 const sp = await import(`${ENGINE_BASE}/dsh-system-prompt/lib/index.js`)
 // token-meter 的服务本体需要 sessionProjections（本脚本没有会话，服务不会激活），

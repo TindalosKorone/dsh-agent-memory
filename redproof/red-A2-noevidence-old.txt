@@ -15,7 +15,7 @@
 test at test/description.test.mjs:52:1
 ✖ #2 描述：无词法证据时 rel=0；仅图到达的记录 graph>0 / via=tag:<标签>；score 取决于标度常数（判红点：改回「无证据候选 rel/score 均为 0.0000」⇒ 本条变红） (4.777396ms)
   AssertionError [ERR_ASSERTION]: 描述必须把"无证据"限定为无**词法**证据（图证据是另一种证据）：按查询召回记忆索引（L1）。每条一行：id | kind | title | tags | graph | via | rel | cov | match | score。**绝不返回 body**：要正文请拿 id 调 memory_expand。rel 是 BM25 原始相关度（**阈值直接作用于它**）；cov 是标签覆盖率（仅诊断）；match 是绝对判定 none/weak/strong（由 rel 与绝对阈值比较得出，**始终可由打印的 rel + 表头阈值复算**）。score=disp(final) 是映射到 0..1 的展示分（按它降序，不随批次归一化）；final=(rel+graph)×多样性因子（因子=1-β×maxSim，β 默认 0.3、maxSim 是该行与已选行的最大标签 Jaccard 相似度），多样性因子**仅当候选数 > 5 时施加**（候选 <= 5 时 final=rel+graph、score=disp(rel+graph)；是否施加见结构化字段 diversityApplied）；因此多样性被启用时，score **无法仅由打印出的 rel/graph 精确复算**（β 与 maxSim 都不在打印列里）。graph 是标签图传播给的**辅助**奖励（有硬上限 graphBonusCap，不会压过词法相关度）；via 是该行来源：direct（词法直接命中）或 tag:<标签>（由该标签的图传播到达）。与库无关的查询不会拿到满分：无证据候选 rel/score 均为 0.0000、match=none（只奖不罚，不整批否决）。I2 分诊：以候选标签向量为基、在标签 idf 词法空间里做 Gram-Schmidt 残差金字塔，得到 novelty（0.7×残差能量比 + 0.3×方向一致性）并据此决定是否扩检索。**limit 是硬显示上限**：返回行数恒为 min(limit, 可用候选数)，扩检索只放大**内部**召回预算 kBase -> kUsed（给金字塔取基、给多样性更大的候选池），**不增加返回行数**。查询无词元能量（‖q‖²≈0）时**不做分诊**：novelty=0、expanded=false、kUsed=kBase，explainedRatio/residualRatio 如实回显 0/0（未定义）。另给 explainedRatio/residualRatio/basisSize/layers/logicalDepth 与 lowConfidence（低置信只是**如实报告**，绝不返回空、绝不整批否决）。总输出超过 2000 字符会截断并如实说明。
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/description.test.mjs:55:10)
+      at TestContext.<anonymous> (file://<repo>/test/description.test.mjs:55:10)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1325:25)
       at Test.processPendingSubtests (node:internal/test_runner/test:911:18)

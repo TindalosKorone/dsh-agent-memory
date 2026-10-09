@@ -1,4 +1,4 @@
-#!/data/data/com.termux/files/usr/bin/bash
+#!/usr/bin/env bash
 # 全量用例逐个文件直跑（本机 `node --test` 是坏的：逐个 `node test/x.test.mjs` 才能跑）。
 # 用法：bash redproof/run-all.sh [证据文件]
 # 输出：每文件 pass/fail 计数 + 汇总；失败用例原文落证据文件。

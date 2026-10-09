@@ -32,7 +32,7 @@ test at test/inject.test.mjs:297:1
 ✖ I4a fail-open：读库抛异常 ⇒ 注入空串、绝不抛（注册也成功） (20.131614ms)
   AssertionError [ERR_ASSERTION]: Got unwanted exception.
   Actual message: "注入的读故障"
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:309:10)
+      at TestContext.<anonymous> (file://<repo>/test/inject.test.mjs:309:10)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1325:25)
       at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
@@ -42,13 +42,13 @@ test at test/inject.test.mjs:297:1
     generatedMessage: false,
     code: 'ERR_ASSERTION',
     actual: Error: 注入的读故障
-        at Object.readFileSync (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:305:35)
-        at loadSnapshot (file:///storage/emulated/0/deepseek/dsh-agent-memory/lib/store.js:156:21)
-        at buildInjectionIndex (file:///storage/emulated/0/deepseek/dsh-agent-memory/lib/inject.js:227:26)
-        at file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:309:40
+        at Object.readFileSync (file://<repo>/test/inject.test.mjs:305:35)
+        at loadSnapshot (file://<repo>/lib/store.js:156:21)
+        at buildInjectionIndex (file://<repo>/lib/inject.js:227:26)
+        at file://<repo>/test/inject.test.mjs:309:40
         at getActual (node:assert:611:5)
         at strict.doesNotThrow (node:assert:779:32)
-        at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:309:10)
+        at TestContext.<anonymous> (file://<repo>/test/inject.test.mjs:309:10)
         at Test.runInAsyncScope (node:async_hooks:227:14)
         at Test.run (node:internal/test_runner/test:1325:25)
         at Test.processPendingSubtests (node:internal/test_runner/test:911:18),
@@ -61,7 +61,7 @@ test at test/inject.test.mjs:320:1
 ✖ I4a fail-open：stat 抛 / exists 抛 / 目录路径 ⇒ 都不抛且仍给出结论 (10.927291ms)
   AssertionError [ERR_ASSERTION]: Got unwanted exception.
   Actual message: "stat 炸"
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:324:10)
+      at TestContext.<anonymous> (file://<repo>/test/inject.test.mjs:324:10)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1325:25)
       at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
@@ -71,13 +71,13 @@ test at test/inject.test.mjs:320:1
     generatedMessage: false,
     code: 'ERR_ASSERTION',
     actual: Error: stat 炸
-        at Object.statSync (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:323:139)
-        at loadSnapshot (file:///storage/emulated/0/deepseek/dsh-agent-memory/lib/store.js:157:22)
-        at buildInjectionIndex (file:///storage/emulated/0/deepseek/dsh-agent-memory/lib/inject.js:227:26)
-        at file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:324:29
+        at Object.statSync (file://<repo>/test/inject.test.mjs:323:139)
+        at loadSnapshot (file://<repo>/lib/store.js:157:22)
+        at buildInjectionIndex (file://<repo>/lib/inject.js:227:26)
+        at file://<repo>/test/inject.test.mjs:324:29
         at getActual (node:assert:611:5)
         at strict.doesNotThrow (node:assert:779:32)
-        at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:324:10)
+        at TestContext.<anonymous> (file://<repo>/test/inject.test.mjs:324:10)
         at Test.runInAsyncScope (node:async_hooks:227:14)
         at Test.run (node:internal/test_runner/test:1325:25)
         at Test.processPendingSubtests (node:internal/test_runner/test:911:18),

@@ -49,7 +49,7 @@ test at test/inject.test.mjs:430:1
   
   0 !== 1
   
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:477:12)
+      at TestContext.<anonymous> (file://<repo>/test/inject.test.mjs:477:12)
       at async Test.run (node:internal/test_runner/test:1332:7)
       at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
     generatedMessage: false,
@@ -63,7 +63,7 @@ test at test/inject.test.mjs:430:1
 test at test/inject.test.mjs:544:1
 ✖ I4a.3 稳定段：注册 agent-memory-habit（section），含触发条件，order 是显式数字且落在空档 (16.144011ms)
   AssertionError [ERR_ASSERTION]: 必须注册名为 agent-memory-habit 的 section 贡献
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:551:10)
+      at TestContext.<anonymous> (file://<repo>/test/inject.test.mjs:551:10)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1325:25)
       at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
@@ -81,8 +81,8 @@ test at test/inject.test.mjs:544:1
 test at test/inject.test.mjs:576:1
 ✖ I4a.3 稳定段是常量：与库内容无关（库变了段逐字节不变，尾部行才跟着变） (24.783021ms)
   TypeError: Cannot read properties of undefined (reading 'text')
-      at sectionText (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:83:30)
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:579:18)
+      at sectionText (file://<repo>/test/inject.test.mjs:83:30)
+      at TestContext.<anonymous> (file://<repo>/test/inject.test.mjs:579:18)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1325:25)
       at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
@@ -96,7 +96,7 @@ test at test/inject.test.mjs:588:1
   
   0 !== 1
   
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:598:10)
+      at TestContext.<anonymous> (file://<repo>/test/inject.test.mjs:598:10)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1325:25)
       at Test.processPendingSubtests (node:internal/test_runner/test:911:18)

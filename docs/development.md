@@ -84,11 +84,11 @@ node scripts/import-gotchas.mjs --source gotchas.md --write  # 落盘（先备�
 本机是 Android / Termux 环境。以下是**想复现的人一定会撞上**的坑：
 
 1. **`node --test` 坏**。本机 `process.execPath` 指向安卓 linker64，导致测试运行器的子进程 spawn 失败。**绕过办法**：spawn node 时用 `process.argv0` 而不是 `process.execPath`；测试也改成逐文件直跑 `node test/x.test.mjs`。
-2. **`/storage/emulated/0`（FUSE）不能建软链**。所以插件的软链**必须建在 profile 侧**（`<profile>/node_modules/@dsh-agent/dsh-agent-memory -> 本仓`），不能在仓库内部建软链。这与 FUSE 不支持 symlink 有关，不是权限问题。
+2. **`<external-storage>`（FUSE）不能建软链**。所以插件的软链**必须建在 profile 侧**（`<profile>/node_modules/@dsh-agent/dsh-agent-memory -> 本仓`），不能在仓库内部建软链。这与 FUSE 不支持 symlink 有关，不是权限问题。
 3. **`/tmp` 不可写，但 `cd /tmp` 会成功**（本机实测：`/tmp` 权限是 `drwxrwx--x` —— 对 others 有 `x` 无 `w`）。所以 `cd /tmp && pwd` 会顺利打印 `/tmp`，**看起来可用**，而任何写入都 `Permission denied`。别用 `cd /tmp` 去探测可写性，要探测就直接写一个文件。临时文件应落在别处（测试用 `.tmp-test/` 建临时 `DSH_HOME`，每次跑测试都会重建；已在 `.gitignore` 里）。
 4. **`lib/` 是构建产物、但已入库**：改完 `src/` 必须 `tsc` 重建并提交，否则测试与官方安装下来的包跑的都是旧产物。见第 1 节。
-5. **真实记忆库不在仓里**。真实记忆在 `$DSH_HOME` 下：`<DSH_HOME>/agent-memory/memory.ndjson`。`DEFAULT_HOME` 的默认值是 `/data/user/0/com.dsharnessmobile.shell/files/home/.dsh`（可用 `DSH_HOME` 覆盖）。`.gitignore` 不包含它 —— 它**物理上就不在仓目录内**。
-6. **零运行时依赖**。`peerDependencies` 只有 cordis 与 dsh-tools；`devDependencies` 是 typescript、`@types/node`，外加把上述两个 peer 依赖按同版本再装一份（仅供本地构建 / 测试；运行时仍只吃宿主提供的 peer）。
+5. **真实记忆库不在仓里**。真实记忆在 `$DSH_HOME` 下：`<DSH_HOME>/agent-memory/memory.ndjson`。`DSH_HOME` 未设时 `DEFAULT_HOME` 取 `$HOME/.dsh`（可移植推导，不再硬编码本机路径；见 `src/store.ts` 与 [limitations.md](limitations.md) 的路径规范化说明）。`.gitignore` 不包含它 —— 它**物理上就不在仓目录内**。
+6. **零运行时依赖**。`peerDependencies` 只有 cordis 与 dsh-tools，且用**语义化范围**（`^4.0.4` / `^0.2.0-rc.2`）而不是精确版本 —— 精确版本会让宿主装不进任何别的小版本，`^` 允许向后兼容的 minor/patch、同时挡掉下一个大版本。`devDependencies` 是 typescript、`@types/node`，外加把上述两个 peer 依赖**按精确版本**再装一份（仅供本地构建 / 测试，故意钉死以保证可复现；运行时仍只吃宿主提供的 peer —— 所以 peer 放宽、dev 钉死，两者目的不同，不需要同步）。
 
 ## 6. 仓库内容
 
@@ -96,9 +96,9 @@ node scripts/import-gotchas.mjs --source gotchas.md --write  # 落盘（先备�
 | --- | --- |
 | `src/*.ts` | 6 个源文件（`index.ts` / `inject.ts` / `json.ts` / `protocol.ts` / `pure.ts` / `store.ts`） |
 | `lib/*.js` + `lib/types/*.d.ts` | tsc 构建产物（6 个 `.js` + 6 个 `.d.ts`），**随包入库** —— 官方安装不跑构建 |
-| `test/*.mjs` | 18 个测试文件（172 pass / 0 fail，2026-10-09 实测）；另有 `helpers.mjs` 与 `isolation-probe.mjs` 两个非测试文件 |
+| `test/*.mjs` | 19 个测试文件（176 pass / 0 fail，2026-10-09 实测）；另有 `helpers.mjs` 与 `isolation-probe.mjs` 两个非测试文件 |
 | `scripts/*.mjs` | 5 个脚本（标定 / 导入 / 负样本 / 注入实测 / 松耦合探针） |
-| `redproof/` | 143 个被跟踪红证取证文件（136 个 `.txt` + 4 个探针 `.mjs` + `run-all.sh` + 2 个 `lineformat-*.json`） |
+| `redproof/` | 168 个被跟踪红证取证文件（159 个 `.txt` + 6 个探针 `.mjs` + `run-all.sh` + 2 个 `lineformat-*.json`） |
 | `docs/` | 4 个工程文档（设计 / 召回契约 / 开发 / 局限） |
 | `package.json` / `tsconfig.json` | 包与编译配置 |
 | `cordis.patch.yml` | 本包的 bundle patch（`package.json` 的 `dsh.bundle.patch` 指向它；官方安装后由它挂载插件，不需要手改 profile 的 patch） |

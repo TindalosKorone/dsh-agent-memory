@@ -2,8 +2,8 @@
 # 生成命令：node scripts/calibrate.mjs    （未加 --dump-negatives）
 
 I2 离线标定（残差金字塔分诊的附带工具；本脚本只打印建议，不写任何文件）
-- 记忆库：/data/user/0/com.dsharnessmobile.shell/files/home/.dsh/agent-memory/memory.ndjson
-- DSH_HOME：/data/user/0/com.dsharnessmobile.shell/files/home/.dsh
+- 记忆库：$DSH_HOME/agent-memory/memory.ndjson
+- DSH_HOME：$DSH_HOME
 - 库内有效记录：194 条
 
 样本：

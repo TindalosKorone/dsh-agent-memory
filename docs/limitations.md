@@ -40,22 +40,42 @@
 - **分诊阈值与图系数不由 `calibrate.mjs` 标定**：`noveltyThreshold`（0.5）、`activationThreshold`（0.05）是**门控行为量**不是分数标度；I3 的 `lambda` / `outBudget` / `hubEta` / `decay` 等图系数同理。`GRAPH_BONUS_CAP = 0.018` 仍标注为「**待真实语料标定**」。
 - **取证日志里的数字是历史快照，不是当前值**。例如 `redproof/i2.2-calibrate-real-library.txt` 记录的是当天的 **194 条**库与 **388 个**正样本，`redproof/i2.3-calibrate-real-library.txt` 记录的是 **195 条**库与 **390 个**正样本，而当前真实库是 **203 条**。日志是「当时跑出什么」的凭证，**不应**被当成现值来引用；现值请以 `memory_recall` 的 `total` 字段或重新跑 `scripts/calibrate.mjs` 为准。
 
-## 3. 发布注意
+## 3. 发布注意：路径已规范化
 
-**本仓是按「本机开发过程的完整留痕」提交的，不做路径脱敏。**
+**本仓的路径已规范化，不再包含机器相关的本机绝对路径。** 规范化只把**机器相关前缀**逐字换掉，命令与输出内容一字未动（取证仍然是取证）。
 
-- **`redproof/`、`scripts/`、`lib/` 与 `src/` 含本机绝对路径**。形如 `/data/user/0/com.dsharnessmobile.shell/files/home/.dsh/...`（应用私有目录）、`/data/data/com.dsharnessmobile.shell/files/usr/lib/node_modules/...`（引擎安装位置）、`/storage/emulated/0/deepseek/dsh-agent-memory/...`（本仓自身所在路径）、`/data/data/com.termux/files/usr/bin/bash`（`redproof/run-all.sh` 的 shebang）。
-- **为什么保留 `redproof/` 而不脱敏**：这些路径是红证**可复现性**的一部分 —— 取证日志记录的是「在本机哪条命令、哪个库状态上跑出这个结果」，把路径改成占位符会让「怎么复现这条红证」不可核对。它们是**本机特有的环境细节**，泄露的是**目录布局**而非凭据。
+| 原字样（机器相关前缀） | 规范化写法 |
+| --- | --- |
+| 应用私有 home | `$DSH_HOME` |
+| 安装前缀 | `$PREFIX` |
+| 应用私有数据根 | `$APP_DATA` |
+| 本仓所在绝对路径 | `<repo>` |
+| 工作区绝对路径 | `<workspace>` |
+| 外部存储挂载点 | `<external-storage>` |
+
+- `redproof/run-all.sh` 的 shebang 也从写死的绝对 bash 路径改成 `#!/usr/bin/env bash`。
+- 代码里原本写死本机默认 home 的那一处（`src/store.ts` 的 `DEFAULT_HOME`）改成了**可移植**推导：`$HOME/.dsh`（`$HOME` 缺失时退回 `os.homedir()`）。所以换机器会自动跟着 `$HOME` 走，本机行为不变。
+- 引擎安装位置（`test/inject.test.mjs` 与 `scripts/i4a-measure.mjs` 里的 `ENGINE_BASE`）改成从 `$PREFIX` 推；`$PREFIX` 缺失或引擎不在那里时，走它们本来就有的「如实降级」分支。
+- 为什么保留 `redproof/`：这些日志记录的是「在哪条命令、哪个库状态上跑出这个结果」，是红证**可复现性**的一部分。规范化只替掉机器相关前缀，取证内容保持原样。
 - **没有发现任何密钥 / 令牌 / 凭据**。`token` 字样的命中全部是标定用的 `nonexistent-token` 负样本串。**也没有**设备型号或系统版本号。
-- 若你要把它公开，自行决定是保留这些路径，还是改写为占位符（改写会削弱红证的可复现性）。
 
 ### 被跟踪文件里含本机绝对路径的数量
 
-**口径**：把每个文件按下述三个模式取**并集**，命中即计数 —— `/data/user/0/`、`/data/data/`、`/storage/emulated/0/`。统计范围为仓库当前**全部被跟踪文件**（`git ls-files`）：**197 个**。以下为 **2026-10-09 实测值**（把 `lib/` 构建产物入库、新增包内 `cordis.patch.yml` 之后重测）：
+**口径**：把每个文件按下述三个**规范化前的前缀**取**并集**，命中即计数：
 
-- 三模式并集：**57 个文件**。
-- 按目录：`redproof/` 49 个、`lib/` 2 个（`lib/store.js` 与 `lib/types/store.d.ts`，都是 `src/store.ts` 里那条路径的产物）、`docs/` 2 个（`development.md` / `limitations.md`）、`src/store.ts` 1 个、`scripts/i4a-measure.mjs` 1 个、`test/inject.test.mjs` 1 个、`README.md` 1 个。
-- **只 grep `/data/` 会得到 12 个**（判据取自单模式粗筛，偏窄）：并集里 **45 个文件只含 `/storage/emulated/0/`、不含任何 `/data/` 子串**；两个模式都命中的只有 `docs/limitations.md`（本文件）一个。用单模式粗筛就会把 57 误判成 12 —— 这是必须用三模式并集的原因。
+- 应用私有目录的**两种等价别名**（规范化后写作 `$APP_DATA`）：本机是 `/data/user/0` 与 `/data/data` 两条写法；
+- **外部存储挂载点**（规范化后写作 `<external-storage>`）。
+
+实际统计按各自**带尾斜杠**的串匹配。本文这里把前两条写成不带尾斜杠的前缀、第三条直接用占位符，正是为了不让本文档自己命中（早先版本逐字写下完整前缀，于是本文件永远把自己算成 1 个）。统计范围为仓库当前**全部被跟踪文件**（`git ls-files`）。
+
+| 时点 | 三模式并集 | 单模式粗筛（只 grep `/data`） | 只含 `<external-storage>` 前缀、不含 `/data` 的文件 |
+| --- | --- | --- | --- |
+| **规范化前**（2026-10-09，含 `lib/` 产物与本轮 `redproof/i7*` 证据） | **60 个文件** | 12 个 | 48 个 |
+| **规范化后**（同一天，同一命令重测） | **0 个文件** | 0 个 | 0 个 |
+
+规范化前的并按目录分布：`redproof/` 53 个、`docs/` 2 个、`lib/` 2 个（`lib/store.js` 与 `lib/types/store.d.ts`，都是 `src/store.ts` 那条默认 home 的产物）、`scripts/i4a-measure.mjs`、`src/store.ts`、`test/inject.test.mjs` 各 1 个。
+
+**必须取三模式并集**：单模式粗筛会严重偏低 —— 规范化前只 grep `/data` 得到 12，而并集是 60（48 个文件只含外部存储前缀）。这正是早先把 57 误报成 12 的原因。三模式都命中过的只有本文件一个（它要写下这三个前缀本身）。
 
 ## 4. 许可文本
 

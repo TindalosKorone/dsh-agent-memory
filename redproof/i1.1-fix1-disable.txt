@@ -35,7 +35,7 @@ test at test/storage.test.mjs:236:1
   -   'seed-4'
     ]
   
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/storage.test.mjs:249:10)
+      at TestContext.<anonymous> (file://<repo>/test/storage.test.mjs:249:10)
       at async Test.run (node:internal/test_runner/test:1332:7)
       at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
     generatedMessage: false,

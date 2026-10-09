@@ -30,7 +30,7 @@ test at test/anchor.test.mjs:133:1
   + ]
   - []
   
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/anchor.test.mjs:140:10)
+      at TestContext.<anonymous> (file://<repo>/test/anchor.test.mjs:140:10)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1325:25)
       at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
@@ -55,7 +55,7 @@ test at test/anchor.test.mjs:233:1
   + ]
   - []
   
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/anchor.test.mjs:242:10)
+      at TestContext.<anonymous> (file://<repo>/test/anchor.test.mjs:242:10)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1325:25)
       at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
@@ -78,7 +78,7 @@ test at test/anchor.test.mjs:249:1
   + '记忆 2 条（上限 2000）｜标签锚点：坑位｜细则用 memory_recall'
   - '记忆 2 条（上限 2000）｜无可区分锚点｜细则用 memory_recall'
   
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/anchor.test.mjs:262:10)
+      at TestContext.<anonymous> (file://<repo>/test/anchor.test.mjs:262:10)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1325:25)
       at Test.processPendingSubtests (node:internal/test_runner/test:911:18)

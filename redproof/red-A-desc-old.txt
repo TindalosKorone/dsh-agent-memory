@@ -15,7 +15,7 @@
 test at test/description.test.mjs:31:1
 ✖ #3 描述：score 公式必须写清 (rel+graph)×多样性因子、只在候选>5时施加、且如实说明"开时不可复算"（判红点：改回「score 是含多样性惩罚的最终分」⇒ 本条变红） (43.800312ms)
   AssertionError [ERR_ASSERTION]: 描述必须写明 final=(rel+graph)×多样性因子：按查询召回记忆索引（L1）。每条一行：id | kind | title | tags | graph | via | rel | cov | match | score。**绝不返回 body**：要正文请拿 id 调 memory_expand。score 是含多样性惩罚的最终分（按它降序，映射到 0..1 的展示标度，不随批次归一化）；rel 是 BM25 原始相关度（**阈值直接作用于它**，可据此自行验算 match）；cov 是标签覆盖率（仅诊断）；match 是绝对判定 none/weak/strong（由 rel 与绝对阈值比较得出）。与库无关的查询不会拿到满分：无证据候选 rel/score 均为 0.0000、match=none（只奖不罚，不整批否决）。I2 分诊：以候选标签向量为基、在标签 idf 词法空间里做 Gram-Schmidt 残差金字塔，得到 novelty（0.7×残差能量比 + 0.3×方向一致性）并据此决定是否扩检索。**limit 是硬显示上限**：返回行数恒为 min(limit, 可用候选数)，扩检索只放大**内部**召回预算 kBase -> kUsed（给金字塔取基、给多样性更大的候选池），**不增加返回行数**。查询无词元能量（‖q‖²≈0）时**不做分诊**：novelty=0、expanded=false、kUsed=kBase，explainedRatio/residualRatio 如实回显 0/0（未定义）。另给 explainedRatio/residualRatio/basisSize/layers/logicalDepth 与 lowConfidence（低置信只是**如实报告**，绝不返回空、绝不整批否决）。总输出超过 2000 字符会截断并如实说明。
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/description.test.mjs:34:10)
+      at TestContext.<anonymous> (file://<repo>/test/description.test.mjs:34:10)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1325:25)
       at Test.start (node:internal/test_runner/test:1191:17)
@@ -31,7 +31,7 @@ test at test/description.test.mjs:31:1
 test at test/description.test.mjs:52:1
 ✖ #2 描述：无词法证据时 rel=0；仅图到达的记录 graph>0 / via=tag:<标签>；score 取决于标度常数（判红点：改回「无证据候选 rel/score 均为 0.0000」⇒ 本条变红） (14.610573ms)
   AssertionError [ERR_ASSERTION]: 描述必须把"无证据"限定为无**词法**证据（图证据是另一种证据）：按查询召回记忆索引（L1）。每条一行：id | kind | title | tags | graph | via | rel | cov | match | score。**绝不返回 body**：要正文请拿 id 调 memory_expand。score 是含多样性惩罚的最终分（按它降序，映射到 0..1 的展示标度，不随批次归一化）；rel 是 BM25 原始相关度（**阈值直接作用于它**，可据此自行验算 match）；cov 是标签覆盖率（仅诊断）；match 是绝对判定 none/weak/strong（由 rel 与绝对阈值比较得出）。与库无关的查询不会拿到满分：无证据候选 rel/score 均为 0.0000、match=none（只奖不罚，不整批否决）。I2 分诊：以候选标签向量为基、在标签 idf 词法空间里做 Gram-Schmidt 残差金字塔，得到 novelty（0.7×残差能量比 + 0.3×方向一致性）并据此决定是否扩检索。**limit 是硬显示上限**：返回行数恒为 min(limit, 可用候选数)，扩检索只放大**内部**召回预算 kBase -> kUsed（给金字塔取基、给多样性更大的候选池），**不增加返回行数**。查询无词元能量（‖q‖²≈0）时**不做分诊**：novelty=0、expanded=false、kUsed=kBase，explainedRatio/residualRatio 如实回显 0/0（未定义）。另给 explainedRatio/residualRatio/basisSize/layers/logicalDepth 与 lowConfidence（低置信只是**如实报告**，绝不返回空、绝不整批否决）。总输出超过 2000 字符会截断并如实说明。
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/description.test.mjs:55:10)
+      at TestContext.<anonymous> (file://<repo>/test/description.test.mjs:55:10)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1325:25)
       at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
@@ -49,7 +49,7 @@ test at test/description.test.mjs:52:1
 test at test/description.test.mjs:68:1
 ✖ #1 描述：graph / via 的列语义必须写明（判红点：删掉 graph/via 的解释 ⇒ 本条变红） (12.92625ms)
   AssertionError [ERR_ASSERTION]: 描述必须写明 graph 是标签图传播给的辅助奖励：按查询召回记忆索引（L1）。每条一行：id | kind | title | tags | graph | via | rel | cov | match | score。**绝不返回 body**：要正文请拿 id 调 memory_expand。score 是含多样性惩罚的最终分（按它降序，映射到 0..1 的展示标度，不随批次归一化）；rel 是 BM25 原始相关度（**阈值直接作用于它**，可据此自行验算 match）；cov 是标签覆盖率（仅诊断）；match 是绝对判定 none/weak/strong（由 rel 与绝对阈值比较得出）。与库无关的查询不会拿到满分：无证据候选 rel/score 均为 0.0000、match=none（只奖不罚，不整批否决）。I2 分诊：以候选标签向量为基、在标签 idf 词法空间里做 Gram-Schmidt 残差金字塔，得到 novelty（0.7×残差能量比 + 0.3×方向一致性）并据此决定是否扩检索。**limit 是硬显示上限**：返回行数恒为 min(limit, 可用候选数)，扩检索只放大**内部**召回预算 kBase -> kUsed（给金字塔取基、给多样性更大的候选池），**不增加返回行数**。查询无词元能量（‖q‖²≈0）时**不做分诊**：novelty=0、expanded=false、kUsed=kBase，explainedRatio/residualRatio 如实回显 0/0（未定义）。另给 explainedRatio/residualRatio/basisSize/layers/logicalDepth 与 lowConfidence（低置信只是**如实报告**，绝不返回空、绝不整批否决）。总输出超过 2000 字符会截断并如实说明。
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/description.test.mjs:71:10)
+      at TestContext.<anonymous> (file://<repo>/test/description.test.mjs:71:10)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1325:25)
       at Test.processPendingSubtests (node:internal/test_runner/test:911:18)

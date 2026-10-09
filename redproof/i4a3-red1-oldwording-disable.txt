@@ -51,7 +51,7 @@ test at test/inject.test.mjs:136:1
   + '记忆 7 条（上限 2000）｜细则用 memory_recall｜标签锚点：失败关闭 / render / 协议'
   - '记忆 7 条（跨会话经验教训）｜排查·为什么·复现·以前是否踩过 这类问题，先 memory_recall 查库｜标签锚点：失败关闭 / render / 协议'
   
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:145:10)
+      at TestContext.<anonymous> (file://<repo>/test/inject.test.mjs:145:10)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1325:25)
       at Test.start (node:internal/test_runner/test:1191:17)
@@ -72,7 +72,7 @@ test at test/inject.test.mjs:149:1
   + '记忆 7 条（上限 2000）｜细则用 memory_recall｜标签锚点：失败关闭 / render / 协议'
   - '记忆 7 条（跨会话经验教训）｜排查·为什么·复现·以前是否踩过 这类问题，先 memory_recall 查库｜标签锚点：失败关闭 / render / 协议'
   
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:158:10)
+      at TestContext.<anonymous> (file://<repo>/test/inject.test.mjs:158:10)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1325:25)
       at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
@@ -95,7 +95,7 @@ test at test/inject.test.mjs:215:1
   + '记忆 0 条（上限 2000）｜细则用 memory_recall'
   - '记忆 0 条（跨会话经验教训）｜排查·为什么·复现·以前是否踩过 这类问题，先 memory_recall 查库'
   
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:218:10)
+      at TestContext.<anonymous> (file://<repo>/test/inject.test.mjs:218:10)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1325:25)
       at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
@@ -118,7 +118,7 @@ test at test/inject.test.mjs:295:1
   + '记忆 7 条（上限 2000）｜细则用 memory_recall｜标签锚点：失败关闭 / render / 协议'
   - '记忆 7 条（跨会话经验教训）｜排查·为什么·复现·以前是否踩过 这类问题，先 memory_recall 查库｜标签锚点：失败关闭 / render / 协议'
   
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:306:10)
+      at TestContext.<anonymous> (file://<repo>/test/inject.test.mjs:306:10)
       at async Test.run (node:internal/test_runner/test:1332:7)
       at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
     generatedMessage: true,
@@ -137,7 +137,7 @@ test at test/inject.test.mjs:314:1
   + '记忆 7 条（上限 2000）｜细则用 memory_recall｜标签锚点：失败关闭 / render / 协议'
   - '记忆 7 条（跨会话经验教训）｜排查·为什么·复现·以前是否踩过 这类问题，先 memory_recall 查库｜标签锚点：失败关闭 / render / 协议'
   
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:317:10)
+      at TestContext.<anonymous> (file://<repo>/test/inject.test.mjs:317:10)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1325:25)
       at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
@@ -160,7 +160,7 @@ test at test/inject.test.mjs:397:1
   + '记忆 7 条（上限 2000）｜细则用 memory_recall｜标签锚点：失败关闭 / render / 协议'
   - '记忆 7 条（跨会话经验教训）｜排查·为什么·复现·以前是否踩过 这类问题，先 memory_recall 查库｜标签锚点：失败关闭 / render / 协议'
   
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:402:10)
+      at TestContext.<anonymous> (file://<repo>/test/inject.test.mjs:402:10)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1325:25)
       at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
@@ -183,7 +183,7 @@ test at test/inject.test.mjs:430:1
   + '记忆 7 条（上限 2000）｜细则用 memory_recall｜标签锚点：失败关闭 / render / 协议'
   - '记忆 7 条（跨会话经验教训）｜排查·为什么·复现·以前是否踩过 这类问题，先 memory_recall 查库｜标签锚点：失败关闭 / render / 协议'
   
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:474:12)
+      at TestContext.<anonymous> (file://<repo>/test/inject.test.mjs:474:12)
       at async Test.run (node:internal/test_runner/test:1332:7)
       at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
     generatedMessage: true,
@@ -197,7 +197,7 @@ test at test/inject.test.mjs:430:1
 test at test/inject.test.mjs:498:1
 ✖ I4a.3 条件规则：尾部那行含明确的触发条件与行动（不是「有这个东西」的陈述） (23.377292ms)
   AssertionError [ERR_ASSERTION]: 必须含行动规则「触发条件 ⇒ 动作」，实测 记忆 7 条（上限 2000）｜细则用 memory_recall｜标签锚点：失败关闭 / render / 协议
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:506:10)
+      at TestContext.<anonymous> (file://<repo>/test/inject.test.mjs:506:10)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1325:25)
       at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
@@ -215,7 +215,7 @@ test at test/inject.test.mjs:498:1
 test at test/inject.test.mjs:527:1
 ✖ I4a.3 条件规则：压缩阶梯只丢锚点、绝不丢条件规则（预算再紧也保得住触发条件） (1.088907ms)
   AssertionError [ERR_ASSERTION]: maxChars=40 时那行丢了触发条件："记忆 9 条（上限 2000）｜细则用 memory_recall"
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:533:12)
+      at TestContext.<anonymous> (file://<repo>/test/inject.test.mjs:533:12)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1325:25)
       at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
@@ -238,7 +238,7 @@ test at test/inject.test.mjs:601:1
   + '记忆 7 条（上限 2000）｜细则用 memory_recall｜标签锚点：失败关闭 / render / 协议'
   - '记忆 7 条（跨会话经验教训）｜排查·为什么·复现·以前是否踩过 这类问题，先 memory_recall 查库｜标签锚点：失败关闭 / render / 协议'
   
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:610:10)
+      at TestContext.<anonymous> (file://<repo>/test/inject.test.mjs:610:10)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1325:25)
       at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
@@ -261,7 +261,7 @@ test at test/inject.test.mjs:613:1
   + '记忆 7 条（上限 2000）｜细则用 memory_recall｜标签锚点：失败关闭 / render / 协议'
   - '记忆 7 条（跨会话经验教训）｜排查·为什么·复现·以前是否踩过 这类问题，先 memory_recall 查库｜标签锚点：失败关闭 / render / 协议'
   
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:619:10)
+      at TestContext.<anonymous> (file://<repo>/test/inject.test.mjs:619:10)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1325:25)
       at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
@@ -284,7 +284,7 @@ test at test/inject.test.mjs:622:1
   + '记忆 7 条（上限 7）｜细则用 memory_recall｜标签锚点：失败关闭 / render / 协议'
   - '记忆 7 条（跨会话经验教训）｜排查·为什么·复现·以前是否踩过 这类问题，先 memory_recall 查库｜标签锚点：失败关闭 / render / 协议'
   
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:627:10)
+      at TestContext.<anonymous> (file://<repo>/test/inject.test.mjs:627:10)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1325:25)
       at Test.processPendingSubtests (node:internal/test_runner/test:911:18)

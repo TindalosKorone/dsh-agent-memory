@@ -20,7 +20,7 @@
 test at test/recall.test.mjs:114:1
 ✖ 打分红证 1（判红点）：无关查询不得是满分 ⇒ Top1 match !== strong 且 disp < 0.5 (61.205572ms)
   AssertionError [ERR_ASSERTION]: Top1 展示分必须 < 0.5，实际 1
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/recall.test.mjs:135:10)
+      at TestContext.<anonymous> (file://<repo>/test/recall.test.mjs:135:10)
       at async Test.run (node:internal/test_runner/test:1332:7)
       at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
     generatedMessage: false,

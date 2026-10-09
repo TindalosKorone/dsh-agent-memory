@@ -23,7 +23,7 @@ test at test/recall.test.mjs:114:1
   
   true !== false
   
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/recall.test.mjs:142:10)
+      at TestContext.<anonymous> (file://<repo>/test/recall.test.mjs:142:10)
       at async Test.run (node:internal/test_runner/test:1332:7)
       at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
     generatedMessage: true,
@@ -37,7 +37,7 @@ test at test/recall.test.mjs:114:1
 test at test/recall.test.mjs:192:1
 ✖ 打分红证 3（判红点）：候选 <= 5 时打印的 score 序列单调不增 (47.127708ms)
   AssertionError [ERR_ASSERTION]: 打印的 score 必须单调不增（判红点：强制开启多样性重排就会倒挂）：0.2548,0.0219,0.0251
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/recall.test.mjs:217:12)
+      at TestContext.<anonymous> (file://<repo>/test/recall.test.mjs:217:12)
       at async Test.run (node:internal/test_runner/test:1332:7)
       at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
     generatedMessage: false,

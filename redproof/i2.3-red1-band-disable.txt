@@ -28,7 +28,7 @@ test at test/scoring.test.mjs:380:1
   
   'none' !== 'weak'
   
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/scoring.test.mjs:415:10)
+      at TestContext.<anonymous> (file://<repo>/test/scoring.test.mjs:415:10)
       at async Test.run (node:internal/test_runner/test:1332:7)
       at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
     generatedMessage: false,
@@ -45,7 +45,7 @@ test at test/scoring.test.mjs:419:1
   
   0.06 !== 0.0363
   
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/scoring.test.mjs:431:10)
+      at TestContext.<anonymous> (file://<repo>/test/scoring.test.mjs:431:10)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1325:25)
       at Test.processPendingSubtests (node:internal/test_runner/test:911:18)

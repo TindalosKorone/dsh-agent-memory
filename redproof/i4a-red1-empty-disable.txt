@@ -36,7 +36,7 @@ test at test/inject.test.mjs:162:1
   + ''
   - '记忆 0 条（上限 2000）｜细则用 memory_recall'
   
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:165:10)
+      at TestContext.<anonymous> (file://<repo>/test/inject.test.mjs:165:10)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1325:25)
       at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
@@ -54,8 +54,8 @@ test at test/inject.test.mjs:162:1
 test at test/inject.test.mjs:203:1
 ✖ I4a：maxChars 极小/为 0 时也绝不超限（装不下标记就给空串） (0.350313ms)
   Error: 红证 1：空库分支被改成抛错
-      at planInjectionLine (file:///storage/emulated/0/deepseek/dsh-agent-memory/lib/inject.js:158:15)
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:209:16)
+      at planInjectionLine (file://<repo>/lib/inject.js:158:15)
+      at TestContext.<anonymous> (file://<repo>/test/inject.test.mjs:209:16)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1325:25)
       at Test.processPendingSubtests (node:internal/test_runner/test:911:18)

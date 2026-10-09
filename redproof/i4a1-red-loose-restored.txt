@@ -1,9 +1,9 @@
 === I4a.1 红证探针（mode=real）===
 cordis: 已加载 | FiberState: PENDING=0 LOADING=1 ACTIVE=2 FAILED=3 DISPOSED=4 UNLOADING=5
-插件模块: /storage/emulated/0/deepseek/dsh-agent-memory/lib/index.js
+插件模块: <repo>/lib/index.js
 声明的 inject: ["tools"]
 源码里 inject 那一行: export const inject = ['tools'];
-探针库: /storage/emulated/0/deepseek/dsh-agent-memory/.tmp-test/i4a1-probe/home （2 条，/storage/emulated/0/deepseek/dsh-agent-memory/.tmp-test/i4a1-probe/home/agent-memory/memory.ndjson）
+探针库: <repo>/.tmp-test/i4a1-probe/home （2 条，<repo>/.tmp-test/i4a1-probe/home/agent-memory/memory.ndjson）
 
 === A. 环境：有 tools、没有 systemPrompt（这就是「缺一块」的环境）===
   tools 服务就位: true | systemPrompt 服务: false

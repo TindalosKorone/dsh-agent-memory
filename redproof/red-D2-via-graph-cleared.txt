@@ -30,7 +30,7 @@
 test at test/graph.test.mjs:299:1
 ✖ I3 工具层：行内 graph/via 与结构化行一致，final=rel+graph 可用打印值复算，score 仍在行尾 (205.001719ms)
   AssertionError [ERR_ASSERTION]: 无词法证据的行必须标出图来源标签：direct
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/graph.test.mjs:328:14)
+      at TestContext.<anonymous> (file://<repo>/test/graph.test.mjs:328:14)
       at async Test.run (node:internal/test_runner/test:1332:7)
       at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
     generatedMessage: false,
@@ -44,7 +44,7 @@ test at test/graph.test.mjs:299:1
 test at test/graph.test.mjs:379:1
 ✖ I3 图到达不变量（判红点：关掉传播 maxHops=0 ⇒ (a) 变红；把 via/graph 的产出清掉 ⇒ (c)(d) 变红）：仅由标签图到达的行 rel=0/graph>0/via=tag:/match=none，且 score 与 absoluteDisp(rel+graph) 一致 (103.250209ms)
   AssertionError [ERR_ASSERTION]: 图到达必须 graph>0 且 <= graphBonusCap：0
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/graph.test.mjs:407:10)
+      at TestContext.<anonymous> (file://<repo>/test/graph.test.mjs:407:10)
       at async Test.run (node:internal/test_runner/test:1332:7)
       at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
     generatedMessage: false,
@@ -58,7 +58,7 @@ test at test/graph.test.mjs:379:1
 test at test/graph.test.mjs:482:1
 ✖ 红证 1（判红点：关掉传播 maxHops=0 或跳过图奖励 ⇒ 本条变红）：与查询无词法重合、但共享标签的记忆必须被召回 (218.899063ms)
   AssertionError [ERR_ASSERTION]: 它必须拿到正图奖励
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/graph.test.mjs:494:10)
+      at TestContext.<anonymous> (file://<repo>/test/graph.test.mjs:494:10)
       at async Test.run (node:internal/test_runner/test:1332:7)
       at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
     generatedMessage: false,
@@ -72,7 +72,7 @@ test at test/graph.test.mjs:482:1
 test at test/graph.test.mjs:509:1
 ✖ 红证 2（判红点：去掉枢纽校正 hubEta=0 ⇒ 判据变红）：万能标签被压住，不许淹没词法最强那条 (245.448229ms)
   AssertionError [ERR_ASSERTION]: 放开硬上限后万能标签记录的原始奖励必须超过默认上限（证明默认上限真的在截断）：0
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/graph.test.mjs:554:10)
+      at TestContext.<anonymous> (file://<repo>/test/graph.test.mjs:554:10)
       at async Test.run (node:internal/test_runner/test:1332:7)
       at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
     generatedMessage: false,
@@ -86,7 +86,7 @@ test at test/graph.test.mjs:509:1
 test at test/graph.test.mjs:630:1
 ✖ 红证 4（判红点：邻居遍历改成非确定序 ⇒ 本条变红）：同一库 + 同一查询两次调用，行文本逐字节相同 (270.222083ms)
   AssertionError [ERR_ASSERTION]: 夹具里必须有图证据，否则「逐字节相同」是空判据
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/graph.test.mjs:642:10)
+      at TestContext.<anonymous> (file://<repo>/test/graph.test.mjs:642:10)
       at async Test.run (node:internal/test_runner/test:1332:7)
       at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
     generatedMessage: false,

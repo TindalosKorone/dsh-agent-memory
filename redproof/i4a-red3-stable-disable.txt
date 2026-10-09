@@ -36,7 +36,7 @@ test at test/inject.test.mjs:91:1
   + '记忆 3 条（上限 2000）｜标签锚点：失败关闭 / render / 协议｜细则用 memory_recall t1791503816363-0.7152202433532349'
   - '记忆 3 条（上限 2000）｜标签锚点：失败关闭 / render / 协议｜细则用 memory_recall'
   
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:100:10)
+      at TestContext.<anonymous> (file://<repo>/test/inject.test.mjs:100:10)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1325:25)
       at Test.start (node:internal/test_runner/test:1191:17)
@@ -57,7 +57,7 @@ test at test/inject.test.mjs:104:1
   + '记忆 3 条（上限 2000）｜标签锚点：失败关闭 / render / 协议｜细则用 memory_recall t1791503816382-0.9252323380478561'
   - '记忆 3 条（上限 2000）｜标签锚点：失败关闭 / render / 协议｜细则用 memory_recall t1791503816383-0.2772225837369535'
   
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:111:10)
+      at TestContext.<anonymous> (file://<repo>/test/inject.test.mjs:111:10)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1325:25)
       at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
@@ -80,7 +80,7 @@ test at test/inject.test.mjs:162:1
   + '记忆 0 条（上限 2000）｜细则用 memory_recall t1791503816437-0.7062979861361218'
   - '记忆 0 条（上限 2000）｜细则用 memory_recall'
   
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:165:10)
+      at TestContext.<anonymous> (file://<repo>/test/inject.test.mjs:165:10)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1325:25)
       at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
@@ -101,7 +101,7 @@ test at test/inject.test.mjs:230:1
   
   5 !== 1
   
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:240:10)
+      at TestContext.<anonymous> (file://<repo>/test/inject.test.mjs:240:10)
       at async Test.run (node:internal/test_runner/test:1332:7)
       at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
     generatedMessage: false,
@@ -120,7 +120,7 @@ test at test/inject.test.mjs:249:1
   + '记忆 3 条（上限 2000）｜标签锚点：失败关闭 / render / 协议｜细则用 memory_recall t1791503816672-0.6527133171476458'
   - '记忆 3 条（上限 2000）｜标签锚点：失败关闭 / render / 协议｜细则用 memory_recall'
   
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:252:10)
+      at TestContext.<anonymous> (file://<repo>/test/inject.test.mjs:252:10)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1325:25)
       at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
@@ -143,7 +143,7 @@ test at test/inject.test.mjs:260:1
   + '记忆 3 条（上限 2000）｜标签锚点：失败关闭 / render / 协议｜细则用 memory_recall t1791503816683-0.25764324364799585'
   - '记忆 3 条（上限 2000）｜标签锚点：失败关闭 / render / 协议｜细则用 memory_recall t1791503816682-0.7897427378730715'
   
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:272:10)
+      at TestContext.<anonymous> (file://<repo>/test/inject.test.mjs:272:10)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1325:25)
       at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
@@ -166,7 +166,7 @@ test at test/inject.test.mjs:332:1
   + '记忆 3 条（上限 2000）｜标签锚点：失败关闭 / render / 协议｜细则用 memory_recall t1791503816745-0.9497974482325529'
   - '记忆 3 条（上限 2000）｜标签锚点：失败关闭 / render / 协议｜细则用 memory_recall'
   
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:337:10)
+      at TestContext.<anonymous> (file://<repo>/test/inject.test.mjs:337:10)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1325:25)
       at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
@@ -189,7 +189,7 @@ test at test/inject.test.mjs:355:1
   + '记忆 3 条（上限 2000）｜标签锚点：失败关闭 / render / 协议｜细则用 memory_recall t1791503816840-0.9594722126178499'
   - '记忆 3 条（上限 2000）｜标签锚点：失败关闭 / render / 协议｜细则用 memory_recall'
   
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:388:12)
+      at TestContext.<anonymous> (file://<repo>/test/inject.test.mjs:388:12)
       at async Test.run (node:internal/test_runner/test:1332:7)
       at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
     generatedMessage: true,

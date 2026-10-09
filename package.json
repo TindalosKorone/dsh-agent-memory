@@ -11,10 +11,13 @@
   "files": [
     "lib",
     "cordis.patch.yml",
-    "NOTICE"
+    "NOTICE",
+    "docs/recall-contract.md"
   ],
   "license": "CC-BY-NC-SA-4.0",
-  "private": true,
+  "publishConfig": {
+    "access": "public"
+  },
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
@@ -22,11 +25,11 @@
   },
   "scripts": {
     "build": "node node_modules/typescript/bin/tsc -p .",
-    "test": "node test/protocol.test.mjs && node test/cap.test.mjs && node test/pure.test.mjs && node test/scoring.test.mjs && node test/recall.test.mjs && node test/triage.test.mjs && node test/lossless.test.mjs && node test/storage.test.mjs && node test/prune.test.mjs && node test/inject.test.mjs && node test/loose-inject.test.mjs && node test/anchor.test.mjs && node test/graph.test.mjs && node test/calibrate.test.mjs && node test/import-gotchas.test.mjs && node test/header.test.mjs && node test/columns.test.mjs && node test/description.test.mjs",
+    "test": "node test/protocol.test.mjs && node test/cap.test.mjs && node test/pure.test.mjs && node test/scoring.test.mjs && node test/recall.test.mjs && node test/triage.test.mjs && node test/lossless.test.mjs && node test/storage.test.mjs && node test/prune.test.mjs && node test/inject.test.mjs && node test/loose-inject.test.mjs && node test/anchor.test.mjs && node test/graph.test.mjs && node test/calibrate.test.mjs && node test/import-gotchas.test.mjs && node test/header.test.mjs && node test/columns.test.mjs && node test/description.test.mjs && node test/release.test.mjs",
     "calibrate": "node scripts/calibrate.mjs"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "4.0.4",
+    "@deepseek-ai/cordis": "^4.0.4",
     "@deepseek-ai/dsh-tools": "^0.2.0-rc.2"
   },
   "devDependencies": {

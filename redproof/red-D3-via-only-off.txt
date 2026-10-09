@@ -30,7 +30,7 @@
 test at test/graph.test.mjs:299:1
 ✖ I3 工具层：行内 graph/via 与结构化行一致，final=rel+graph 可用打印值复算，score 仍在行尾 (194.461875ms)
   AssertionError [ERR_ASSERTION]: 无词法证据的行必须标出图来源标签：direct
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/graph.test.mjs:328:14)
+      at TestContext.<anonymous> (file://<repo>/test/graph.test.mjs:328:14)
       at async Test.run (node:internal/test_runner/test:1332:7)
       at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
     generatedMessage: false,
@@ -44,7 +44,7 @@ test at test/graph.test.mjs:299:1
 test at test/graph.test.mjs:379:1
 ✖ I3 图到达不变量（判红点：关掉传播 maxHops=0 ⇒ (a) 变红；把 via/graph 的产出清掉 ⇒ (c)(d) 变红）：仅由标签图到达的行 rel=0/graph>0/via=tag:/match=none，且 score 与 absoluteDisp(rel+graph) 一致 (125.881771ms)
   AssertionError [ERR_ASSERTION]: 图到达的 via 必须以 tag: 开头：direct
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/graph.test.mjs:409:10)
+      at TestContext.<anonymous> (file://<repo>/test/graph.test.mjs:409:10)
       at async Test.run (node:internal/test_runner/test:1332:7)
       at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
     generatedMessage: false,
@@ -63,7 +63,7 @@ test at test/graph.test.mjs:482:1
   + 'direct'
   - 'tag:beta'
   
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/graph.test.mjs:495:10)
+      at TestContext.<anonymous> (file://<repo>/test/graph.test.mjs:495:10)
       at async Test.run (node:internal/test_runner/test:1332:7)
       at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
     generatedMessage: false,
@@ -77,7 +77,7 @@ test at test/graph.test.mjs:482:1
 test at test/graph.test.mjs:630:1
 ✖ 红证 4（判红点：邻居遍历改成非确定序 ⇒ 本条变红）：同一库 + 同一查询两次调用，行文本逐字节相同 (200.69927ms)
   AssertionError [ERR_ASSERTION]: 夹具里必须有图来源行
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/graph.test.mjs:643:10)
+      at TestContext.<anonymous> (file://<repo>/test/graph.test.mjs:643:10)
       at async Test.run (node:internal/test_runner/test:1332:7)
       at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
     generatedMessage: false,

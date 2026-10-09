@@ -1,6 +1,6 @@
 
 === 0. 真实记忆库（只读） ===
-库文件: /data/user/0/com.dsharnessmobile.shell/files/home/.dsh/agent-memory/memory.ndjson
+库文件: $DSH_HOME/agent-memory/memory.ndjson
 存在: true
 条数: 9 | 锚点: ["失败关闭","区分力","测试"] | 命中缓存: false
 

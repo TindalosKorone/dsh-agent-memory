@@ -16,7 +16,7 @@
 test at test/recall.test.mjs:24:1
 ✖ memory_recall 绝不返回 body（文本、行、整个返回值三处都查） (63.929635ms)
   AssertionError [ERR_ASSERTION]: text 泄漏了第 0 条 body
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/recall.test.mjs:39:12)
+      at TestContext.<anonymous> (file://<repo>/test/recall.test.mjs:39:12)
       at async Test.run (node:internal/test_runner/test:1332:7)
       at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
     generatedMessage: false,
@@ -33,7 +33,7 @@ test at test/recall.test.mjs:55:1
   
     assert.ok(!line.includes('BODYONLY-SENTINEL'))
   
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/recall.test.mjs:71:44)
+      at TestContext.<anonymous> (file://<repo>/test/recall.test.mjs:71:44)
       at async Test.run (node:internal/test_runner/test:1332:7)
       at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
     generatedMessage: true,
@@ -47,7 +47,7 @@ test at test/recall.test.mjs:55:1
 test at test/recall.test.mjs:74:1
 ✖ memory_recall 输出超 2000 字符必须截断并如实说明 (868.315521ms)
   AssertionError [ERR_ASSERTION]: 截断路径同样不得泄漏 body
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/recall.test.mjs:89:10)
+      at TestContext.<anonymous> (file://<repo>/test/recall.test.mjs:89:10)
       at async Test.run (node:internal/test_runner/test:1332:7)
       at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
     generatedMessage: false,

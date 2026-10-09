@@ -1,7 +1,17 @@
 import { type GraphOptions, type ScoreOptions, type TriageOptions } from './pure.js';
 import { type MemoryDraft, type MemoryRecord } from './protocol.js';
 import type { InjectionConfig } from './inject.js';
-export declare const DEFAULT_HOME = "/data/user/0/com.dsharnessmobile.shell/files/home/.dsh";
+/**
+ * `DSH_HOME` 未设或为空白时的默认 home —— **可移植，不硬编码本机绝对路径**。
+ *
+ * 这里曾经写死本机的应用私有 home（形如 `$APP_DATA/files/home/.dsh`）。那是两件坏事：
+ *  1. 公开仓里带着**机器相关**的应用私有目录字样（见 docs/limitations.md 的路径规范化说明）；
+ *  2. 对**任何别的机器**它都是错的（就算同为 Android，包名也未必一样）。
+ * 现在按 POSIX 惯例取 `$HOME/.dsh`，`$HOME` 缺失时退回 `os.homedir()`。
+ * 本机上 `$HOME` = `$APP_DATA/files/home`，与历史默认值指向**同一个目录**
+ * （Android 的 `/data/user/0` 与 `/data/data` 互为别名），因此行为不变；换机器则自动跟着 `$HOME` 走。
+ */
+export declare const DEFAULT_HOME: string;
 export declare const DEFAULT_MAX_RECORDS = 2000;
 export declare const DEFAULT_MAX_BYTES: number;
 /** 单条记录的默认上限比例：maxBytes 的 10%（见 resolveMaxRecordBytes）。 */

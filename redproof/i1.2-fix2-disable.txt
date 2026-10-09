@@ -20,7 +20,7 @@
 test at test/recall.test.mjs:145:1
 ✖ 打分红证 2（判红点）：短而相关必须赢过长而无关（BM25 长度归一） (175.152604ms)
   AssertionError [ERR_ASSERTION]: 短而相关必须排在长而噪声之前（判红点：把 BM25 的 b 设为 0 后长的那条会反超）：LONG-NOISE > SHORT-RELEVANT > other > other > other > other > other > other > other > other
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/recall.test.mjs:180:10)
+      at TestContext.<anonymous> (file://<repo>/test/recall.test.mjs:180:10)
       at async Test.run (node:internal/test_runner/test:1332:7)
       at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
     generatedMessage: false,

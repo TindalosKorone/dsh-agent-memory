@@ -31,7 +31,7 @@
 test at test/inject.test.mjs:177:1
 ✖ I4a：2000 条 + 长标签 ⇒ 注入文本长度 <= maxChars 且带如实省略标记 (130.722448ms)
   AssertionError [ERR_ASSERTION]: 注入长度 411 必须 <= 240
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:182:10)
+      at TestContext.<anonymous> (file://<repo>/test/inject.test.mjs:182:10)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1325:25)
       at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
@@ -49,7 +49,7 @@ test at test/inject.test.mjs:177:1
 test at test/inject.test.mjs:194:1
 ✖ I4a：手工改库塞进 300 字符超长标签 ⇒ 仍 <= maxChars（阶梯最后一级硬截断） (8.231771ms)
   AssertionError [ERR_ASSERTION]: 长度 346 必须 <= 240
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:198:10)
+      at TestContext.<anonymous> (file://<repo>/test/inject.test.mjs:198:10)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1325:25)
       at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
@@ -70,7 +70,7 @@ test at test/inject.test.mjs:203:1
   
     assert.ok(planInjectionLine(9, 2000, anchors, 8).text.length <= 8)
   
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:205:10)
+      at TestContext.<anonymous> (file://<repo>/test/inject.test.mjs:205:10)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1325:25)
       at Test.processPendingSubtests (node:internal/test_runner/test:911:18)

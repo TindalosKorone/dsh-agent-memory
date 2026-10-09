@@ -49,7 +49,7 @@ test at test/inject.test.mjs:588:1
   
   1 !== 0
   
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:594:10)
+      at TestContext.<anonymous> (file://<repo>/test/inject.test.mjs:594:10)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1325:25)
       at Test.processPendingSubtests (node:internal/test_runner/test:911:18)

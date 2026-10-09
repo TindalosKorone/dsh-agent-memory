@@ -38,7 +38,7 @@ test at test/inject.test.mjs:177:1
   
   false !== true
   
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:183:10)
+      at TestContext.<anonymous> (file://<repo>/test/inject.test.mjs:183:10)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1325:25)
       at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
@@ -59,7 +59,7 @@ test at test/inject.test.mjs:194:1
   
   false !== true
   
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:199:10)
+      at TestContext.<anonymous> (file://<repo>/test/inject.test.mjs:199:10)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1325:25)
       at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
@@ -80,7 +80,7 @@ test at test/inject.test.mjs:203:1
   
     assert.ok(planInjectionLine(9, 2000, anchors, 8).text.length <= 8)
   
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:205:10)
+      at TestContext.<anonymous> (file://<repo>/test/inject.test.mjs:205:10)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1325:25)
       at Test.processPendingSubtests (node:internal/test_runner/test:911:18)

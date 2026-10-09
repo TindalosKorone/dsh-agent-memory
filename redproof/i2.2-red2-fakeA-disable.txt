@@ -21,7 +21,7 @@ test at test/calibrate.test.mjs:122:1
   
   0 !== 0.0017
   
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/calibrate.test.mjs:151:10)
+      at TestContext.<anonymous> (file://<repo>/test/calibrate.test.mjs:151:10)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1325:25)
       at Test.processPendingSubtests (node:internal/test_runner/test:911:18)

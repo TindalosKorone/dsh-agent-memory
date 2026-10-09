@@ -35,7 +35,7 @@ dsh plugin --profile web add github:TindalosKorone/dsh-agent-memory
 - **`lib/` 没构建**：官方安装下来的包自带入库的 `lib/`，不需要构建；只有从源码或 `file:` 用本仓时才要先 `tsc -p .`（见「安装」）。
 - **注入那行为什么不变**：它只由**库内容**决定，库不变则逐字节相同（引擎只在快照文本变化时才产出消息）。库变了才会变；`injection.enabled: false` 则完全不注入。
 - **库在哪 / 怎么备份 / 上限**：`$DSH_HOME/agent-memory/memory.ndjson`，NDJSON 纯文本，直接 `cp` 就是备份。默认 2000 条 / 4 MiB，单条默认 ≤ maxBytes 的 10%。
-- 更多本机坑（`/storage/emulated/0` 不能建软链、`/tmp` 不可写但 `cd /tmp` 会成功）见 [docs/development.md](docs/development.md)。
+- 更多本机坑（`<external-storage>` 不能建软链、`/tmp` 不可写但 `cd /tmp` 会成功）见 [docs/development.md](docs/development.md)。
 
 ## 安全
 

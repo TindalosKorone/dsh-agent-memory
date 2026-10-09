@@ -34,7 +34,7 @@ test at test/columns.test.mjs:107:1
       'score'
     ]
   
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/columns.test.mjs:131:12)
+      at TestContext.<anonymous> (file://<repo>/test/columns.test.mjs:131:12)
       at async Test.run (node:internal/test_runner/test:1332:7)
       at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
     generatedMessage: false,

@@ -31,7 +31,7 @@ test at test/storage.test.mjs:268:1
   +   '{"id":"rec-local","ts":1700000000000,"kind":"fact","title":"标题 rec-local 用于测试","body":"正文 rec-local","tags":["test"],"source":"test:seed","hits":0}\n'
   -   '{"id":"rec-external","ts":1700000000000,"kind":"fact","title":"标题 rec-external 用于测试","body":"外部进程追加的一行","tags":["test"],"source":"test:seed","hits":0}\n'
   
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/storage.test.mjs:293:10)
+      at TestContext.<anonymous> (file://<repo>/test/storage.test.mjs:293:10)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1325:25)
       at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
@@ -52,7 +52,7 @@ test at test/storage.test.mjs:298:1
   
   true !== false
   
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/storage.test.mjs:320:10)
+      at TestContext.<anonymous> (file://<repo>/test/storage.test.mjs:320:10)
       at async Test.run (node:internal/test_runner/test:1332:7)
       at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
     generatedMessage: true,

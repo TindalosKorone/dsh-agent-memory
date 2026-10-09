@@ -446,7 +446,7 @@ test at test/calibrate.test.mjs:85:1
   -   '歌词押韵和宠物美容'
     ]
   
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/calibrate.test.mjs:89:10)
+      at TestContext.<anonymous> (file://<repo>/test/calibrate.test.mjs:89:10)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1325:25)
       at Test.start (node:internal/test_runner/test:1191:17)
@@ -895,7 +895,7 @@ test at test/calibrate.test.mjs:167:1
       '歌词押韵 about 宠物美容'
     ]
   
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/calibrate.test.mjs:177:10)
+      at TestContext.<anonymous> (file://<repo>/test/calibrate.test.mjs:177:10)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1325:25)
       at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
@@ -917,8 +917,8 @@ test at test/calibrate.test.mjs:181:1
   ... Skipped lines
   
     'I2 离线标定（残差金字塔分诊的附带工具；本脚本只打印建议，不写任何文件）\n' +
-      '- 记忆库：/storage/emulated/0/deepseek/dsh-agent-memory/.tmp-test/calibrate-det/agent-memory/memory.ndjson\n' +
-      '- DSH_HOME：/storage/emulated/0/deepseek/dsh-agent-memory/.tmp-test/calibrate-det\n' +
+      '- 记忆库：<repo>/.tmp-test/calibrate-det/agent-memory/memory.ndjson\n' +
+      '- DSH_HOME：<repo>/.tmp-test/calibrate-det\n' +
       '- 库内有效记录：4 条\n' +
       '\n' +
   ...
@@ -971,7 +971,7 @@ test at test/calibrate.test.mjs:181:1
       '- 落地位置：src/pure.ts 的 SCALE_A / SCALE_B / WEAK_THRESHOLD / STRONG_THRESHOLD（或经工具配置 score.{scaleA,scaleB,weakThreshold,strongThreshold} 覆盖）。\n' +
       '- 注意：本脚本不替你改这些常数；改之前请先取 undo 快照。\n'
   
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/calibrate.test.mjs:188:10)
+      at TestContext.<anonymous> (file://<repo>/test/calibrate.test.mjs:188:10)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1325:25)
       at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
@@ -980,8 +980,8 @@ test at test/calibrate.test.mjs:181:1
       at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
     generatedMessage: false,
     code: 'ERR_ASSERTION',
-    actual: 'I2 离线标定（残差金字塔分诊的附带工具；本脚本只打印建议，不写任何文件）\n- 记忆库：/storage/emulated/0/deepseek/dsh-agent-memory/.tmp-test/calibrate-det/agent-memory/memory.ndjson\n- DSH_HOME：/storage/emulated/0/deepseek/dsh-agent-memory/.tmp-test/calibrate-det\n- 库内有效记录：4 条\n\n样本：\n- 正样本 8 个（每条记录的标题 + 前 3 个标签各一次查询，对自身打分）\n  p10=0.1649 p50=0.2767 p90=0.3450 p95=0.3488 max=0.3526\n- 负样本 240 个（每个无关查询取库内最高分；中英混排，来自冻结跨域词表，与库内容无关）\n  p10=0.0000 p50=0.0000 p90=0.0092 p95=0.0148 p99=0.0200 max=0.0222\n...',
-    expected: 'I2 离线标定（残差金字塔分诊的附带工具；本脚本只打印建议，不写任何文件）\n- 记忆库：/storage/emulated/0/deepseek/dsh-agent-memory/.tmp-test/calibrate-det/agent-memory/memory.ndjson\n- DSH_HOME：/storage/emulated/0/deepseek/dsh-agent-memory/.tmp-test/calibrate-det\n- 库内有效记录：4 条\n\n样本：\n- 正样本 8 个（每条记录的标题 + 前 3 个标签各一次查询，对自身打分）\n  p10=0.1649 p50=0.2767 p90=0.3450 p95=0.3488 max=0.3526\n- 负样本 240 个（每个无关查询取库内最高分；中英混排，来自冻结跨域词表，与库内容无关）\n  p10=0.0000 p50=0.0000 p90=0.0102 p95=0.0136 p99=0.0209 max=0.0232\n...',
+    actual: 'I2 离线标定（残差金字塔分诊的附带工具；本脚本只打印建议，不写任何文件）\n- 记忆库：<repo>/.tmp-test/calibrate-det/agent-memory/memory.ndjson\n- DSH_HOME：<repo>/.tmp-test/calibrate-det\n- 库内有效记录：4 条\n\n样本：\n- 正样本 8 个（每条记录的标题 + 前 3 个标签各一次查询，对自身打分）\n  p10=0.1649 p50=0.2767 p90=0.3450 p95=0.3488 max=0.3526\n- 负样本 240 个（每个无关查询取库内最高分；中英混排，来自冻结跨域词表，与库内容无关）\n  p10=0.0000 p50=0.0000 p90=0.0092 p95=0.0148 p99=0.0200 max=0.0222\n...',
+    expected: 'I2 离线标定（残差金字塔分诊的附带工具；本脚本只打印建议，不写任何文件）\n- 记忆库：<repo>/.tmp-test/calibrate-det/agent-memory/memory.ndjson\n- DSH_HOME：<repo>/.tmp-test/calibrate-det\n- 库内有效记录：4 条\n\n样本：\n- 正样本 8 个（每条记录的标题 + 前 3 个标签各一次查询，对自身打分）\n  p10=0.1649 p50=0.2767 p90=0.3450 p95=0.3488 max=0.3526\n- 负样本 240 个（每个无关查询取库内最高分；中英混排，来自冻结跨域词表，与库内容无关）\n  p10=0.0000 p50=0.0000 p90=0.0102 p95=0.0136 p99=0.0209 max=0.0232\n...',
     operator: 'strictEqual',
     diff: 'simple'
   }

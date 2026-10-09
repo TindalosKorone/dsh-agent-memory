@@ -15,7 +15,7 @@
 test at test/description.test.mjs:67:1
 ✖ 修正 2：描述里删掉的细则必须逐字在 docs/recall-contract.md 上（判红点：删掉文档里任一条 ⇒ 本条变红） (1.09026ms)
   AssertionError [ERR_ASSERTION]: 契约文档（描述指向它）必须逐字含「diversityApplied」——否则描述那个指针就是谎
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/description.test.mjs:98:12)
+      at TestContext.<anonymous> (file://<repo>/test/description.test.mjs:98:12)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1325:25)
       at Test.processPendingSubtests (node:internal/test_runner/test:911:18)

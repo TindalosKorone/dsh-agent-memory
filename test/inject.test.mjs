@@ -423,7 +423,11 @@ test('I4a.1 fail-open：宿主连 ctx.inject 都没有 ⇒ 不抛、4 个工具�
 })
 
 // ── 11. 真引擎 assemble（不可用时如实降级，见测试尾部说明）────────────────
-const ENGINE_BASE = '/data/data/com.dsharnessmobile.shell/files/usr/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai'
+// 引擎安装位置**不硬编码本机路径**（公开仓不留机器相关字样）：从 `$PREFIX` —— DSH/Termux 的
+// 安装前缀 —— 推出来。本机 `$PREFIX` = `$APP_DATA/files/usr`（Termux 风格的应用私有前缀），
+// 推出的路径与历史硬编码值逐字节相同；换环境时 `$PREFIX` 缺失或引擎不在那里，
+// 就走下面那条本来就在的「如实降级」分支。
+const ENGINE_BASE = `${process.env.PREFIX ?? ''}/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai`
 const ENGINE_SP = `${ENGINE_BASE}/dsh-system-prompt/lib/index.js`
 const ENGINE_CORDIS = `${ENGINE_BASE}/cordis/lib/index.js`
 

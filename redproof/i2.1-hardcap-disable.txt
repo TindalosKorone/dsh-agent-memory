@@ -36,7 +36,7 @@ test at test/triage.test.mjs:327:1
   
   6 !== 3
   
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/triage.test.mjs:348:10)
+      at TestContext.<anonymous> (file://<repo>/test/triage.test.mjs:348:10)
       at async Test.run (node:internal/test_runner/test:1332:7)
       at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
     generatedMessage: false,
@@ -53,7 +53,7 @@ test at test/triage.test.mjs:546:1
   
   6 !== 3
   
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/triage.test.mjs:589:10)
+      at TestContext.<anonymous> (file://<repo>/test/triage.test.mjs:589:10)
       at async Test.run (node:internal/test_runner/test:1332:7)
       at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
     generatedMessage: false,
@@ -70,7 +70,7 @@ test at test/triage.test.mjs:762:1
   
   6 !== 3
   
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/triage.test.mjs:780:10)
+      at TestContext.<anonymous> (file://<repo>/test/triage.test.mjs:780:10)
       at async Test.run (node:internal/test_runner/test:1332:7)
       at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
     generatedMessage: false,

@@ -26,7 +26,7 @@ test at test/scoring.test.mjs:309:1
   
   'none' !== 'weak'
   
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/scoring.test.mjs:342:14)
+      at TestContext.<anonymous> (file://<repo>/test/scoring.test.mjs:342:14)
       at async Test.run (node:internal/test_runner/test:1332:7)
       at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
     generatedMessage: false,
