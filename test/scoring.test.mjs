@@ -8,11 +8,13 @@ import assert from 'node:assert/strict'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import {
-  BM25_B, BM25_K1, CONTENT_TOKEN_MIN, DEFAULT_DIVERSITY_BETA, FIELD_WEIGHTS, GATE_MARGIN, SCALE_A, SCALE_B, STRONG_THRESHOLD, WEAK_THRESHOLD,
-  absoluteDisp, bm25Relevance, clamp01, corpusStats, diversify, fieldSat, idf, lexicalScore, logCompress,
+  BM25_B, BM25_K1, CALIBRATION_DATE, CALIBRATION_DRIFT_ABS, CALIBRATION_DRIFT_REL, CALIBRATION_RECORDS,
+  CONTENT_TOKEN_MIN, DEFAULT_DIVERSITY_BETA, FIELD_WEIGHTS, GATE_MARGIN, SCALE_A, SCALE_B, STRONG_THRESHOLD, WEAK_THRESHOLD,
+  absoluteDisp, bm25Relevance, calibrationDrift, clamp01, corpusStats, diversify, fieldSat, idf, lexicalScore, logCompress,
   matchLevel, matchLevelGated, queryContentTokens, resolveScoreOptions, tagCoverage, tagWeight,
 } from '../lib/pure.js'
-import { freshHome, memFile, tools } from './helpers.mjs'
+import { freshHome, memFile, tools, appliedContexts } from './helpers.mjs'
+import { INJECTION_CONTEXT_NAME } from '../lib/inject.js'
 
 const SPLIT = ' | '
 const scoreOfLine = (line) => Number(line.split(SPLIT).at(-1))
@@ -449,6 +451,17 @@ test('标定一致性：4 个默认常数必须与 src/pure.ts 注释里「落�
   assert.equal(SCALE_B, pick('SCALE_B'))
   assert.equal(WEAK_THRESHOLD, pick('WEAK_THRESHOLD'))
   assert.equal(STRONG_THRESHOLD, pick('STRONG_THRESHOLD'))
+  // ③ 标定元数据的机器可读行必须与导出常量双向一致（库规模 + 日期）。
+  const calLine = src.split('\n').find((l) => l.includes('标定规模：'))
+  assert.ok(calLine !== undefined, 'src/pure.ts 必须保留「标定规模：」这一机器可读行')
+  const calPick = (name) => {
+    const m = new RegExp(`${name} = ([0-9-]+)`).exec(calLine)
+    assert.ok(m !== null, `「标定规模：」行里缺少 ${name}：${calLine.trim()}`)
+    return m[1]
+  }
+  assert.equal(String(CALIBRATION_RECORDS), calPick('CALIBRATION_RECORDS'))
+  assert.equal(CALIBRATION_DATE, calPick('CALIBRATION_DATE'))
+  assert.match(CALIBRATION_DATE, /^\d{4}-\d{2}-\d{2}$/, 'CALIBRATION_DATE 必须是 ISO 日期')
   // 注释还必须写出「哪个量取哪个分位数」与语料出处（防「只改数字、不留出处」）。
   for (const frag of ['p50(负样本)', 'p95(正样本)', 'p95(负样本)', 'p10(正样本)', '195 条', '388', '240', '2026-10-09', 'gotchas.md']) {
     assert.ok(src.includes(frag), `标定注释必须保留可核对的出处片段：${frag}`)
@@ -632,6 +645,13 @@ test('内容量闸门（纯函数）：queryContentTokens 口径 + matchLevelGat
   assert.equal(resolveScoreOptions({ gateMargin: 3.5 }).gateMargin, 3.5)
   assert.equal(resolveScoreOptions({ gateMargin: -1 }).gateMargin, GATE_MARGIN, '负 M 回落默认')
   assert.equal(resolveScoreOptions({ gateMargin: Number.NaN }).gateMargin, GATE_MARGIN, '非有限 M 回落默认')
+  // ③ 标定漂移阈值：默认 + 覆盖 + 非法回落
+  assert.equal(resolveScoreOptions().calibrationDriftRel, CALIBRATION_DRIFT_REL)
+  assert.equal(resolveScoreOptions().calibrationDriftAbs, CALIBRATION_DRIFT_ABS)
+  assert.equal(resolveScoreOptions({ calibrationDriftRel: 0.5 }).calibrationDriftRel, 0.5)
+  assert.equal(resolveScoreOptions({ calibrationDriftAbs: 7 }).calibrationDriftAbs, 7)
+  assert.equal(resolveScoreOptions({ calibrationDriftRel: -1 }).calibrationDriftRel, CALIBRATION_DRIFT_REL)
+  assert.equal(resolveScoreOptions({ calibrationDriftAbs: Number.NaN }).calibrationDriftAbs, CALIBRATION_DRIFT_ABS)
   // 加一个字段不得动四个已标定常数
   assert.equal(resolveScoreOptions().scaleA, SCALE_A)
   assert.equal(resolveScoreOptions().scaleB, SCALE_B)
@@ -764,6 +784,99 @@ test('内容量闸门例外（工具层，真回归）：单内容词元但 rel 
   const cappedRow = capped.rows.find((x) => x.id === 'mem_gate_far')
   assert.equal(cappedRow.rel, row.rel, '改 M 绝不该改 rel（只改判定）')
   assert.equal(cappedRow.match, 'weak', '把 M 抬到极大（等价退回纯 qTok 封顶）后必须变红为 weak')
+})
+
+/** 标定漂移夹具：直接写 N 条同形记录（比 remember 循环快，也便于精确控制库规模）。 */
+function seedPlainCorpus(home, n) {
+  const lines = []
+  for (let i = 0; i < n; i += 1) {
+    lines.push(JSON.stringify({
+      id: `mem_drift_${String(i).padStart(4, '0')}`,
+      ts: 1_700_000_000_000 + i,
+      kind: 'fact',
+      title: `zzdrift note ${i}`,
+      body: `zzdrift body pad ${i}`,
+      tags: ['zzdrift'],
+      source: 'test:drift',
+      hits: 0,
+    }))
+  }
+  mkdirSync(dirname(memFile(home)), { recursive: true })
+  writeFileSync(memFile(home), lines.join('\n') + '\n', 'utf8')
+}
+
+test('标定漂移（纯函数）：相对/绝对阈值取先到者 + 非法回落', () => {
+  // 标定点与阈值都是机器可读的模块级常数
+  assert.equal(CALIBRATION_RECORDS, 204)
+  assert.equal(CALIBRATION_DATE, '2026-10-09')
+  assert.equal(CALIBRATION_DRIFT_REL, 0.2)
+  assert.equal(CALIBRATION_DRIFT_ABS, 100)
+  const at = (cur) => calibrationDrift(cur)
+  assert.equal(at(204).exceeded, false, '正好在标定点 ⇒ 不报漂移')
+  assert.equal(at(204).delta, 0)
+  assert.equal(at(200).exceeded, false, '|−4|/204≈2% 且 4<=100 ⇒ 不报')
+  assert.equal(at(250).relative, 46 / 204)
+  assert.equal(at(250).exceeded, true, '204->250 是 +22.5% > 20% ⇒ 报（相对阈值先到）')
+  assert.equal(at(160).exceeded, true, '204->160 是 −21.6% > 20% ⇒ 报')
+  assert.equal(at(104).exceeded, true, '−49% 超相对阈值（虽然绝对差只有 100，不 >100）')
+  assert.equal(at(103).exceeded, true, '绝对差 101 > 100 ⇒ 报（绝对阈值先到）')
+  // 自定义阈值：相对不超但绝对超 ⇒ 仍报（取先到者）
+  assert.equal(calibrationDrift(300, 204, 1.0, 10).exceeded, true, '相对 47% <= 100%，但绝对 96 > 10 ⇒ 报')
+  assert.equal(calibrationDrift(300, 204, 1.0, 1000).exceeded, false, '两个阈值都放宽 ⇒ 不报')
+  assert.equal(calibrationDrift(300, 204, 0.4, 1000).exceeded, true, '相对 47% > 40% ⇒ 报')
+  // 非法/退化：非有限 current 当 0；calibratedRecords<=0 回落默认 204
+  assert.equal(calibrationDrift(Number.NaN).currentRecords, 0)
+  assert.equal(calibrationDrift(0).exceeded, true, '库被清空 ⇒ 100% 偏差 ⇒ 报')
+  assert.equal(calibrationDrift(300, 0).calibratedRecords, CALIBRATION_RECORDS, 'calibratedRecords<=0 回落默认')
+  assert.equal(calibrationDrift(300, 204, -1, -1).driftRel, CALIBRATION_DRIFT_REL, '负阈值回落默认')
+})
+
+test('标定漂移（工具层，双侧）：库规模远离标定点 ⇒ 表头必现提示；接近 ⇒ 必不出现（判红点：去掉该分支 ⇒ 前侧变红）', async () => {
+  // ── 侧 A：20 条（|20−204|=184 > 100）⇒ 必现 ──────────────────────────────
+  const homeA = freshHome('drift-far')
+  seedPlainCorpus(homeA, 20)
+  const rA = await tools().get('memory_recall').execute({ query: 'zzdrift', limit: 3 })
+  assert.equal(rA.total, 20)
+  assert.equal(rA.calibratedAt, CALIBRATION_DATE)
+  assert.equal(rA.calibrationRecords, CALIBRATION_RECORDS)
+  assert.equal(rA.calibrationDrift, 20 - CALIBRATION_RECORDS)
+  assert.equal(rA.calibrationDriftExceeded, true)
+  // 可复算：exceeded ⟺ 相对偏差 > driftRel 或 |drift| > driftAbs（取先到者）
+  const recompute = (r) => Math.abs(r.calibrationDrift) / r.calibrationRecords > r.calibrationDriftRel
+    || Math.abs(r.calibrationDrift) > r.calibrationDriftAbs
+  assert.equal(rA.calibrationDriftExceeded, recompute(rA), '漂移判定必须能由结构化字段复算')
+  const hA = rA.text.split('\n')[0]
+  assert.ok(hA.includes(`标定${CALIBRATION_RECORDS}条@${CALIBRATION_DATE}`),
+    `远离标定点时表头必须回显标定点：${hA}`)
+  assert.ok(hA.includes(`现值${rA.total}条`), `表头必须回显现值：${hA}`)
+  assert.ok(hA.includes('建议重跑calibrate --write'), `表头必须给出重标建议：${hA}`)
+
+  // ── 侧 B：200 条（|200−204|=4，相对 1.96%）⇒ 必不出现（避免「永远在喊」）──
+  const homeB = freshHome('drift-near')
+  seedPlainCorpus(homeB, 200)
+  const rB = await tools().get('memory_recall').execute({ query: 'zzdrift', limit: 3 })
+  assert.equal(rB.total, 200)
+  assert.equal(rB.calibrationDriftExceeded, false)
+  assert.equal(rB.calibrationDrift, 200 - CALIBRATION_RECORDS)
+  const hB = rB.text.split('\n')[0]
+  assert.ok(!hB.includes('建议重跑calibrate'), `接近标定点时表头不得出现重标建议：${hB}`)
+  assert.ok(!hB.includes('现值'), `接近标定点时表头不得出现漂移段：${hB}`)
+  assert.ok(hB.includes('L1:query='), '基表头仍在')
+
+  // ── 反向：把阈值收紧到 0 ⇒ 侧 B 也必须报（证明阈值真的被读）────────────────
+  const strict = await tools({ score: { calibrationDriftRel: 0, calibrationDriftAbs: 0 } })
+    .get('memory_recall').execute({ query: 'zzdrift', limit: 3 })
+  assert.equal(strict.calibrationDriftExceeded, true, '阈值 0 ⇒ 任何偏差都报（阈值确实生效）')
+  assert.ok(strict.text.split('\n')[0].includes('建议重跑calibrate'), '阈值收紧后表头必须出现提示')
+
+  // ── 注入行稳定性：漂移提示**只进 recall 表头，绝不进自动注入那行** ──────────
+  const contexts = appliedContexts({ home: homeA })
+  const contribution = contexts.get(INJECTION_CONTEXT_NAME)
+  assert.ok(contribution !== undefined, '注入块必须仍注册')
+  const injectText = typeof contribution.text === 'function' ? contribution.text({}) : contribution.text
+  for (const bad of ['标定', '现值', '重跑calibrate', String(CALIBRATION_RECORDS) + '条@']) {
+    assert.ok(!injectText.includes(bad), `注入行不得出现漂移提示片段「${bad}」：${injectText}`)
+  }
 })
 
 test('内容量闸门：标定一致性（CONTENT_TOKEN_MIN=2 + GATE_MARGIN=2.0 + 标定注释可核对）', () => {

@@ -25,7 +25,12 @@ import { freshHome, tools } from './helpers.mjs'
 
 test('I5 表头自检：单行、<= 428 字符，且可复算信息一个都不少', async () => {
   const home = freshHome('header-selfcheck')
-  const defs = tools()
+  // ③ 起表头多了一段**条件性**的标定漂移提示（库规模离标定点远时出现，本夹具只有 3 条 ⇒ 必然出现）。
+  // 本条用例量的是**与查询/漂移无关的基表头**，所以把两个漂移阈值调到极大（等价关掉该段），
+  // 让「常配短查询 <= 428」这条收紧位继续只量基表头；漂移段本身由 test/scoring.test.mjs 的
+  // 「标定漂移」两条用例（一侧必现 / 一侧必不现）单独钉住。
+  const NO_DRIFT = { score: { calibrationDriftRel: 1e9, calibrationDriftAbs: 1e9 } }
+  const defs = tools(NO_DRIFT)
   const remember = defs.get('memory_remember')
   const recall = defs.get('memory_recall')
   for (let i = 0; i < 3; i += 1) {

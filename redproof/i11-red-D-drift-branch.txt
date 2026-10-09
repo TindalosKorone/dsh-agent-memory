@@ -1,0 +1,12 @@
+===== REDPROOF i11-red-D: 去掉标定漂移表头分支 =====
+变异：src/index.ts 的 driftSeg 恒为空串（表头永不提示重标）
+命令：node test/scoring.test.mjs
+---
+✖ 标定漂移（工具层，双侧）：库规模远离标定点 ⇒ 表头必现提示；接近 ⇒ 必不出现（判红点：去掉该分支 ⇒ 前侧变红） (26.810573ms)
+ℹ tests 23
+ℹ pass 22
+ℹ fail 1
+✖ failing tests:
+✖ 标定漂移（工具层，双侧）：库规模远离标定点 ⇒ 表头必现提示；接近 ⇒ 必不出现（判红点：去掉该分支 ⇒ 前侧变红） (26.810573ms)
+  AssertionError [ERR_ASSERTION]: 远离标定点时表头必须回显标定点：L1:query="zzdrift";limit=3硬上限;列序:id|kind|title|tags|graph|via|rel|cov|match|score;rel=BM25原始相关度,match 依据;score=disp(final)=clip((final-0.0199)/(0.3666-0.0199));rel>=0.0382 weak、>=0.1507 strong、否则 none(恒可复算);内容量qTok=1<2但rel≥2×strong⇒不压级;I2:novelty=0.0000<阈值0.5,expanded=false,kBase=3->kUsed=3;非低置信:cov_max=1.0000>=0.05;I3:final=rel+graph×多样性,候选>5启用,开时score不可复算,graph上限<=0.018，图1节点/0边，枢纽压0，可达=0
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {

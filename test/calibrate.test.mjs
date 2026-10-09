@@ -226,8 +226,12 @@ test('I2.2 空库：可读提示 + 退出码 0（且不抛）', () => {
 // 契约（全部可判红）：
 //  1) 不带 --write ⇒ 行为与历史完全一致：一个字节都不写、不多任何文件（上面第 4 组已钉，
 //     这里再钉一次「即使指定了 --target 也不写」）；
-//  2) 带 --write ⇒ 先备份成 `<target>.bak-<时间戳>`、打印逐行 diff、再改写 5 行锚点
-//     （4 条 `export const <NAME> = <数字>` + 「落地值：」那一行）；
+//  2) 带 --write ⇒ 先备份成 `<target>.bak-<时间戳>`、打印逐行 diff、再改写**锚点行**
+//     （4 条 `export const <NAME> = <数字>` + `CALIBRATION_RECORDS` / `CALIBRATION_DATE` 两条
+//     标定元数据声明 + 「落地值：」行 + 「标定规模：」行）；
+//     ★ ③ 起锚点从 5 行变 8 行：`CALIBRATION_DATE` 那两条**只在日期真的变了**才计入 diff，
+//     所以断言改成「变了的行 ⊆ 已知锚点，且必改的锚点都真的改了」（比旧的「恰好 5 行」更准，
+//     因为日期随运行日而变，写死一个数字会在跨日时假红）；
 //  3) 锚点缺失（例如目标根本不是 pure.ts）⇒ **失败关闭**：退非零、不写、不备份；
 //  4) 目标已经是建议值 ⇒ 无差异，不写、也不生成备份。
 //
@@ -254,7 +258,7 @@ test('修正 4：不带 --write 时，即使指定了 --target 也一个字节�
   assert.ok(!out.includes('--write：显式落地'), `不带 --write 时不得出现落地段：${out}`)
 })
 
-test('修正 4：带 --write 时备份 + 打印 diff + 改写 5 行锚点（且只在显式请求下发生）', () => {
+test('修正 4：带 --write 时备份 + 打印 diff + 改写锚点行（③ 起含标定元数据；且只在显式请求下发生）', () => {
   const home = freshDir('calibrate-write-on')
   seedLibrary(home, 6)
   const target = tempTarget('calibrate-write-on-target')
@@ -276,7 +280,7 @@ test('修正 4：带 --write 时备份 + 打印 diff + 改写 5 行锚点（且�
   assert.ok(/^ {2}\+ export const SCALE_A = /m.test(out), `diff 必须含新 SCALE_A 行：${out}`)
   assert.ok(out.includes('已备份：'), `必须打印备份路径：${out}`)
 
-  // 5 行锚点必须真的改了：4 条声明数字变化，且「落地值：」行与之一致
+  // 必改锚点：4 条常数声明数字变化，且「落地值：」行与之一致
   const decl = (name, text) => new RegExp(`export const ${name} = ([0-9.]+)`).exec(text)[1]
   const landing = (text) => text.split('\n').find((l) => l.includes('落地值：'))
   for (const name of ['SCALE_A', 'SCALE_B', 'WEAK_THRESHOLD', 'STRONG_THRESHOLD']) {
@@ -284,9 +288,50 @@ test('修正 4：带 --write 时备份 + 打印 diff + 改写 5 行锚点（且�
     assert.ok(landing(after).includes(`${name} = ${decl(name, after)}`),
       `「落地值：」行必须与 ${name} 的新值一致：${landing(after)}`)
   }
-  // 除了那 5 行，其它内容不得改动（防止顺手重排整个文件）
-  const changed = before.split('\n').filter((l, i) => l !== after.split('\n')[i]).length
-  assert.equal(changed, 5, `必须只改 5 行（4 条声明 + 落地值行），实测 ${changed} 行`)
+  // 必改锚点（③）：标定元数据的库规模必须写成**本次读到的 6 条**，且「标定规模：」行与声明一致
+  assert.equal(decl('CALIBRATION_RECORDS', after), '6',
+    'CALIBRATION_RECORDS 必须被写成本次库条数 6')
+  assert.notEqual(decl('CALIBRATION_RECORDS', after), decl('CALIBRATION_RECORDS', before),
+    'CALIBRATION_RECORDS 必须被改写（204 -> 6）')
+  const calLine = (text) => text.split('\n').find((l) => l.includes('标定规模：'))
+  // CALIBRATION_DATE 是带引号的字符串常量，用单独的读取器（decl 只吃数字）。
+  const dateDecl = (text) => new RegExp("export const CALIBRATION_DATE = '([0-9-]+)'").exec(text)[1]
+  assert.ok(calLine(after).includes(`CALIBRATION_RECORDS = ${decl('CALIBRATION_RECORDS', after)}`),
+    `「标定规模：」行必须与 CALIBRATION_RECORDS 一致：${calLine(after)}`)
+  assert.ok(calLine(after).includes(`CALIBRATION_DATE = ${dateDecl(after)}`),
+    `「标定规模：」行必须与 CALIBRATION_DATE 一致：${calLine(after)}`)
+  assert.match(dateDecl(after), /^\d{4}-\d{2}-\d{2}$/, 'CALIBRATION_DATE 必须是 ISO 日期')
+  // 反向：无差异时不得写（幂等，见下一条用例）；这里先断言「标定点已真的更新」
+  assert.ok(calLine(after).includes('CALIBRATION_RECORDS = 6'), `标定规模行必须写 6：${calLine(after)}`)
+
+  // 防「顺手重排整个文件」：变了的行必须**全部落在那 8 个已知锚点上**。
+  // （CALIBRATION_DATE 的两处只在日期真的变了时才变 ⇒ 不写死总数，改判「必改 ⊆ 变了 ⊆ 锚点」。）
+  const anchorRe = [
+    /^export const (SCALE_A|SCALE_B|WEAK_THRESHOLD|STRONG_THRESHOLD|CALIBRATION_RECORDS|CALIBRATION_DATE) = /,
+    /^ \* 落地值：/,
+    /^ \* 标定规模：/,
+  ]
+  const la = before.split('\n')
+  const lb = after.split('\n')
+  assert.equal(la.length, lb.length, '锚点改写不得改变行数')
+  const changedIdx = []
+  for (let i = 0; i < la.length; i += 1) if (la[i] !== lb[i]) changedIdx.push(i)
+  const isAnchor = (line) => anchorRe.some((re) => re.test(line))
+  for (const i of changedIdx) {
+    assert.ok(isAnchor(lb[i]) || isAnchor(la[i]),
+      `第 ${i + 1} 行不是已知锚点却被改动：${JSON.stringify(la[i])} -> ${JSON.stringify(lb[i])}`)
+  }
+  // 必改锚点必须真的在 changedIdx 里（4 常数 + 落地值 + 标定规模 + CALIBRATION_RECORDS）
+  const mustChange = (pred) => assert.ok(changedIdx.some((i) => pred(la[i])), `必改锚点未出现在 diff 里`)
+  mustChange((l) => /^export const SCALE_A = /.test(l))
+  mustChange((l) => /^export const SCALE_B = /.test(l))
+  mustChange((l) => /^export const WEAK_THRESHOLD = /.test(l))
+  mustChange((l) => /^export const STRONG_THRESHOLD = /.test(l))
+  mustChange((l) => /^export const CALIBRATION_RECORDS = /.test(l))
+  mustChange((l) => /^ \* 落地值：/.test(l))
+  mustChange((l) => /^ \* 标定规模：/.test(l))
+  // 锚点总数上限：4 常数 + 2 元数据 + 2 机器可读行 = 8
+  assert.ok(changedIdx.length <= 8, `改动行数不得超过 8 个锚点，实测 ${changedIdx.length}`)
 })
 
 test('修正 4：--write 失败关闭 —— 目标缺锚点 ⇒ 退非零、不写、不备份', () => {

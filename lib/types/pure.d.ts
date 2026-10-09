@@ -90,7 +90,49 @@ export declare function tokenize(text: unknown): string[];
  *
  * 落地值（本行是 test/scoring.test.mjs 的「注释 ↔ 常数一致性」断言所锚定的机器可读行，格式别改）：
  * 落地值：SCALE_A = 0.0199  SCALE_B = 0.3666  WEAK_THRESHOLD = 0.0382  STRONG_THRESHOLD = 0.1507
+ * 标定规模（本行同受一致性断言锚定，格式别改；供 memory_recall 比对「当前库条数」并如实报告漂移）：
+ * 标定规模：CALIBRATION_RECORDS = 204  CALIBRATION_DATE = 2026-10-09
  */
+/**
+ * 标定时的库内有效记录数（机器可读行的镜像；标定注释见上方「真实语料标定」块）。
+ * memory_recall 拿它与**当前库条数**比较，偏离超过阈值就在表头如实加一句「该重标了」。
+ * **只进 recall 表头，绝不进自动注入那行**（注入文本必须稳定，否则每次写库都会改提示词）。
+ */
+export declare const CALIBRATION_RECORDS = 204;
+/** 标定日期（ISO `YYYY-MM-DD`；机器可读行的镜像）。 */
+export declare const CALIBRATION_DATE = "2026-10-09";
+/**
+ * 标定漂移阈值（起始值，可经 `score.calibrationDriftRel` / `score.calibrationDriftAbs` 覆盖）：
+ *   - 相对偏差 > 20%，或
+ *   - 绝对差 > 100 条，
+ * 两者**取先到者**（任一命中即报漂移）。起点这么取的理由：库从 204 长到 ~245 或缩到 ~163 就
+ * 触发相对阈值，绝对阈值 100 则防止小库上相对偏差过于敏感（例如 5 条库 ±1 条就是 20%）。
+ * **待真实语料标定**：下次 calibrate 后按实际漂移速度复核这两个数。
+ */
+export declare const CALIBRATION_DRIFT_REL = 0.2;
+export declare const CALIBRATION_DRIFT_ABS = 100;
+/** 标定漂移的一次计算结论（纯函数，无库副作用）。 */
+export interface CalibrationDrift {
+    /** 标定时的库条数。 */
+    calibratedRecords: number;
+    /** 当前库条数。 */
+    currentRecords: number;
+    /** 有符号差（current − calibrated）。 */
+    delta: number;
+    /** 相对偏差（|delta| / calibrated；calibrated <= 0 时：current 也为 0 记 0，否则 +Infinity）。 */
+    relative: number;
+    /** 门槛：相对偏差阈值。 */
+    driftRel: number;
+    /** 门槛：绝对差阈值（条）。 */
+    driftAbs: number;
+    /** 是否超过阈值（相对或绝对，取先到者）。 */
+    exceeded: boolean;
+}
+/**
+ * 标定漂移计算（纯函数）：把「标定时的库规模」与「当前库规模」按两个阈值比一次。
+ * 任一阈值被超过即 `exceeded=true`。非法阈值回落模块级默认；非有限 current 保守当 0。
+ */
+export declare function calibrationDrift(currentRecords: number, calibratedRecords?: number, driftRel?: number, driftAbs?: number): CalibrationDrift;
 /**
  * 展示分绝对区间映射的下界，默认 0.0199 = 噪声地板 p50(负样本)。
  * 与 SCALE_B 一起构成「固定绝对区间」：不依赖任何候选的得分。
@@ -198,6 +240,10 @@ export interface ScoreOptions {
     contentTokenMin?: number;
     /** 闸门例外倍数，默认 GATE_MARGIN=2.0；0 = 永不封顶（红证用），非法值回落默认。 */
     gateMargin?: number;
+    /** 标定漂移的相对偏差阈值（默认 CALIBRATION_DRIFT_REL=0.2）。 */
+    calibrationDriftRel?: number;
+    /** 标定漂移的绝对差阈值（条，默认 CALIBRATION_DRIFT_ABS=100）。 */
+    calibrationDriftAbs?: number;
 }
 /** 已解析（always 有值）的打分口径。 */
 export interface ResolvedScoreOptions {
@@ -208,6 +254,8 @@ export interface ResolvedScoreOptions {
     beta: number;
     contentTokenMin: number;
     gateMargin: number;
+    calibrationDriftRel: number;
+    calibrationDriftAbs: number;
 }
 /** 夹到 0..1；非有限值一律夹成 0。 */
 export declare function clamp01(value: number): number;

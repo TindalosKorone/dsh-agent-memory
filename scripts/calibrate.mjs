@@ -32,8 +32,11 @@
  *   node scripts/calibrate.mjs --write            # 把「建议 B」落到 src/pure.ts（写前备份 + 打印 diff）
  *   node scripts/calibrate.mjs --write --target /path/pure.ts   # 指定落地目标（测试用；默认 src/pure.ts）
  *   - 不带 `--write` 时**行为完全不变**：只打印、一个字节都不写（本契约由 test/calibrate.test.mjs 钉住）。
- *   - 带 `--write` 时先备份成 `<target>.bak-<YYYYMMDD-HHmmss>`，打印逐行 diff，再改写 5 行
- *     （4 条常数声明 + 「落地值：」那一行）；锚点缺失即**失败关闭**（退非零、不写）。
+ *   - 带 `--write` 时先备份成 `<target>.bak-<YYYYMMDD-HHmmss>`，打印逐行 diff，再改写锚点行
+ *     （4 条常数声明 + 2 条标定元数据声明 `CALIBRATION_RECORDS` / `CALIBRATION_DATE`
+ *      + 「落地值：」那一行 + 「标定规模：」那一行）；锚点缺失即**失败关闭**（退非零、不写）。
+ *     `CALIBRATION_RECORDS` 写**本次标定读到的库条数**，`CALIBRATION_DATE` 写**本次运行日期** ——
+ *     这样 `memory_recall` 才能拿当前库条数与标定点比较并如实报告漂移（③）。
  *   - 落地后仍需人工复核并重建：`node node_modules/typescript/bin/tsc -p .`，然后跑全量用例。
  *
  * 退出码：0 = 正常（含「库为空」这种可读提示）；1 = 前置条件不满足（lib 未构建 / 文件不可读 / --write 失败关闭）。
@@ -92,7 +95,7 @@ console.log(`- DSH_HOME：${HOME === undefined ? '(未显式指定，用默认/�
 if (!existsSync(file)) {
   console.log('\n[提示] 该文件不存在：当前没有可标定的记忆库。')
   console.log('- 这不算错误：先用 memory_remember 写入一些记忆，再重跑本脚本。')
-  printCurrentDefaults()
+  printCurrentDefaults(0)
   printSuggestion(undefined, '建议')
   if (WRITE) console.error('- [--write] 没有可标定的库 ⇒ 无建议可落地：**不写任何文件**；退出码按「库里没有文件」保持 0。')
   process.exit(0)
@@ -119,7 +122,7 @@ console.log(`- 库内有效记录：${records.length} 条${badLines > 0 ? `（�
 if (records.length === 0) {
   console.log('\n[提示] 记忆库为空：没有任何可用的正样本查询，无法标定。')
   console.log('- 这不算错误：先写入若干条记忆（memory_remember）再重跑本脚本。')
-  printCurrentDefaults()
+  printCurrentDefaults(0)
   printSuggestion(undefined, '建议')
   if (WRITE) console.error('- [--write] 库为空 ⇒ 无建议可落地：**不写任何文件**；退出码按「库为空」保持 0。')
   process.exit(0)
@@ -207,7 +210,7 @@ if (DUMP_NEGATIVES) {
   for (const d of negativeDetail) console.log(`    ${fmt(d.max)}  <=  ${JSON.stringify(d.query)}`)
 }
 
-printCurrentDefaults()
+printCurrentDefaults(records.length)
 // 两套建议并列：A = 只取前 12 个（旧口径），B = 全部负样本（本脚本采用）
 printSuggestion({
   scaleA: p50Head,
@@ -222,12 +225,15 @@ printSuggestion({
   strong: percentile(positives, 0.1),
 }, `建议 B（本脚本采用：全部 ${negatives.length} 个负样本）`)
 
-function printCurrentDefaults() {
+function printCurrentDefaults(currentCount) {
   console.log('\n当前口径（src/pure.ts 的模块级默认常数）：')
   console.log(`- SCALE_A = ${pure.SCALE_A}`)
   console.log(`- SCALE_B = ${pure.SCALE_B}`)
   console.log(`- WEAK_THRESHOLD = ${pure.WEAK_THRESHOLD}`)
   console.log(`- STRONG_THRESHOLD = ${pure.STRONG_THRESHOLD}`)
+  const cur = Number.isFinite(currentCount) ? currentCount : 0
+  console.log(`- 标定点：CALIBRATION_RECORDS = ${pure.CALIBRATION_RECORDS} 条  CALIBRATION_DATE = ${pure.CALIBRATION_DATE}`
+    + `（当前库 ${cur} 条；偏离超过 ${pure.CALIBRATION_DRIFT_REL * 100}% 或 ${pure.CALIBRATION_DRIFT_ABS} 条时 memory_recall 表头会提示重标）`)
   console.log('- 边界说明：**分诊阈值（novelty）与图系数不由本脚本标定** —— '
     + `NOVELTY_THRESHOLD=${pure.DEFAULT_NOVELTY_THRESHOLD}、ACTIVATION_THRESHOLD=${pure.DEFAULT_ACTIVATION_THRESHOLD} `
     + '是门控行为量不是分数标度，I3 的 lambda/outBudget/hubEta/decay 等图系数同理；本脚本只给 BM25 标度与判定阈值。')
@@ -278,8 +284,8 @@ function resolveSuggestion(s) {
 
 // ── --write：显式落地（**只有带 --write 才会走到这里**）────────────────────
 
-/** 落地的 5 个锚点：4 条常数声明 + 「落地值：」那一行。任一缺失即失败关闭。 */
-function buildWrittenSource(src, r) {
+/** 落地的锚点：4 条常数声明 + 2 条标定元数据声明 + 「落地值：」行 + 「标定规模：」行。任一缺失即失败关闭。 */
+function buildWrittenSource(src, r, calibration) {
   const vals = {
     SCALE_A: r.scaleA.toFixed(4),
     SCALE_B: r.scaleB.toFixed(4),
@@ -292,12 +298,25 @@ function buildWrittenSource(src, r) {
     if (!re.test(out)) return undefined
     out = out.replace(re, `$1${v}`)
   }
+  // 标定元数据（③）：库规模 = 本次读到的有效条数；日期 = 本次运行日期（ISO）。
+  const calRecords = String(calibration.records)
+  const calDate = calibration.date
+  const recDecl = /(export const CALIBRATION_RECORDS = )[0-9]+/
+  if (!recDecl.test(out)) return undefined
+  out = out.replace(recDecl, `$1${calRecords}`)
+  const dateDecl = /(export const CALIBRATION_DATE = ')[0-9-]+(')/
+  if (!dateDecl.test(out)) return undefined
+  out = out.replace(dateDecl, `$1${calDate}$2`)
   // 「落地值：」行的格式是 test/scoring.test.mjs 的「注释 ↔ 常数一致性」断言所锚定的，别改分隔符。
   const landing = /(落地值：)SCALE_A = [0-9.]+ {2}SCALE_B = [0-9.]+ {2}WEAK_THRESHOLD = [0-9.]+ {2}STRONG_THRESHOLD = [0-9.]+/
   if (!landing.test(out)) return undefined
-  return out.replace(landing,
+  out = out.replace(landing,
     `$1SCALE_A = ${vals.SCALE_A}  SCALE_B = ${vals.SCALE_B}`
     + `  WEAK_THRESHOLD = ${vals.WEAK_THRESHOLD}  STRONG_THRESHOLD = ${vals.STRONG_THRESHOLD}`)
+  // 「标定规模：」行（机器可读；memory_recall 的漂移提示据此复算）。
+  const calLine = /(标定规模：)CALIBRATION_RECORDS = [0-9]+ {2}CALIBRATION_DATE = [0-9-]+/
+  if (!calLine.test(out)) return undefined
+  return out.replace(calLine, `$1CALIBRATION_RECORDS = ${calRecords}  CALIBRATION_DATE = ${calDate}`)
 }
 
 /** 逐行 diff（只打印有变化的行，`-` 旧 / `+` 新）。 */
@@ -319,6 +338,13 @@ function stamp() {
   return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`
 }
 
+/** 本次标定日期（ISO `YYYY-MM-DD`）：写进 CALIBRATION_DATE 与「标定规模：」行（③）。 */
+function isoDate() {
+  const d = new Date()
+  const p = (x) => String(x).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}
+
 function applyWrite(s) {
   const r = resolveSuggestion(s)
   console.log('\n── --write：显式落地（不带 --write 时本段不存在，行为完全不变）────────────────')
@@ -333,16 +359,17 @@ function applyWrite(s) {
     console.error(`- 读不到落地目标 ${WRITE_TARGET}：${err instanceof Error ? err.message : String(err)}`)
     process.exit(1)
   }
-  const next = buildWrittenSource(src, r)
+  const next = buildWrittenSource(src, r, { records: records.length, date: isoDate() })
   if (next === undefined) {
-    console.error(`- 落地目标 ${WRITE_TARGET} 缺少锚点（4 条 \`export const <NAME> = <数字>\` 声明`
-      + ' 与「落地值：」那一行）：**失败关闭，不写任何文件**。')
+    console.error(`- 落地目标 ${WRITE_TARGET} 缺少锚点（4 条 \`export const <NAME> = <数字>\` 声明、`
+      + '`CALIBRATION_RECORDS` / `CALIBRATION_DATE` 两条标定元数据声明、'
+      + '以及「落地值：」「标定规模：」两行）：**失败关闭，不写任何文件**。')
     process.exit(1)
   }
   console.log(`- 目标：${WRITE_TARGET}`)
   const diff = diffLines(src, next)
   if (diff.length === 0) {
-    console.log('- 四个常数与「落地值：」行已经是建议值：无差异，**不写**、也不生成备份。')
+    console.log('- 锚点行已经是建议值：无差异，**不写**、也不生成备份。')
     return
   }
   console.log('- diff（- 旧 / + 新）：')
@@ -352,6 +379,8 @@ function applyWrite(s) {
   console.log(`- 已备份：${backup}`)
   writeFileSync(WRITE_TARGET, next)
   console.log('- 已写入。下一步：`node node_modules/typescript/bin/tsc -p .` 重建，然后跑全量用例。')
+  console.log(`- 标定元数据：CALIBRATION_RECORDS = ${records.length}  CALIBRATION_DATE = ${isoDate()}`
+    + '（memory_recall 据此比较当前库条数并如实报告漂移）')
   console.log('- 注意：本次写入是**显式请求**（--write）的结果；不带 --write 时本脚本一个字节都不写。')
 }
 

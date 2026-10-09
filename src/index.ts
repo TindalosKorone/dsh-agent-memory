@@ -26,7 +26,7 @@ import {
   RecordTooLargeError, StoreChangedExternallyError,
   type MemoryConfig,
 } from './store.js'
-import { cmpId, decay, diversify, absoluteDisp, lexicalScore, matchLevel, matchLevelGated, rrf, corpusStats, tagCoverage, resolveScoreOptions, resolveTriageOptions, residualPyramid, resolveGraphOptions, tagGraphIndex, propagateTags, memoryGraphRewards, tokenize, queryContentTokens, type MatchLevel } from './pure.js'
+import { cmpId, decay, diversify, absoluteDisp, lexicalScore, matchLevel, matchLevelGated, rrf, corpusStats, tagCoverage, resolveScoreOptions, resolveTriageOptions, residualPyramid, resolveGraphOptions, tagGraphIndex, propagateTags, memoryGraphRewards, tokenize, queryContentTokens, calibrationDrift, CALIBRATION_RECORDS, CALIBRATION_DATE, type MatchLevel } from './pure.js'
 import {
   INJECTION_CONTEXT_NAME, INJECTION_CONTEXT_ORDER, INJECTION_HABIT_TEXT, INJECTION_SECTION_NAME,
   INJECTION_SECTION_ORDER, buildInjectionIndex, createInjectionCache, sanitizeForPrompt,
@@ -68,13 +68,12 @@ export const RECALL_LIMIT_MAX = 50
  * 回显的预算由 `HEADER_MAX_CHARS` 减去固定部分**现算**（不是常数），因此
  * 「表头总长 <= HEADER_MAX_CHARS」是由构造保证的，与查询长度无关。
  *
- * 取值依据（本机实测，2026-10-09 闸门例外落地后重测）：固定部分在「默认标度 + 3 条库」下
- * **372 字符**（内容量闸门最初落地时是 404；闸门例外给贴线封顶支加 `且rel<M×strong` 后，
- * 本轮同时把表头里**非复算必需**的冗字收紧，见下面 tail 构造处的清单，净效果是**变短**）。
- * 固定部分的最坏观测是「`Number.MAX_VALUE` 极值常数 + 两位数库规模」下的 **389**。
- * 于是表头 = 9（`L1:query=`）+ 查询回显 + 1（分隔）+ 固定部分 <= 9 + 24 + 1 + 389 = 423；
- * 实测最坏 447（负数极值/22 位小数常数 + 240 字符边界查询）。余量只有 1 个字符，
- * **往表头加文本前必须先跑 test/header.test.mjs 的最坏情况两条用例**。
+ * 取值依据（本机实测，2026-10-09 标定漂移提示落地后重测）：固定部分在「默认标度 + 3 条库」下，
+ * 关掉标定漂移段是 **372 字符**、含漂移段是 **419**（漂移段约 47：`标定204条@2026-10-09,现值N条,建议重跑calibrate --write`）。
+ * 固定部分的最坏观测是「`Number.MAX_VALUE` 极值常数 + 两位数库规模 + 漂移段」下的 **434**。
+ * 于是表头 = 9（`L1:query=`）+ 查询回显 + 1（分隔）+ 固定部分 <= 9 + 2 + 1 + 434 = 446（预算被现算夹到下限 2）；
+ * 实测最坏 **448**（MAX_VALUE 常数 + 240 字符边界查询 + 60 条库，漂移段必现）。
+ * 余量只有 0~1 个字符，**往表头加文本前必须先跑 test/header.test.mjs 的最坏情况两条用例**。
  * 覆盖最坏情况的用例见 test/header.test.mjs 的「长查询/边界字符」段与「固定部分」段。
  */
 export const HEADER_MAX_CHARS = 448
@@ -494,6 +493,19 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
           contentTokens: { type: 'integer', required: true },
           contentTokenMin: { type: 'integer', required: true },
           gateMargin: { type: 'number', required: true },
+          /**
+           * 标定漂移（本次新增）：`calibratedAt` = 标定日期（ISO），`calibrationRecords` = 标定时的库条数，
+           * `calibrationDrift` = 当前库条数 − 标定条数（有符号），两个阈值 `calibrationDriftRel`（相对）
+           * 与 `calibrationDriftAbs`（绝对条数）就是复算 `calibrationDriftExceeded` 所需的输入。
+           * 超阈值时**表头**会如实加一句「标定于 N 条(date)，现值 M 条⇒建议重跑 calibrate --write」；
+           * 该提示**只进 recall 表头，绝不进自动注入那行**（注入文本必须稳定）。
+           */
+          calibratedAt: { type: 'string', required: true },
+          calibrationRecords: { type: 'integer', required: true },
+          calibrationDrift: { type: 'integer', required: true },
+          calibrationDriftRel: { type: 'number', required: true },
+          calibrationDriftAbs: { type: 'number', required: true },
+          calibrationDriftExceeded: { type: 'boolean', required: true },
           diversityBeta: { type: 'number', required: true },
           diversityApplied: { type: 'boolean', required: true },
           /**
@@ -599,6 +611,13 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
       const now = nowMs(cfg)
       // 打分口径：模块级绝对常数（可经 cfg.score 覆盖），**没有任何批次相关量**。
       const scoreCfg = resolveScoreOptions(cfg.score)
+      // ── 标定漂移（本次新增；只影响 recall 表头的如实提示，绝不进自动注入那行）──────────────
+      // 标定时的库规模与日期记在 src/pure.ts 的机器可读行（CALIBRATION_RECORDS / CALIBRATION_DATE）。
+      // 与**当前库条数**比较：相对偏差 > driftRel 或绝对差 > driftAbs（取先到者）⇒ 表头加一句
+      // 「该重跑 calibrate --write 了」。注入行必须稳定（每次写库都改提示词是坏事），所以只放表头。
+      const calib = calibrationDrift(
+        records.length, CALIBRATION_RECORDS, scoreCfg.calibrationDriftRel, scoreCfg.calibrationDriftAbs,
+      )
       // 语料统计（N / avgdl / df）每次调用现算：第三方明确记录过「模块级可变全局与并发不兼容」。
       const stats = corpusStats(records)
 
@@ -880,12 +899,18 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
         : (contentTokens === 0 || gateCappedAny)
           ? `内容量qTok=${contentTokens}<${scoreCfg.contentTokenMin}且rel<${margin}×strong⇒strong封顶weak`
           : `内容量qTok=${contentTokens}<${scoreCfg.contentTokenMin}但rel≥${margin}×strong⇒不压级`
+      // 标定漂移段（**只在超阈值时出现**，如实给标定点/现值/建议；不进自动注入那行）。
+      // 措辞里带上 `--write`：calibrate 脚本默认只打印，落地必须显式 `--write`。
+      const driftSeg = calib.exceeded
+        ? `标定${calib.calibratedRecords}条@${CALIBRATION_DATE},现值${calib.currentRecords}条,建议重跑calibrate --write`
+        : ''
       const tail = `;limit=${limit}硬上限;`
         + `列序:${RECALL_COLUMNS.join('|')};`
         + 'rel=BM25原始相关度,match 依据;'
         + `score=disp(final)=clip((final-${constA})/(${constB}-${constA}));`
         + `rel>=${constWeak} weak、>=${constStrong} strong、否则 none(恒可复算);`
         + `${gateEcho};`
+        + (driftSeg === '' ? '' : `${driftSeg};`)
         + `${triageSeg};`
         + `${lowConfSeg};`
         + `I3:final=rel+graph×多样性,候选>5启用,开时score不可复算,graph上限<=${graphCfg.bonusCap}，图${graphSize.nodes}节点/${graphSize.edges}边，`
@@ -920,6 +945,15 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
         contentTokens,
         contentTokenMin: scoreCfg.contentTokenMin,
         gateMargin: scoreCfg.gateMargin,
+        // 标定漂移（复算 calibrationDriftExceeded 所需的全部输入都在这里；表头在超阈值时同步回显）：
+        // 相对偏差 |calibrationDrift| / calibrationRecords > calibrationDriftRel 或
+        // 绝对差 |calibrationDrift| > calibrationDriftAbs ⇒ 超阈值（取先到者）。
+        calibratedAt: CALIBRATION_DATE,
+        calibrationRecords: calib.calibratedRecords,
+        calibrationDrift: calib.delta,
+        calibrationDriftRel: calib.driftRel,
+        calibrationDriftAbs: calib.driftAbs,
+        calibrationDriftExceeded: calib.exceeded,
         diversityBeta: beta,
         diversityApplied: beta > 0,
         // I2 分诊字段（全部是本次调用的局部结论；rows 之外的返回体，schema 已同步声明）
