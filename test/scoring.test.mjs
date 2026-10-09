@@ -5,12 +5,14 @@
 // 打印分数单调）放在 test/recall.test.mjs，因为它们断言的是「工具打印出来的那一列」。
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { dirname } from 'node:path'
 import {
   BM25_B, BM25_K1, DEFAULT_DIVERSITY_BETA, FIELD_WEIGHTS, SCALE_A, SCALE_B, STRONG_THRESHOLD, WEAK_THRESHOLD,
   absoluteDisp, bm25Relevance, clamp01, corpusStats, diversify, fieldSat, idf, lexicalScore, logCompress,
   matchLevel, resolveScoreOptions, tagCoverage, tagWeight,
 } from '../lib/pure.js'
-import { freshHome, tools } from './helpers.mjs'
+import { freshHome, memFile, tools } from './helpers.mjs'
 
 const SPLIT = ' | '
 const scoreOfLine = (line) => Number(line.split(SPLIT).at(-1))
@@ -122,13 +124,16 @@ test('cov：命中标签权重占总权重的比例；外围非命中标签只�
 // ── 修 A：绝对映射与绝对判定 ─────────────────────────────────────────────────
 
 test('绝对映射：disp=clip((raw−A)/(B−A))，常数固定、不看批次', () => {
-  assert.equal(SCALE_A, 0)
-  assert.equal(SCALE_B, 0.45)
-  assert.equal(absoluteDisp(0), 0)
+  // 标定后 SCALE_A != 0（0.0187 = p50 负样本，噪声地板）⇒ 区间中点不再是固定的 0.225，
+  // 而是 (SCALE_A + SCALE_B) / 2；下界本身映射到 0、下界以下一律 0（这两条是新标度下的强断言）。
+  assert.equal(SCALE_A, 0.0187)
+  assert.equal(SCALE_B, 0.342)
+  assert.equal(absoluteDisp(SCALE_A), 0, '下界本身必须映射到 0')
+  assert.equal(absoluteDisp(SCALE_A / 2), 0, '噪声地板以下一律 0（不再线性外推到负分）')
   assert.equal(absoluteDisp(SCALE_B), 1)
   assert.equal(absoluteDisp(SCALE_B * 2), 1, '超出上界必须 clip 到 1（不是 2）')
   assert.equal(absoluteDisp(-1), 0, '低于下界必须 clip 到 0')
-  assert.ok(Math.abs(absoluteDisp(0.225) - 0.5) < 1e-12, '线性映射')
+  assert.ok(Math.abs(absoluteDisp((SCALE_A + SCALE_B) / 2) - 0.5) < 1e-12, '线性映射（区间中点恒为 0.5）')
   assert.ok(absoluteDisp(0.1) < absoluteDisp(0.2), '单调不减')
   assert.equal(absoluteDisp(Number.NaN), 0)
   assert.equal(absoluteDisp(Number.POSITIVE_INFINITY), 0, '非有限值一律 0，不泄 NaN/Infinity')
@@ -271,15 +276,18 @@ test('工具层：候选 > 5 才启用多样性；cov 作为诊断列不门控�
   const remember = defs.get('memory_remember')
   const recall = defs.get('memory_recall')
 
-  for (let i = 0; i < 8; i += 1) {
+  // 6 条候选（仍满足「候选 > 5 ⇒ 开多样性」）：标定后表头更长，8 条候选的 8 行会越过
+  // RECALL_MAX_CHARS=2000 的字符预算，使「rows.length 恰好等于候选数」变成在测字符预算。
+  for (let i = 0; i < 6; i += 1) {
     const r = await remember.execute({
       kind: 'fact', title: `theme note number ${i}`, body: `dark theme details ${i}`,
       tags: ['theme', 'shared'], source: 'test:scoring',
     })
     assert.equal(r.ok, true)
   }
-  const r = await recall.execute({ query: 'dark theme', limit: 8 })
-  assert.equal(r.rows.length, 8, '候选 > 5 ⇒ 走多样性分支')
+  const r = await recall.execute({ query: 'dark theme', limit: 6 })
+  assert.equal(r.rows.length, 6, '候选 > 5 ⇒ 走多样性分支，且 6 行都在字符预算内')
+  assert.equal(r.truncated, false, '夹具必须留在字符预算内，否则下面的多样性断言会被截断干扰')
   assert.equal(r.diversityApplied, true)
   assert.equal(r.diversityBeta, DEFAULT_DIVERSITY_BETA)
   const finals = r.lines.map(scoreOfLine)
@@ -312,9 +320,12 @@ test('I1.3 自证：每一行都可用打印的 rel 与表头阈值复现 match�
   const remember = defs.get('memory_remember')
   const recall = defs.get('memory_recall')
 
-  // 造出多种判定的样本。**关键靶子**：正文里恰好 3 个查询词元的记录，
-  // 实测 raw≈0.0285（判 none），而 disp(raw)≈0.0633（会被判 weak）——
+  // 造出多种判定的样本。**关键靶子**：正文里恰好 3 个查询词元、且正文很短（dl=3）的记录，
+  // 实测 rel≈0.0715（判 weak），而 disp(rel)≈0.1632（会被判 strong）——
   // 只有落在「两种基准判定分歧」区间内的行，才能让本用例真正有区分力。
+  // 2026-10-09 标定把噪声地板抬到 0.0187、把两个阈值下调：旧夹具那条「正文 20 词元、命中 3 次」的
+  // 记录 rel≈0.0518，恰好落在两种基准判定**一致**的 weak 区，本判据因此退化成空转（bandRows=0）。
+  // 现在把它的正文压到 3 个词元，让它重新落进分歧区（rel 判 weak、disp 判 strong）。
   await remember.execute({
     kind: 'fact', title: 'alpha beta gamma delta', body: 'alpha beta gamma delta epsilon',
     tags: ['alpha', 'beta'], source: 'test:selfproof',
@@ -329,7 +340,7 @@ test('I1.3 自证：每一行都可用打印的 rel 与表头阈值复现 match�
   })
   await remember.execute({
     kind: 'fact', title: 'band probe note',
-    body: Array.from({ length: 20 }, (_, i) => (i < 3 ? 'bandword' : `filler${i}`)).join(' '),
+    body: 'bandword bandword bandword',
     tags: ['band'], source: 'test:selfproof',
   })
 
@@ -362,4 +373,69 @@ test('I1.3 自证：每一行都可用打印的 rel 与表头阈值复现 match�
     assert.notEqual(r0.rows[0].match, 'strong', '无关查询不得判 strong')
     assert.ok(r0.rows[0].rel < r0.strongThreshold, `无关查询的 rel 必须低于 strong 阈值：${r0.rows[0].rel}`)
   }
+})
+
+// ── 2026-10-09 真实语料标定：边界红证 + 注释/常数一致性 ──────────────────────
+
+test('边界红证（判红点：WEAK_THRESHOLD 改回 0.06 即变红）：噪声上界 0.06 -> 0.0363 后，rel 落在该区间的真相关记录必须由 none 变 weak', async () => {
+  const home = freshHome('scoring-band-redproof')
+  // 出处（只读测量真实库，2026-10-09）：195 条真实库上以**标签「坑位」**为查询时，只共享该标签的
+  // 记录 rel 落在 (0.0363, 0.06)（最高 0.052397，记录 mem_mv0btnuq_4a8d731f50，其后 0.0494/0.0436/…），
+  // 旧 WEAK=0.06 判 none、新 0.0363 判 weak —— 这正是本次标定的实际意义（噪声上界下调）。
+  // 真实 rel 依赖全库 195 条的 N/df/avgdl，无法把整库搬进夹具；这里按同一语义合成一个 100 条语料：
+  // 每条都带同一个高频标签「bandprobe」（df=N ⇒ idf 极小，相当于那条「万能标签」），
+  // 只有目标记录在正文里再出现它一次（真相关、但证据弱），实测目标行 rel = 0.047384。
+  const N = 100
+  const lines = []
+  for (let i = 0; i < N; i += 1) {
+    const target = i === 0
+    lines.push(JSON.stringify({
+      id: target ? 'mem_band_target' : `mem_band_f${String(i).padStart(3, '0')}`,
+      ts: 1_700_000_000_000 + i,
+      kind: 'fact',
+      title: `bandprobe t${i}`,
+      tags: ['bandprobe'],
+      body: target
+        ? ['bandprobe', ...Array.from({ length: 29 }, (_, j) => `pad${j}`)].join(' ')
+        : `bfiller${i}`,
+      source: 'test:bandprobe',
+      hits: 0,
+    }))
+  }
+  mkdirSync(dirname(memFile(home)), { recursive: true })
+  writeFileSync(memFile(home), lines.join('\n') + '\n', 'utf8')
+
+  const r = await tools().get('memory_recall').execute({ query: 'bandprobe', limit: 5 })
+  const row = r.rows.find((x) => x.id === 'mem_band_target')
+  assert.ok(row !== undefined, '目标记录必须在结果里')
+  // 夹具自检：rel 必须**严格**落在两把噪声上界之间（0.0363 = 标定后 p95(负样本)、0.06 = 旧值）。
+  // 这两个数是夹具锚点（写死才判得动红），**不是**从常量读回来的 —— 从常量读会让断言跟着常量漂移成假绿。
+  assert.ok(row.rel > 0.0363 && row.rel < 0.06, `夹具 rel 必须严格落在 (0.0363, 0.06)：${row.rel}`)
+  // 核心断言：只断言**标签**（不回显常量值）⇒ 把 WEAK_THRESHOLD 临时改回 0.06，该行变 none，此条必红。
+  assert.equal(row.match, 'weak',
+    `rel 在噪声上界之下的真相关记录必须判 weak（实测 rel=${row.rel} 判 ${row.match}）`)
+})
+
+test('标定一致性：4 个默认常数必须与 src/pure.ts 注释里「落地值：」那一行的数字逐字一致', () => {
+  const src = readFileSync(new URL('../src/pure.ts', import.meta.url), 'utf8')
+  const line = src.split('\n').find((l) => l.includes('落地值：'))
+  assert.ok(line !== undefined, 'src/pure.ts 必须保留「落地值：」这一行（标定注释里放数字的机器可读行）')
+  const pick = (name) => {
+    const m = new RegExp(`${name} = ([0-9]+(?:\\.[0-9]+)?)`).exec(line)
+    assert.ok(m !== null, `「落地值：」行里缺少 ${name} = <数字>：${line.trim()}`)
+    return Number(m[1])
+  }
+  // 双向钉住：常量改了注释没改、或注释改了常量没改，两边都会红。
+  assert.equal(SCALE_A, pick('SCALE_A'))
+  assert.equal(SCALE_B, pick('SCALE_B'))
+  assert.equal(WEAK_THRESHOLD, pick('WEAK_THRESHOLD'))
+  assert.equal(STRONG_THRESHOLD, pick('STRONG_THRESHOLD'))
+  // 注释还必须写出「哪个量取哪个分位数」与语料出处（防「只改数字、不留出处」）。
+  for (const frag of ['p50(负样本)', 'p95(正样本)', 'p95(负样本)', 'p10(正样本)', '195 条', '388', '240', '2026-10-09', 'gotchas.md']) {
+    assert.ok(src.includes(frag), `标定注释必须保留可核对的出处片段：${frag}`)
+  }
+  assert.ok(
+    src.includes('该语料有偏（单一项目、单一种文风），语料明显增长后必须用 `scripts/calibrate.mjs` 重新标定并同步更新本注释。'),
+    '标定注释里这句（有偏语料 + 重新标定要求）必须逐字保留',
+  )
 })

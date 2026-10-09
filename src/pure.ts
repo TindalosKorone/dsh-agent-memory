@@ -126,29 +126,53 @@ export function tokenize(text: unknown): string[] {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * 展示分绝对区间映射的下界，默认 0。
+ * ── 真实语料标定（2026-10-09）──────────────────────────────────────────────
+ *
+ * 标定工具：`node scripts/calibrate.mjs`（**只打印建议，绝不自动改写源码/配置**；落地靠人）。
+ * 标定语料：真实记忆库 —— 出这四个数字的那次运行（证据存档 redproof/i2.2-calibrate-real-library.txt）
+ * 时库内 194 条有效记录（正样本 388 = 每条记录的标题 + 前 3 个标签各作一次查询、对自身打分）；
+ * 本次落地时库已增至 195 条（同一脚本重跑：正样本 390 个，建议值 p50/p95/p10 =
+ * 0.0188 / 0.3482 / 0.0364 / 0.1478，与本处落地的四个数差 ≤ 0.0062，属样本增长的正常漂移）。
+ * 负样本 240 个（与库无关的冻结跨域词表查询，每个取库内最高分）；语料来源：`gotchas.md` 导入 + 手工教训记录。
+ * 下面的四个数字 = 「全部 240 个负样本」分支的输出；脚本里并列的「前 12 个负样本」
+ * 分支只是小样本对照（p50/p95 在 12 个样本上不可信），**不是**本处落地的值。
+ *
+ * 四个常数各自取哪个分位数（脚本口径，不要顺手互换）：
+ *   SCALE_A          = p50(负样本)   —— 噪声地板（无关查询的展示分压在 0 附近）
+ *   SCALE_B          = p95(正样本)   —— 正样本高分位（真命中映射到 1.0000）
+ *   WEAK_THRESHOLD   = p95(负样本)   —— 噪声上界（弱证据从噪声之上开始）
+ *   STRONG_THRESHOLD = p10(正样本)   —— 正样本低分位（九成以上真命中判 strong）
+ * 这四个量**只影响标签与展示**：WEAK/STRONG 决定 match 的 none/weak/strong，SCALE_A/SCALE_B
+ * 只进展示分 disp；BM25、排序、召回集合、上限、分诊一概不读它们。
+ *
+ * 该语料有偏（单一项目、单一种文风），语料明显增长后必须用 `scripts/calibrate.mjs` 重新标定并同步更新本注释。
+ *
+ * 落地值（本行是 test/scoring.test.mjs 的「注释 ↔ 常数一致性」断言所锚定的机器可读行，格式别改）：
+ * 落地值：SCALE_A = 0.0187  SCALE_B = 0.3420  WEAK_THRESHOLD = 0.0363  STRONG_THRESHOLD = 0.1476
+ */
+
+/**
+ * 展示分绝对区间映射的下界，默认 0.0187 = 噪声地板 p50(负样本)。
  * 与 SCALE_B 一起构成「固定绝对区间」：不依赖任何候选的得分。
  */
-export const SCALE_A = 0
+export const SCALE_A = 0.0187
 
 /**
- * 展示分绝对区间映射的上界（raw 达到它即展示 1.0000）。
- *
- * 【临时默认值，待真实语料标定】依据（offline 夹具，见 test/scoring.test.mjs）：
- * 单条自语料下「query 词元在三字段各命中一次」的强正样本
- *   raw = Σ w·idf·sat / Σ w·idf·(k1+1) = (3+2+1)·idf·1 / ((3+2+1)·idf·2.2) = 1/2.2 ≈ 0.4545
- * 取 0.45 令其映射到 1.0000（clip），同时让「只命中 body 一次」的弱证据落在 ~0.17。
- * 真实语料（N/df/avgdl 分布）标定后应重新取值 —— 这只是自洽的临时默认。
+ * 展示分绝对区间映射的上界（raw 达到它即展示 1.0000），默认 0.3420 = p95(正样本)。
+ * 旧值 0.45 是 offline 自语料夹具推出来的临时值（(3+2+1)·idf·sat 恒等式），已按真实语料替换；
+ * 标定出处与分位数语义见上方「真实语料标定（2026-10-09）」块。
  */
-export const SCALE_B = 0.45
+export const SCALE_B = 0.3420
 
 /**
- * 绝对判定阈值：raw ≥ WEAK_THRESHOLD 记 weak，raw ≥ STRONG_THRESHOLD 记 strong。
- * 【临时默认值，待真实语料标定】量级来自第三方审计（0.06 / 0.16）。
+ * 绝对判定阈值（默认 0.0363 = p95(负样本)，噪声上界）：
+ * raw ≥ WEAK_THRESHOLD 记 weak，raw ≥ STRONG_THRESHOLD 记 strong。
+ * 旧值 0.06 只来自第三方审计的量级；在 240 个负样本上 p95 实测 0.0363 ⇒ 噪声上界下调，
+ * 落在 (0.0363, 0.06) 的真相关记录从 none 变成 weak（边界红证见 test/scoring.test.mjs）。
  */
-export const WEAK_THRESHOLD = 0.06
-/** 见 WEAK_THRESHOLD。 */
-export const STRONG_THRESHOLD = 0.16
+export const WEAK_THRESHOLD = 0.0363
+/** 见 WEAK_THRESHOLD。默认 0.1476 = p10(正样本)，正样本低分位。 */
+export const STRONG_THRESHOLD = 0.1476
 
 /**
  * 多样性惩罚系数 β 默认值：`final = rel × (1 − β·maxSimToSelected)`。

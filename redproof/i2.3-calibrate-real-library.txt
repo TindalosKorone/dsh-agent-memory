@@ -1,0 +1,65 @@
+I2 离线标定（残差金字塔分诊的附带工具；本脚本只打印建议，不写任何文件）
+- 记忆库：/data/user/0/com.dsharnessmobile.shell/files/home/.dsh/agent-memory/memory.ndjson
+- DSH_HOME：/data/user/0/com.dsharnessmobile.shell/files/home/.dsh
+- 库内有效记录：195 条
+
+样本：
+- 正样本 390 个（每条记录的标题 + 前 3 个标签各一次查询，对自身打分）
+  p10=0.1478 p50=0.1882 p90=0.2824 p95=0.3482 max=0.4326
+- 负样本 240 个（每个无关查询取库内最高分；中英混排，来自冻结跨域词表，与库内容无关）
+  p10=0.0113 p50=0.0188 p90=0.0317 p95=0.0364 p99=0.0598 max=0.0744
+- 负样本子集 A（前 12 个 = 旧脚本口径）12 个
+  p10=0.0181 p50=0.0525 p90=0.0688 p95=0.0717 max=0.0744
+- 负样本构词：240 个查询 = 12 个固定头部 + 228 个跨域词表组合（确定性；两次运行逐字节一致）
+
+敏感性对照（同一批查询，只换样本量；漂移只出现在负样本侧 ⇒ SCALE_A / WEAK）：
+  样本量 12 个：p50=0.0525  p95=0.0717  max=0.0744
+  样本量 240 个：p50=0.0188  p95=0.0364  max=0.0744
+  差值：p50 0.0525 -> 0.0188（SCALE_A），p95 0.0717 -> 0.0364（WEAK）
+- 负样本明细 A（前 12 个，与旧脚本逐条可比）：
+    0.0475  <=  "今天天气怎么样"
+    0.0275  <=  "今晚吃什么比较好"
+    0.0253  <=  "quantum chromodynamics lecture notes"
+    0.0102  <=  "how to bake sourdough bread"
+    0.0173  <=  "unrelated filler words only"
+    0.0514  <=  "zzqq xxvv nonexistent-token"
+    0.0695  <=  "zz0q-nonexistent-token-0"
+    0.0744  <=  "zz1q-nonexistent-token-1"
+    0.0624  <=  "zz2q-nonexistent-token-2"
+    0.0558  <=  "zz3q-nonexistent-token-3"
+    0.0537  <=  "zz4q-nonexistent-token-4"
+    0.0546  <=  "zz5q-nonexistent-token-5"
+- 全域噪音泄漏最重的前 10 个（库内最高分降序 → 查询码元升序决胜）：
+    0.0744  <=  "zz1q-nonexistent-token-1"
+    0.0695  <=  "zz0q-nonexistent-token-0"
+    0.0624  <=  "zz2q-nonexistent-token-2"
+    0.0558  <=  "zz3q-nonexistent-token-3"
+    0.0546  <=  "zz5q-nonexistent-token-5"
+    0.0537  <=  "zz4q-nonexistent-token-4"
+    0.0514  <=  "zzqq xxvv nonexistent-token"
+    0.0475  <=  "今天天气怎么样"
+    0.0403  <=  "greenhouse和血压测量"
+    0.0379  <=  "空气质量 about 红烧排骨"
+
+当前口径（src/pure.ts 的模块级默认常数）：
+- SCALE_A = 0.0187
+- SCALE_B = 0.342
+- WEAK_THRESHOLD = 0.0363
+- STRONG_THRESHOLD = 0.1476
+- 边界说明：**分诊阈值（novelty）与图系数不由本脚本标定** —— NOVELTY_THRESHOLD=0.5、ACTIVATION_THRESHOLD=0.05 是门控行为量不是分数标度，I3 的 lambda/outBudget/hubEta/decay 等图系数同理；本脚本只给 BM25 标度与判定阈值。
+
+敏感性对照 A：只取前 12 个负样本（= 旧脚本口径，样本量太小，仅作对照）（本脚本只打印，不会改写任何配置或源码）：
+- SCALE_A = 0.0525   （p50(负样本)：噪声地板）
+- SCALE_B = 0.3482   （p95(正样本)：真命中高分位）
+- WEAK    = 0.0717   （p95(负样本)：噪声上界）
+- STRONG  = 0.1478   （p10(正样本)：真命中低分位）
+- 落地位置：src/pure.ts 的 SCALE_A / SCALE_B / WEAK_THRESHOLD / STRONG_THRESHOLD（或经工具配置 score.{scaleA,scaleB,weakThreshold,strongThreshold} 覆盖）。
+- 注意：本脚本不替你改这些常数；改之前请先取 undo 快照。
+
+建议 B（本脚本采用：全部 240 个负样本）（本脚本只打印，不会改写任何配置或源码）：
+- SCALE_A = 0.0188   （p50(负样本)：噪声地板）
+- SCALE_B = 0.3482   （p95(正样本)：真命中高分位）
+- WEAK    = 0.0364   （p95(负样本)：噪声上界）
+- STRONG  = 0.1478   （p10(正样本)：真命中低分位）
+- 落地位置：src/pure.ts 的 SCALE_A / SCALE_B / WEAK_THRESHOLD / STRONG_THRESHOLD（或经工具配置 score.{scaleA,scaleB,weakThreshold,strongThreshold} 覆盖）。
+- 注意：本脚本不替你改这些常数；改之前请先取 undo 快照。

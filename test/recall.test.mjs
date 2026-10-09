@@ -195,12 +195,16 @@ test('打分红证 3（判红点）：候选 <= 5 时打印的 score 序列单�
   const remember = defs.get('memory_remember')
   const recall = defs.get('memory_recall')
 
-  const pad = (n) => Array.from({ length: n }, (_, i) => `pad${i}`).join(' ')
-  // 3 条候选（<= 5）：A 命中 title+body、B/C 只命中 body（B 与 A 同标签、C 不同标签）
+  // 3 条候选（<= 5）：A 三字段命中、B/C 都命中标题+正文（B 与 A 同标签、C 不同标签）。
+  // 2026-10-09 标定把噪声地板抬到 0.0187、阈值下调：旧夹具里 B/C 是纯正文命中（rel≈0.011），
+  // 新标度下两条都会打印成 0.0000，「分数必须有区分度」这条区分力自检会直接失效。
+  // 现在让 B/C 也带标题命中（实测 rel≈0.0593 / 0.0458），三条都高于噪声地板且打印分互不相同；
+  // 判红所需的性质同时保留：C 的 rel 严格大于 0.7×B（0.7 = B 吃了同标签多样性惩罚后的系数），
+  // ⇒ 一旦把多样性重排强行打开、仍「按 rel 排序却打印含惩罚的 final」，B 与 C 就会倒挂。
   const seeds = [
-    { title: 'zetaword note a', body: `zetaword ${pad(4)}`, tags: ['x'] },
-    { title: 'plain note b', body: `zetaword zetaword zetaword ${pad(3)}`, tags: ['x'] },
-    { title: 'plain note c', body: `zetaword zetaword ${pad(4)}`, tags: ['y'] },
+    { title: 'zetaword a', body: 'zetaword zetaword', tags: ['zetaword', 'x'] },
+    { title: 'zetaword b', body: 'zetaword here now', tags: ['x'] },
+    { title: 'zetaword c extra0 extra1 extra2', body: 'zetaword here now', tags: ['y'] },
   ]
   for (const s of seeds) {
     const w = await remember.execute({ kind: 'fact', ...s, source: 'test:recall' })

@@ -1,0 +1,16 @@
+# I2.3 标定落地：涉及文件的 sha256（改前 = 判红前 = 恢复后，逐字节一致）
+# 生成命令：sha256sum src/pure.ts test/scoring.test.mjs test/graph.test.mjs test/recall.test.mjs
+# 校验命令：sha256sum -c（下面这 4 行即校验清单）
+
+ffdd3da6b7f274c96882333d52b638eda652cde64c76198fe0e6d06a4e0212b7  src/pure.ts
+b582cd2343193877c4c4b384ac9fb967090c43d3ab4c25825147c297b416c4c4  test/scoring.test.mjs
+679826d5d204a1cdffade021a143e7e9dc65d24828224f265faab494bee8d79a  test/graph.test.mjs
+f63a32cdfafeef61e903541ff3e2b556ee4db5cce9dab59f5cc66435c2b77798  test/recall.test.mjs
+
+# 判红点（只改行为面，不动测试）：src/pure.ts 的 export const WEAK_THRESHOLD 0.0363 -> 0.06，再 tsc
+# 判红实测（redproof/i2.3-red1-band-disable.txt，test/scoring.test.mjs exit=1）：
+#   ✖ 边界红证（判红点：WEAK_THRESHOLD 改回 0.06 即变红）…
+#     AssertionError: rel 在噪声上界之下的真相关记录必须判 weak（实测 rel=0.04738381207088757 判 none）
+#   同时 ✖ 标定一致性（注释写 0.0363、常量是 0.06）也变红 —— 这正是那条防「注释/常量不同步」的用例
+#   （夹具自检 rel ∈ (0.0363, 0.06) 在判红时依然通过 ⇒ 变红来自标签，不是来自夹具漂移）
+# 恢复：0.06 -> 0.0363；恢复后 sha256sum -c 全 OK（见上），test/scoring.test.mjs exit=0 / pass=13 / fail=0

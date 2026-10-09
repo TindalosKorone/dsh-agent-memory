@@ -1,0 +1,20 @@
+# 2026-10-09 落地标定常数后的全量直跑（node test/x.test.mjs 逐个；本机 node --test 是坏的）
+# 生成命令：for f in test/*.test.mjs; do node $f; done  （逐文件串行）
+
+test/anchor.test.mjs             exit=0  pass=11  fail=0
+test/calibrate.test.mjs          exit=0  pass=6  fail=0
+test/cap.test.mjs                exit=0  pass=4  fail=0
+test/graph.test.mjs              exit=0  pass=17  fail=0
+test/import-gotchas.test.mjs     exit=0  pass=7  fail=0
+test/inject.test.mjs             exit=0  pass=20  fail=0
+test/loose-inject.test.mjs       exit=0  pass=4  fail=0
+test/lossless.test.mjs           exit=0  pass=4  fail=0
+test/protocol.test.mjs           exit=0  pass=23  fail=0
+test/prune.test.mjs              exit=0  pass=3  fail=0
+test/pure.test.mjs               exit=0  pass=7  fail=0
+test/recall.test.mjs             exit=0  pass=7  fail=0
+test/scoring.test.mjs            exit=0  pass=13  fail=0
+test/storage.test.mjs            exit=0  pass=13  fail=0
+test/triage.test.mjs             exit=0  pass=15  fail=0
+
+合计 pass=154 fail=0（基线 152 全绿 + 新增 2 例 = 154）
