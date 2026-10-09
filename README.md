@@ -140,7 +140,7 @@ I2 结论 / 低置信 / I3 结论）。非结论性诊断（`basisSize`、`layer
 | **I3 共现图与有界传播** | 每次调用按当前库构建有序双向标签共现图（分方向计数、`log(1+λW)` 压缩、出流归一化到固定预算、枢纽抑制 `(inDeg/median)^-η`）+ 有界脉冲传播（跳数/状态数/出邻边数上限、衰减 γ、即时回流抑制 ρ），给排序加**有上限的辅助奖励** |
 | **语料导入** | `scripts/import-gotchas.mjs` 把 `gotchas.md` 批量导入记忆库，支持 dry-run 与备份 |
 | **标定（按 200 条级语料）** | `scripts/calibrate.mjs` 在负样本集上标出 `SCALE_A = p50(negatives)`、`WEAK = p95(negatives)` 等常数；负样本由 `scripts/negative-samples.mjs` 从冻结的跨域词表**确定性生成、≥200 条（实测 240 条）**，不再是 12 条手写小集（并打印小样本 vs 全集的敏感性对照）；**只打印建议，从不自动改写任何文件或配置** |
-| **表头减肥 / 标度解耦** | 召回表头从 ~1041 字符压到单行 <= 400 字符；此前表头把标度常数回显两遍，导致**改标定常数会连带改掉「显示几行」**，现在由 `test/header.test.mjs` 钉住「标度常数不得影响显示行数」 |
+| **表头减肥 / 标度解耦** | 召回表头从 1049~1066 字符（本机实测，见 `redproof/i5-header-old-measure.txt` 与 `redproof/i5-header-red.txt`）压到单行 <= 400 字符；此前表头把标度常数回显两遍，导致**改标定常数会连带改掉「显示几行」**，现在由 `test/header.test.mjs` 钉住「标度常数不得影响显示行数」 |
 | **单点真相** | `RECALL_COLUMNS` 同时是四处（`recallCells` 键序、`L1Row` 字段序、输出 schema 的 `rows.properties` 键序、实际序列化行键序）的唯一来源，由 `test/columns.test.mjs` 在运行时钉住；列清单漂移会直接变红 |
 | **描述对账** | `memory_recall` 的**工具描述**由 `test/description.test.mjs` 逐条钉住：`graph`/`via` 列语义、`final=(rel+graph)×多样性因子` 与「仅当候选数 > 5 时施加」、多样性开时 `score` 无法仅由打印的 `rel`/`graph` 精确复算而 `match` 恒可由 `rel` + 表头阈值复算、无**词法**证据时 `rel=0` 但图到达行 `graph>0`/`via=tag:<标签>`/`match=none`；`β` 与候选数阈值**直接引用模块级常数**（说不成立公式即变红） |
 
@@ -156,8 +156,11 @@ I2 结论 / 低置信 / I3 结论）。非结论性诊断（`basisSize`、`layer
 2. **`limit` 是硬显示上限**。返回行数恒为 `min(limit, 可用候选数)`；内部扩检索
    （I2 分诊的 `kBase -> kUsed`）**只放大内部预算**（给金字塔取更大的基、给多样性更大的
    候选池），**绝不增加返回行数**。把「内部候选池预算」误读成「显示上限」是明确的误用。
-3. **请求级隔离**：无模块级可变状态。金字塔基、图传播、打分统计都按调用重建；
-   注入侧只保留以文件身份三元组 `{path, size, mtimeMs}` 为键的**幂等只读**缓存
+3. **请求级隔离**：无**影响请求结果**的模块级可变状态（代码里唯一的模块级可变是
+   `src/store.ts` 的原子写临时文件序号 `tmpSeq`，只用于让临时文件名不重名，不参与任何
+   召回 / 打分 / 注入计算；「请求级隔离」本身由 `test/triage.test.mjs` 与
+   `test/graph.test.mjs` 的「新进程单独只跑第二次」逐字段一致断言钉住）。金字塔基、图传播、
+   打分统计都按调用重建；注入侧只保留以文件身份三元组 `{path, size, mtimeMs}` 为键的**幂等只读**缓存
    （同键必同值，且与库自身的「外部改动守卫」同一身份口径）。同一个键禁止放进查询、
    agent、scope 或时间。
 4. **注入文本稳定**：注入的**索引行不与库内容实时联动**。尾部块只放条数 + 这是什么 + 条件规则 +
@@ -228,7 +231,7 @@ npm test
 `…-disable.txt` / `…-restored.txt`。这样「测试通过」才不是空话 —— 它证明了这些测试
 **在该机制坏掉时真的会失败**，而不是永远绿。
 
-目录里还有少量探针脚本（这是全文里唯一的英文目录，且只有 4 个 `.mjs`）：
+目录里还有少量探针脚本（只有 4 个 `.mjs`）：
 `draft-header-lengths.mjs`、`lineformat-probe.mjs`、`measure-header.mjs`、`patch-src.mjs`，
 以及 `run-all.sh` 汇总脚本。
 
@@ -325,8 +328,11 @@ npm test
 的理由是**与上游保持同源**，而不是因为它是软件许可的常规选择 —— 如果你需要一个软件许可，
 这不是推荐选择。
 
-LICENSE 文件内容：Creative Commons **标准法律文本**，**未作任何增删改写**；
-文件开头是本项目的署名头（许可摘要 + 来源），其后是标准正文原文。
+LICENSE 文件内容：Creative Commons **标准法律文本**（CC BY-NC-SA 4.0 官方
+`legalcode.txt`，来源 <https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode.txt>，
+**438 行 / 20850 字节，与官方原文逐字节一致**、**未作任何增删改写**）；
+本项目的**署名头（许可摘要 + 来源）在 [NOTICE](./NOTICE) 里**，**不在** LICENSE 开头
+（LICENSE 第一行就是官方标题 `Attribution-NonCommercial-ShareAlike 4.0 International`）。
 
 ---
 
@@ -353,7 +359,8 @@ LICENSE 文件内容：Creative Commons **标准法律文本**，**未作任何�
    `/data/user/0/com.dsharnessmobile.shell/files/home/.dsh`（可用 `DSH_HOME` 覆盖）。
    `.gitignore` 不包含它 —— 它**物理上就不在仓目录内**。
 6. **零运行时依赖**。`peerDependencies` 只有 cordis 与 dsh-tools；
-   `devDependencies` 是 typescript 与 `@types/node`。
+   `devDependencies` 是 typescript、`@types/node`，外加把上述两个 peer 依赖按同版本再装一份
+   （仅供本地构建 / 测试；运行时仍只吃宿主提供的 peer）。
 
 ---
 
@@ -361,10 +368,10 @@ LICENSE 文件内容：Creative Commons **标准法律文本**，**未作任何�
 
 | 路径 | 内容 |
 | --- | --- |
-| `src/*.ts` | 7 个源文件（`index.ts` / `pure.ts` / `store.ts` / `inject.ts` / `protocol.ts` / `json.ts` / 类型声明） |
+| `src/*.ts` | 6 个源文件（`index.ts` / `inject.ts` / `json.ts` / `protocol.ts` / `pure.ts` / `store.ts`） |
 | `test/*.mjs` | 18 个测试文件（172 pass / 0 fail，2026-10-09 实测） |
 | `scripts/*.mjs` | 5 个脚本（标定 / 导入 / 负样本 / 注入实测 / 松耦合探针） |
-| `redproof/` | 143 个红证取证文件（成对的 disable / restored）+ 4 个探针 `.mjs` |
+| `redproof/` | 143 个被跟踪红证取证文件（136 个 `.txt` 取证日志 + 4 个探针 `.mjs` + `run-all.sh` + 2 个 `lineformat-*.json`；`.txt` 里成对出现 disable / restored） |
 | `package.json` / `tsconfig.json` | 包与编译配置 |
 | `LICENSE` / `NOTICE` / `README.md` | 许可 / 署名 / 门面文档 |
 
@@ -373,9 +380,14 @@ LICENSE 文件内容：Creative Commons **标准法律文本**，**未作任何�
 - **`redproof/` 与 `scripts/` 含本机绝对路径**。形如
   `/data/user/0/com.dsharnessmobile.shell/files/home/.dsh/...`（应用私有目录）、
   `/data/data/com.dsharnessmobile.shell/files/usr/lib/node_modules/...`（引擎安装位置）、
+  `/storage/emulated/0/deepseek/dsh-agent-memory/...`（本仓自身所在路径）、
   `/data/data/com.termux/files/usr/bin/bash`（`redproof/run-all.sh` 的 shebang）。
-  共 **49 个被跟踪文件**含这类路径（`redproof/` 46 个、`src/store.ts` 1 个、
-  `scripts/i4a-measure.mjs` 1 个、`test/inject.test.mjs` 1 个）。
+  共 **54 个被跟踪文件**含这类路径（**三个模式取并集**：`/data/user/0/`、`/data/data/`、
+  `/storage/emulated/0/`）。按目录：`redproof/` 49 个、`src/store.ts` 1 个、
+  `scripts/i4a-measure.mjs` 1 个、`test/inject.test.mjs` 1 个、`README.md` 1 个、`NOTICE` 1 个。
+  （**只 grep `/data/` 会得到 9** —— 并集里 **45 个文件只含 `/storage/emulated/0/`、不含任何
+  `/data/` 子串**，两个模式都命中的只有 `README.md` 一个文件。这正是上一轮把 54 误判成
+  9 的原因。）
 - **取证日志里的数字是历史快照，不是当前值**。例如
   `redproof/i2.3-calibrate-real-library.txt` 记录的是当天的 **195 条**库，
   而当前真实库是 **200 条**（2026-10-09 快照）。日志是「当时跑出什么」的凭证，**不应**被当成现值来引用；
