@@ -1,4 +1,4 @@
-真库: /data/data/com.dsharnessmobile.shell/files/home/.dsh/agent-memory/memory.ndjson
+真库: $DSH_HOME/agent-memory/memory.ndjson
 写前 sha256: 939be67e4c14862217f64d1ed89fc388d007a8bdbd3af1628e398c4854a98c3a
 
 query=ok 库容=205 qTok=1/2 => 封顶支，strong 行数=0

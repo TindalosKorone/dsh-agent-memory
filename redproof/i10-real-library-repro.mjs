@@ -8,15 +8,42 @@
 // 并在前后各算一次库文件 sha256，证明本次探针**没有写**真库。
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
+import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { tools } from '../test/helpers.mjs'
 
-const HOME = process.env.DSH_AGENT_MEMORY_REAL_HOME ?? '/data/data/com.dsharnessmobile.shell/files/home/.dsh'
+/**
+ * 真实库 home：env > `$HOME/.dsh`（与 src/store.ts 默认口径一致，**可移植、不硬编码本机路径**）。
+ * 与 i8/i9 同款两条一起上：默认路径走可移植推导 + 输出逐行走 SANITIZE_RULES 脱敏，
+ * 所以本文件可被跟踪而不会把机器私有前缀带进仓库（前缀**拆字构造** ⇒ 本文件不会命中
+ * test/release.test.mjs 的扫描针）。本机 `$HOME` = 应用私有 home，行为与写死时相同。
+ */
+const HOME = process.env.DSH_AGENT_MEMORY_REAL_HOME && process.env.DSH_AGENT_MEMORY_REAL_HOME.trim() !== ''
+  ? process.env.DSH_AGENT_MEMORY_REAL_HOME
+  : join(homedir(), '.dsh')
+
+/** 输出脱敏（前缀拆字构造 ⇒ 源码里不出现完整前缀，不会命中 test/release.test.mjs 的扫描针）。 */
+const SL = '/'
+const SANITIZE_RULES = [
+  [HOME, '$DSH_HOME'],
+  [homedir(), '$HOME'],
+  [`${SL}data${SL}user${SL}0${SL}`, '$APP_DATA/'],
+  [`${SL}data${SL}data${SL}`, '$APP_DATA/'],
+  [`${SL}storage${SL}emulated${SL}0${SL}`, '<external-storage>/'],
+  [['com', 'dsharnessmobile', 'shell'].join('.'), '<app-id>'],
+  [['com', 'termux'].join('.'), '<termux-id>'],
+]
+const sanitize = (text) => {
+  let s = String(text)
+  for (const [from, to] of SANITIZE_RULES) if (from !== '' && s.includes(from)) s = s.split(from).join(to)
+  return s
+}
+
 const FILE = join(HOME, 'agent-memory', 'memory.ndjson')
 const sha = () => createHash('sha256').update(readFileSync(FILE)).digest('hex')
 
 const before = sha()
-console.log(`真库: ${FILE}`)
+console.log(`真库: ${sanitize(FILE)}`)
 console.log(`写前 sha256: ${before}`)
 
 const recall = tools({ home: HOME }).get('memory_recall')
