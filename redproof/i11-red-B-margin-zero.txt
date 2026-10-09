@@ -1,0 +1,26 @@
+===== REDPROOF i11-red-B: 把 M 调成 0（永不封顶）=====
+变异：src/pure.ts 的 GATE_MARGIN 2.0 -> 0
+命令：node test/scoring.test.mjs
+---
+✖ 内容量闸门（纯函数）：queryContentTokens 口径 + matchLevelGated 三层规则 + 配置回落 (5.531355ms)
+✖ 内容量闸门（工具层）：单内容词元查询 rel>=strong 也只判 weak，行照样返回；关闸门即回到 strong；回显按分支给（不封顶支不得照抄封顶样板） (53.910989ms)
+✖ 内容量闸门例外（工具层，真回归）：单内容词元但 rel 远超 M×strong 必须判 strong；退回纯 qTok 封顶即变红 (25.462084ms)
+✖ 内容量闸门：标定一致性（CONTENT_TOKEN_MIN=2 + GATE_MARGIN=2.0 + 标定注释可核对） (0.653333ms)
+ℹ tests 21
+ℹ pass 17
+ℹ fail 4
+✖ failing tests:
+✖ 内容量闸门（纯函数）：queryContentTokens 口径 + matchLevelGated 三层规则 + 配置回落 (5.531355ms)
+  AssertionError [ERR_ASSERTION]: 闸门例外倍数默认 2.0（标定见 src/pure.ts 的 GATE_MARGIN）
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+✖ 内容量闸门（工具层）：单内容词元查询 rel>=strong 也只判 weak，行照样返回；关闸门即回到 strong；回显按分支给（不封顶支不得照抄封顶样板） (53.910989ms)
+  AssertionError [ERR_ASSERTION]: 单内容词元查询不得判 strong（rel=0.21763343449529332）
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+✖ 内容量闸门例外（工具层，真回归）：单内容词元但 rel 远超 M×strong 必须判 strong；退回纯 qTok 封顶即变红 (25.462084ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+✖ 内容量闸门：标定一致性（CONTENT_TOKEN_MIN=2 + GATE_MARGIN=2.0 + 标定注释可核对） (0.653333ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {

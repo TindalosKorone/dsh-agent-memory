@@ -40,7 +40,7 @@ test('I5 表头自检：单行、<= 428 字符，且可复算信息一个都不�
   const header = r.text.split('\n')[0]
   assert.ok(r.shown > 0, '至少召回一条，否则表头断言没有说服力')
   assert.ok(!header.includes('\n'), '表头必须单行（分诊/I3 字段不得换行）')
-  // 428 是**实测锚点**（内容量闸门落地后本夹具 = 420；旧值 400 见 git 历史）。
+  // 428 是**实测锚点**（本轮闸门例外落地后本夹具 = 388/392；旧值 420/416 见 git 历史）。
   // 这不是「放松总量上界」：真正的上界仍是 HEADER_MAX_CHARS=448，由本文件后两条最坏情况用例钉死；
   // 这里钉的是「常配短查询下别把表头再喂胖」的收紧位。改动表头文案前先量一遍这个数。
   assert.ok(header.length <= 428, `表头必须 <= 428 字符（旧表头实测 1049~1066），实际 ${header.length}：${header}`)
@@ -59,45 +59,48 @@ test('I5 表头自检：单行、<= 428 字符，且可复算信息一个都不�
   assert.ok(header.includes('score=disp(final)=clip((final-'), `表头必须写明展示分公式：${header}`)
   assert.ok(header.includes(String(r.scaleA)) && header.includes(String(r.scaleB)),
     `表头必须回显两个标度常数（scaleA=${r.scaleA} scaleB=${r.scaleB}）：${header}`)
-  // ⑤ limit 是硬显示上限
-  assert.ok(header.includes(`limit=${r.limit} 是硬显示上限`), `表头必须写明 limit 是硬显示上限：${header}`)
+  // ⑤ limit 是硬显示上限（本轮把「是硬显示上限」收紧成「硬上限」，只删冗字、语义不变）
+  assert.ok(header.includes(`limit=${r.limit}硬上限`), `表头必须写明 limit 是硬显示上限：${header}`)
   // ⑥ I2 分诊的结论性数字：novelty、阈值、expanded、kBase->kUsed
-  assert.match(header, /I2:novelty=[0-9]+\.[0-9]{4} (<|>=) 阈值 [0-9.]+/, `表头必须回显 novelty 与阈值：${header}`)
+  assert.match(header, /I2:novelty=[0-9]+\.[0-9]{4}(<|>=)阈值[0-9.]+/, `表头必须回显 novelty 与阈值：${header}`)
   assert.ok(header.includes(`expanded=${r.expanded}`), `表头必须回显 expanded=${r.expanded}：${header}`)
-  assert.ok(header.includes(`kBase=${r.kBase} -> kUsed=${r.kUsed}`),
+  assert.ok(header.includes(`kBase=${r.kBase}->kUsed=${r.kUsed}`),
     `表头必须回显 kBase/kUsed（${r.kBase} -> ${r.kUsed}）：${header}`)
   // ⑦ 低置信标记：cov_max 与激活阈值
-  assert.match(header, /低置信:cov_max=[0-9]+\.[0-9]{4} (<|>=) [0-9.]+/, `表头必须回显 cov_max 与激活阈值：${header}`)
+  assert.match(header, /低置信:cov_max=[0-9]+\.[0-9]{4}(<|>=)[0-9.]+/, `表头必须回显 cov_max 与激活阈值：${header}`)
   assert.ok(header.includes(String(r.activationThreshold)), `激活阈值 ${r.activationThreshold} 必须在表头里`)
   // ⑧ I3 图的结论性数字：final=rel+graph、graph 硬上限、图规模、枢纽被压数量、reachable
   assert.ok(header.includes('I3:final=rel+graph'), `表头必须写明 final=rel+graph：${header}`)
-  assert.ok(header.includes(`graph硬上限<=${r.graphBonusCap}`),
+  assert.ok(header.includes(`graph上限<=${r.graphBonusCap}`),
     `表头必须写明 graph 硬上限 ${r.graphBonusCap}：${header}`)
   assert.match(header, /图[0-9]+节点\/[0-9]+边/, `表头必须回显图规模：${header}`)
-  assert.ok(header.includes('枢纽被压'), `表头必须回显枢纽被压数量：${header}`)
-  assert.ok(header.includes(`reachable=${r.reachable}`), `表头必须回显 reachable：${header}`)
-  // ⑨ 多样性（本次对账补上）：final=(rel+graph)×多样性因子、因子只在候选 > 5 时施加，
+  assert.ok(header.includes('枢纽压'), `表头必须回显枢纽被压数量：${header}`)
+  assert.ok(header.includes(`可达=${r.reachable}`), `表头必须回显 reachable：${header}`)
+  // ⑨ 多样性（对账补上）：final=(rel+graph)×多样性因子、因子只在候选 > 5 时施加，
   //    且必须如实说明「多样性开时 score 无法仅由打印的 rel/graph 复算」——旧表头只写
   //    final=rel+graph，等于向读者承诺 score 恒等于 disp(rel+graph)（判红点：改回旧句 ⇒ 本条变红）。
   assert.ok(header.includes('final=rel+graph×多样性'),
     `表头必须写明 final=(rel+graph)×多样性因子：${header}`)
-  assert.ok(header.includes('候选>5时启用'),
+  assert.ok(header.includes('候选>5启用'),
     `表头必须写明多样性只在候选 > 5 时施加：${header}`)
-  assert.ok(header.includes('开时不可由 rel/graph 复算'),
+  assert.ok(header.includes('开时score不可复算'),
     `表头必须如实说明"多样性开时 score 不能仅由 rel/graph 复算"：${header}`)
   // match 的恒可复算同样必须在表头（判红点：删掉 (恒可复算) ⇒ 本条变红）
   assert.ok(header.includes('否则 none(恒可复算)'),
     `表头必须写明 match 恒可由 rel + 阈值复算：${header}`)
-  // ⑩ 内容量闸门：闸门的**两个输入**（qTok 与阈值）必须逐字回显，规则必须**按分支**写明 ——
-  //    否则「低内容量 ⇒ strong 封顶 weak」这条判定读者复算不出来（I1.3 铁律的延续）。
-  //    本夹具 query='alpha' ⇒ qTok=1 < 2，走**封顶支**。
-  //    判红点：删掉这段回显（或只回显 qTok 不回显阈值）⇒ 本条变红。
+  // ⑩ 内容量闸门：闸门的**三个输入**（qTok、阈值、例外倍数 M）必须逐字回显，规则必须**按分支**写明 ——
+  //    否则「低内容量 + 离阈值多远 ⇒ 是否封顶」这条判定读者复算不出来（I1.3 铁律的延续）。
+  //    本夹具 query='alpha' ⇒ qTok=1 < 2，而该行 rel 远在 2×strong 之上 ⇒ 走**例外放行支**。
+  //    判红点：删掉这段回显（或只回显 qTok 不回显阈值/M）⇒ 本条变红。
   assert.equal(r.contentTokenMin, 2, '内容量闸门默认阈值必须是 2（标定见 src/pure.ts）')
+  assert.equal(r.gateMargin, 2, '闸门例外倍数默认必须是 2.0（标定见 src/pure.ts 的 GATE_MARGIN）')
   assert.ok(Number.isInteger(r.contentTokens) && r.contentTokens >= 0,
     `结构化字段 contentTokens 必须是非负整数：${r.contentTokens}`)
-  assert.ok(header.includes(`内容量qTok=${r.contentTokens}<${r.contentTokenMin}⇒strong封顶weak`),
-    `封顶支表头必须逐字回显内容量闸门的输入与规则（qTok=${r.contentTokens} 阈值=${r.contentTokenMin}）：${header}`)
-  // ⑩b 不封顶支（qTok >= 阈值，真机 query=`虚拟屏` 的同类情形）：回显**不得**照抄封顶样板 ——
+  assert.ok(header.includes(`内容量qTok=${r.contentTokens}<${r.contentTokenMin}但rel≥${r.gateMargin}×strong⇒不压级`),
+    `例外放行支表头必须逐字回显闸门三输入与「不压级」（qTok=${r.contentTokens} 阈值=${r.contentTokenMin} M=${r.gateMargin}）：${header}`)
+  assert.ok(!header.includes('封顶'),
+    `例外放行支的回显不得出现「封顶」字样（本夹具没有一行被压）：${header}`)
+  // ⑩b qTok >= 阈值（真机 query=`虚拟屏` 的同类情形）：回显**不得**照抄封顶样板 ——
   //     旧实现是无条件样板，在这一支打出 `qTok=5<2` 这种假不等式且与 match=strong 自相矛盾。
   //     判红点：把回显改回无条件样板 ⇒ 下面两条立刻变红（`!includes('封顶')` 先红）。
   const free = await recall.execute({ query: 'alpha beta', limit: 5 })
@@ -117,11 +120,11 @@ test('I5 表头自检：单行、<= 428 字符，且可复算信息一个都不�
   // 无词元能量分支（‖q‖²≈0）同样要如实、同样要短
   const e = await recall.execute({ query: '   ', limit: 5 })
   const eh = e.text.split('\n')[0]
-  assert.ok(eh.length <= 420, `未分诊分支的表头也必须 <= 420 字符（实测锚点 416），实际 ${eh.length}：${eh}`)
+  assert.ok(eh.length <= 420, `未分诊分支的表头也必须 <= 420 字符（本轮实测 392），实际 ${eh.length}：${eh}`)
   assert.ok(eh.includes('未分诊'), `未分诊分支必须如实写明：${eh}`)
   assert.ok(eh.includes('expanded=false'), `未分诊分支必须回显 expanded=false：${eh}`)
   assert.ok(eh.includes('0/0'), `未分诊分支必须如实说明比值未定义（0/0）：${eh}`)
-  assert.match(eh, /kBase=[0-9]+ -> kUsed=[0-9]+/, '未分诊分支仍须打印 kBase/kUsed')
+  assert.match(eh, /kBase=[0-9]+->kUsed=[0-9]+/, '未分诊分支仍须打印 kBase/kUsed')
 })
 
 test('I5 结构性断言：标度常数不得影响显示行数（判红点：表头回显常数的长度会改行数）', async () => {

@@ -1,0 +1,21 @@
+===== REDPROOF i11-red-A: 去掉 margin 例外（退回纯 qTok 封顶）=====
+变异：src/pure.ts 的 matchLevelGated 末尾改为无条件 return 'weak'（base=strong 且 qTok<min 时）
+命令：node test/scoring.test.mjs
+---
+✖ I1.3 自证：每一行都可用打印的 rel 与表头阈值复现 match（两种标度不混用） (95.265053ms)
+✖ 内容量闸门（纯函数）：queryContentTokens 口径 + matchLevelGated 三层规则 + 配置回落 (1.709636ms)
+✖ 内容量闸门例外（工具层，真回归）：单内容词元但 rel 远超 M×strong 必须判 strong；退回纯 qTok 封顶即变红 (23.756823ms)
+ℹ tests 21
+ℹ pass 18
+ℹ fail 3
+✖ failing tests:
+✖ I1.3 自证：每一行都可用打印的 rel 与表头阈值复现 match（两种标度不混用） (95.265053ms)
+  AssertionError [ERR_ASSERTION]: query=zeta 行 mem_mv0r7ou7_c2491f2459：rel=0.35063731345166654 阈值=0.0382/0.1507 qTok=1/2 却判 weak
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+✖ 内容量闸门（纯函数）：queryContentTokens 口径 + matchLevelGated 三层规则 + 配置回落 (1.709636ms)
+  AssertionError [ERR_ASSERTION]: 离 strong 阈值远超 M 倍的单内容词元必须判 strong（不许误杀真话题）
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+✖ 内容量闸门例外（工具层，真回归）：单内容词元但 rel 远超 M×strong 必须判 strong；退回纯 qTok 封顶即变红 (23.756823ms)
+  AssertionError [ERR_ASSERTION]: 单内容词元但 rel 远超 M×strong 必须判 strong（rel=0.4037992250975275）
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {

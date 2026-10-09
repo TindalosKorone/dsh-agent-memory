@@ -1,0 +1,18 @@
+真库: $DSH_HOME/agent-memory/memory.ndjson（占位符，不打印机器路径）
+写前 sha256: 939be67e4c14862217f64d1ed89fc388d007a8bdbd3af1628e398c4854a98c3a
+query="adb" qTok=1/2 rel=0.6557 倍率=4.35x base=strong gated=strong
+  表头闸门回显: 内容量qTok=1<2但rel≥2×strong⇒不压级
+query="ok" qTok=1/2 rel=0.1854 倍率=1.23x base=strong gated=weak
+  表头闸门回显: 内容量qTok=1<2且rel<2×strong⇒strong封顶weak
+query="做" qTok=1/2 rel=0.1826 倍率=1.21x base=strong gated=weak
+  表头闸门回显: 内容量qTok=1<2且rel<2×strong⇒strong封顶weak
+query="b" qTok=1/2 rel=0.1705 倍率=1.13x base=strong gated=weak
+  表头闸门回显: 内容量qTok=1<2且rel<2×strong⇒strong封顶weak
+query="ci" qTok=1/2 rel=0.2670 倍率=1.77x base=strong gated=weak
+  表头闸门回显: 内容量qTok=1<2且rel<2×strong⇒strong封顶weak
+query="OpenSCAD" qTok=0/2 rel=0.0000 倍率=0.00x base=none gated=none
+  表头闸门回显: 内容量qTok=0<2且rel<2×strong⇒strong封顶weak
+query="虚拟屏" qTok=5/2 rel=0.5549 倍率=3.68x base=strong gated=strong
+  表头闸门回显: 内容量qTok=5≥2⇒闸门未生效
+写后 sha256: 939be67e4c14862217f64d1ed89fc388d007a8bdbd3af1628e398c4854a98c3a
+真库未被改动: YES

@@ -318,13 +318,15 @@ test('I3 工具层：行内 graph/via 与结构化行一致，final=rel+graph �
     assert.equal(f[5], row.via, 'via 必须在第 6 列')
     assert.equal(idOfLine(line), row.id)
     assert.ok(row.graph >= 0 && row.graph <= r.graphBonusCap, `每行 graph 必须 <= graphBonusCap：${row.graph}`)
-    // match 仍可由打印的 rel 复算（图奖励不参与 match）；本次新增内容量闸门后，
-    // 复算式是 match = qTok=0 ? none : (qTok<contentTokenMin ? strong封顶weak : 阈值比较)，
-    // 两个闸门输入都在返回体（contentTokens/contentTokenMin）与表头里，恒可复算。
+    // match 仍可由打印的 rel 复算（图奖励不参与 match）；内容量闸门（含 M 例外）后，
+    // 复算式是 match = qTok=0 ? none :（qTok<min ? (base=strong 且 rel<M×strong ? weak : base) : 阈值比较），
+    // 三个闸门输入都在返回体（contentTokens/contentTokenMin/gateMargin）与表头里，恒可复算。
     const rel = Number(f.at(-4))
     const base = rel >= r.strongThreshold ? 'strong' : rel >= r.weakThreshold ? 'weak' : 'none'
-    const expect = (base === 'strong' && r.contentTokens !== 0 && r.contentTokens < r.contentTokenMin) ? 'weak' : (r.contentTokens === 0 ? 'none' : base)
-    assert.equal(row.match, expect, 'match 必须能由打印的 rel + 表头阈值 + 表头闸门输入复算')
+    const gated = r.contentTokens === 0
+      ? 'none'
+      : (r.contentTokens < r.contentTokenMin && base === 'strong' && rel < r.gateMargin * r.strongThreshold ? 'weak' : base)
+    assert.equal(row.match, gated, 'match 必须能由打印的 rel + 表头阈值 + 表头闸门输入复算')
     // via 的语义：有词法证据 direct；否则必须标出 tag:<标签>
     if (row.rel > 0) assert.equal(row.via, 'direct')
     else {
@@ -538,7 +540,7 @@ test('红证 2（判红点：去掉枢纽校正 hubEta=0 ⇒ 判据变红）：�
 
   // (a) 万能标签必须被识别并压住（枢纽校正生效）
   assert.ok(r.hubSuppressed.includes('万能'), `hubSuppressed 必须列出万能标签：${JSON.stringify(r.hubSuppressed)}`)
-  assert.ok(header.includes('枢纽被压'), '表头必须如实回报枢纽被压的数量/名单')
+  assert.ok(header.includes('枢纽压'), '表头必须如实回报枢纽被压的数量/名单')
   // (b) 图奖励的硬上限对**每一行**都成立；默认上限就是 GRAPH_BONUS_CAP
   assert.equal(r.graphBonusCap, GRAPH_BONUS_CAP)
   for (const row of r.rows) {

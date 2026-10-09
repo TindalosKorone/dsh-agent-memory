@@ -232,12 +232,38 @@ export type MatchLevel = 'none' | 'weak' | 'strong'
  *   代价（如实声明）：单内容词元的查询（如英文单标签 `adb`/`ci`）从此最多 weak；
  *   本库 795 个正样本里 83 个（10.4%）落在这一档 —— 方向是**保守**的（宁可不吹 strong，也不误伤真话题）。
  *
- * 语义（表头逐字回显这条规则，读者可用打印量复算 match）：
- *   match = 无内容量(qTok=0) ? none : (qTok < CONTENT_TOKEN_MIN ? strong 封顶 weak : matchLevel(rel, …))
+ * ── 闸门例外：离阈值多远才封顶（本次新增；只加例外，不改 rel 与四个标定常数）──────
+ *
+ * 病灶（同上，真实库实测）：纯 qTok 封顶会**误杀「单个高专有词元」的真话题** ——
+ * 一个内容词元也能把 rel 顶到远超 strong 阈值。本机 205 条真实库实测（redproof/i11-*.txt）：
+ *   - 真话题侧：`adb` qTok=1、rel=0.6557 = strong 阈值 0.1507 的 **4.35 倍**；
+ *     （任务书点名的 `OpenSCAD` 已不在当前库里 —— grep 全库 0 命中，故改用同形的真实词元 `adb`，
+ *      并在 test/scoring.test.mjs 用合成语料把「单内容词元 + 远超阈值」这条形态钉死。）
+ *   - 噪声侧：`ok` 1.23 倍、`做` 1.21 倍、`b` 1.13 倍 —— 都只是**贴线**。
+ * 判据：贴线的噪声该压，离阈值远的真话题不该压 ⇒ 封顶条件再加一条「rel 离 strong 不够远」：
+ *   qTok < min **且** rel < GATE_MARGIN × strong 才封顶。
+ *
+ * GATE_MARGIN 起始值（**待真实语料标定**，本行是 test/scoring.test.mjs 的机器可读锚点，格式别改）：
+ * 闸门余量 GATE_MARGIN = 2.0
+ * 依据：噪声侧实测 1.13~1.23 倍、真话题侧实测 4.35 倍，2.0 落在两者之间（保守取值：
+ * 优先不误杀真话题，代价是 `ci` 这类 1.77 倍的单内容词元查询仍被封顶）。
+ * 该值可经 `score.gateMargin` 覆盖；传 0 表示**永不封顶**（红证用），非法值一律回落 2.0。
+ *
+ * 语义（表头按分支逐字回显，读者可用打印量复算 match）：
+ *   match = 无内容量(qTok=0) ? none
+ *         : qTok < CONTENT_TOKEN_MIN ? (base=strong 且 rel < GATE_MARGIN×strong ? weak : base)
+ *         : matchLevel(rel, …)
  *   注意 qTok=0 时 rel 必然 = 0（num=0）⇒ `none` 由 matchLevel 已经给出，闸门只负责 strong→weak 的封顶。
  *   因此**绝不整批否决**：低内容量查询照样返回行，只是不再宣称 strong。
  */
 export const CONTENT_TOKEN_MIN = 2
+
+/**
+ * 内容量闸门的「离阈值多远」例外倍数（默认 2.0；见 CONTENT_TOKEN_MIN 上方的标定注释）。
+ * 封顶条件 = `qTok < min 且 rel < GATE_MARGIN × strong`；越大越少封顶。
+ * **待真实语料标定**：下次 calibrate 时应把噪声倍率与真话题倍率一并记录，据此复核本值。
+ */
+export const GATE_MARGIN = 2.0
 
 /** 打分口径的可覆盖项（配置来自工具 config，见 resolveScoreOptions）。 */
 export interface ScoreOptions {
@@ -248,6 +274,8 @@ export interface ScoreOptions {
   diversityBeta?: number
   /** 内容量闸门阈值（内容词元数下限），默认 CONTENT_TOKEN_MIN=2；设 1 等价于关掉闸门（红证用）。 */
   contentTokenMin?: number
+  /** 闸门例外倍数，默认 GATE_MARGIN=2.0；0 = 永不封顶（红证用），非法值回落默认。 */
+  gateMargin?: number
 }
 
 /** 已解析（always 有值）的打分口径。 */
@@ -258,6 +286,7 @@ export interface ResolvedScoreOptions {
   strong: number
   beta: number
   contentTokenMin: number
+  gateMargin: number
 }
 
 function finiteOr(raw: unknown, fallback: number): number {
@@ -287,9 +316,13 @@ export function resolveScoreOptions(opts?: ScoreOptions): ResolvedScoreOptions {
   // 非法（非有限/小于 1）一律回落默认值，绝不因为一个坏配置把闸门静默关掉。
   const rawMin = finiteOr(o.contentTokenMin, CONTENT_TOKEN_MIN)
   const contentTokenMin = rawMin >= 1 ? Math.floor(rawMin) : CONTENT_TOKEN_MIN
+  // 闸门例外倍数：**0 是合法值**（表示永不封顶，红证用），所以判据是 >= 0 而不是 > 0；
+  // 负数 / 非有限一律回落默认（绝不因为一个坏配置把闸门方向调反）。
+  const rawMargin = finiteOr(o.gateMargin, GATE_MARGIN)
+  const gateMargin = rawMargin >= 0 ? rawMargin : GATE_MARGIN
   return weak > strong
-    ? { scaleA, scaleB, weak: strong, strong: weak, beta, contentTokenMin }
-    : { scaleA, scaleB, weak, strong, beta, contentTokenMin }
+    ? { scaleA, scaleB, weak: strong, strong: weak, beta, contentTokenMin, gateMargin }
+    : { scaleA, scaleB, weak, strong, beta, contentTokenMin, gateMargin }
 }
 
 /**
@@ -340,20 +373,25 @@ export function queryContentTokens(query: unknown, stats: CorpusStats): number {
 }
 
 /**
- * 带内容量闸门的绝对判定（**唯一**被 recall 路径调用的判定函数）：
+ * 带内容量闸门（含「离阈值多远」例外）的绝对判定（**唯一**被 recall 路径调用的判定函数）：
  *
- *   match = 无内容量(qTok=0) ? none : (qTok < contentTokenMin ? strong 封顶 weak : matchLevel(rel, …))
+ *   match = 无内容量(qTok=0) ? none
+ *         : qTok < contentTokenMin ? (base=strong 且 raw < gateMargin×strong ? weak : base)
+ *         : matchLevel(raw, weak, strong)
  *
- * 三层：
+ * 四层：
  *  1. `qTok = 0` ⇒ 查询里没有一个词元在库内出现过 ⇒ 不可能有词法证据 ⇒ rel 必然为 0
  *     ⇒ `matchLevel` 已经给出 `none`（这里显式短路，让规则与表头回显逐字对应，也防万一）；
- *  2. `qTok < contentTokenMin` ⇒ 内容量不足：**只封顶 strong，不封顶 weak**（短查询照样返回行，
- *     绝不整批否决；weak 仍表示「证据高于噪声上界」，那是一个诚实的断言）；
- *  3. 否则原样 `matchLevel(rel, weak, strong)`（长查询、真话题完全不受影响）。
+ *  2. `qTok < contentTokenMin` 且 `base=strong` 且 `raw < gateMargin×strong` ⇒ 贴线的强判定：
+ *     **只封顶 strong，不封顶 weak**（短查询照样返回行，绝不整批否决）；
+ *  3. `qTok < contentTokenMin` 但 `raw >= gateMargin×strong` ⇒ **例外放行**：单个高专有词元
+ *     （实测 `adb` 达 4.35×strong）不再被误杀，仍判 strong；
+ *  4. 否则原样 `matchLevel(raw, weak, strong)`（长查询、真话题完全不受影响）。
  *
  * 单调性：weak > strong 被交换的配置（resolveScoreOptions）下 `base='strong'` 仍是最高档，
  * 封顶到 weak 依然单调；非有限 qTok 一律保守（NaN/-Infinity 当 0，只有缺省 +Infinity 表示「不封顶」），
- * 阈值非法一律回落 CONTENT_TOKEN_MIN。
+ * 阈值非法一律回落 CONTENT_TOKEN_MIN；倍数非法（负数/非有限）回落 GATE_MARGIN，**0 是合法值**
+ * （表示永不封顶，判红点用）。
  */
 export function matchLevelGated(
   raw: number,
@@ -361,6 +399,7 @@ export function matchLevelGated(
   strong: number = STRONG_THRESHOLD,
   contentTokens: number = Number.POSITIVE_INFINITY,
   contentTokenMin: number = CONTENT_TOKEN_MIN,
+  gateMargin: number = GATE_MARGIN,
 ): MatchLevel {
   // 缺省（未传入 ⇒ +Infinity）表示「调用方没有提供内容量」⇒ 不封顶（召回路径永远显式传有限整数）；
   // 显式的非有限值（NaN / -Infinity）一律**保守当 0**（宁可不给 strong，也不因坏输入放过虚高判定）。
@@ -372,8 +411,13 @@ export function matchLevelGated(
     : CONTENT_TOKEN_MIN
   if (ct === 0) return 'none'
   const base = matchLevel(raw, weak, strong)
-  if (base !== 'strong') return base
-  return ct < min ? 'weak' : 'strong'
+  // 例外只在 base=strong 上起作用：weak / none 两档逐字不变。
+  if (ct >= min || base !== 'strong') return base
+  // 用与 matchLevel 同一套回落口径的 strong（坏 strong 值在 matchLevel 内部已回落 STRONG_THRESHOLD）。
+  const effStrong = finiteOr(strong, STRONG_THRESHOLD)
+  const margin = Number.isFinite(gateMargin) && gateMargin >= 0 ? gateMargin : GATE_MARGIN
+  const r = Number.isFinite(raw) ? raw : 0
+  return r < margin * effStrong ? 'weak' : 'strong'
 }
 
 /**

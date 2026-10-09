@@ -504,7 +504,7 @@ test('I2 自证：表头打印的 novelty/kBase/cov_max 与阈值必须能复算
   assert.equal(lines.length - 1, r.shown + (r.truncated ? 1 : 0), '表头必须单行（分诊字段不得换行）')
   assert.deepEqual(r.lines, lines.slice(1, 1 + r.shown))
 
-  const novelty = /novelty=([0-9]+\.[0-9]+) (<|>=) 阈值 ([0-9.]+)/.exec(header)
+  const novelty = /novelty=([0-9]+\.[0-9]+)(<|>=)阈值([0-9.]+)/.exec(header)
   assert.ok(novelty, `表头必须打印 novelty / 阈值 / 比较符：${header}`)
   assert.equal(Number(novelty[1]), Number(r.novelty.toFixed(4)))
   assert.equal(Number(novelty[3]), r.noveltyThreshold)
@@ -512,7 +512,7 @@ test('I2 自证：表头打印的 novelty/kBase/cov_max 与阈值必须能复算
     '用打印的 novelty 与阈值必须复现 expanded（判红点：表头与实际结论不一致）')
   assert.equal(novelty[2] === '>=', r.expanded, '打印的比较符必须与实际结论一致')
 
-  const kk = /kBase=(\d+) -> kUsed=(\d+)/.exec(header)
+  const kk = /kBase=(\d+)->kUsed=(\d+)/.exec(header)
   assert.ok(kk)
   assert.equal(Number(kk[1]), r.kBase)
   assert.equal(Number(kk[2]), r.kUsed)
@@ -529,7 +529,7 @@ test('I2 自证：表头打印的 novelty/kBase/cov_max 与阈值必须能复算
   checkTriageFields('I5 表头自证', r)
   assert.ok(Math.abs((r.explainedRatio + r.residualRatio) - 1) < 1e-9, '守恒式仍必须成立（只是不再打印在表头）')
 
-  const cov = /cov_max=([0-9]+\.[0-9]+) (<|>=) ([0-9.]+)/.exec(header)
+  const cov = /cov_max=([0-9]+\.[0-9]+)(<|>=)([0-9.]+)/.exec(header)
   assert.ok(cov, `表头必须打印 cov_max 与激活阈值：${header}`)
   assert.equal(Number(cov[1]), Number(r.covMax.toFixed(4)))
   assert.equal(Number(cov[3]), r.activationThreshold)
@@ -749,7 +749,7 @@ test('I2.1 修 2：空查询/纯空白查询不做分诊（novelty=0、expanded=
   assert.ok(header.includes('expanded=false'), `表头必须回显 expanded=false：${header}`)
   assert.ok(!header.includes('novelty=0.7000'), `表头不得出现旧公式的 novelty=0.7000：${header}`)
   assert.ok(header.includes('0/0'), `表头必须如实说明比值未定义（0/0）：${header}`)
-  const kk = /kBase=(\d+) -> kUsed=(\d+)/.exec(header)
+  const kk = /kBase=(\d+)->kUsed=(\d+)/.exec(header)
   assert.ok(kk, '表头仍须打印 kBase/kUsed')
   assert.equal(Number(kk[1]), r.kBase)
   assert.equal(Number(kk[2]), r.kUsed)
