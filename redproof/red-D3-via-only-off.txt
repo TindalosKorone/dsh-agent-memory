@@ -1,0 +1,89 @@
+✔ I3 图：有序双向边（(A->B) 与 (B->A) 分别计数，绝不合成一个数；对称视图可另行取到） (2.931771ms)
+✔ I3 图：边权 log(1+λW) 压缩（禁止线性累加），且两个方向各自压缩后再相加 (0.63651ms)
+✔ I3 图：出流预算（每节点 Σ出边权 <= m_out）与枢纽校正 (频次/中位数)^-η (1.818906ms)
+✔ I3 图：入度与全局频次都能取到；出边按（权降序 → 码元升序）稳定排序 (0.478438ms)
+✔ I3 传播：跳数上限 / 每节点最强出边上限 / 立即回流抑制（不许沿刚来的那条边原路返回） (1.036302ms)
+✔ I3 传播：maxStates 硬上限（状态数绝不超限，撞上时如实标记） (15.788542ms)
+✔ I3 传播：确定性（同一图 + 同一批种子重复调用，逐字段完全相同） (1.095365ms)
+✔ I3 奖励：硬上限 GRAPH_BONUS_CAP；无证据恰好为 0；取 max 不取和 (0.710833ms)
+✖ I3 工具层：行内 graph/via 与结构化行一致，final=rel+graph 可用打印值复算，score 仍在行尾 (194.461875ms)
+✔ I3 工具层：limit 仍是硬显示上限；空查询图面全静默；无词法证据也不整批否决 (198.266927ms)
+✖ I3 图到达不变量（判红点：关掉传播 maxHops=0 ⇒ (a) 变红；把 via/graph 的产出清掉 ⇒ (c)(d) 变红）：仅由标签图到达的行 rel=0/graph>0/via=tag:/match=none，且 score 与 absoluteDisp(rel+graph) 一致 (125.881771ms)
+✔ I3 工具层：2000 条规模下工作量有界（图与传播都是线性量级，不许 O(n²) 爆炸） (201.617864ms)
+✖ 红证 1（判红点：关掉传播 maxHops=0 或跳过图奖励 ⇒ 本条变红）：与查询无词法重合、但共享标签的记忆必须被召回 (149.87526ms)
+✔ 红证 2（判红点：去掉枢纽校正 hubEta=0 ⇒ 判据变红）：万能标签被压住，不许淹没词法最强那条 (181.364636ms)
+✔ 红证 3（判红点：放开某个上限 ⇒ 本条变红）：maxStates / maxHops / maxFieldNeighbors 逐条断言 (1979.445052ms)
+✖ 红证 4（判红点：邻居遍历改成非确定序 ⇒ 本条变红）：同一库 + 同一查询两次调用，行文本逐字节相同 (200.69927ms)
+✔ 红证 5（判红点：把图/传播状态提到模块级复用 ⇒ 本条变红）：请求级隔离 (340.059114ms)
+✔ I3 口径：模块级默认常数、可配置覆盖、非法值回落（解析本身不抛） (0.909271ms)
+ℹ tests 18
+ℹ suites 0
+ℹ pass 14
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3607.344478
+
+✖ failing tests:
+
+test at test/graph.test.mjs:299:1
+✖ I3 工具层：行内 graph/via 与结构化行一致，final=rel+graph 可用打印值复算，score 仍在行尾 (194.461875ms)
+  AssertionError [ERR_ASSERTION]: 无词法证据的行必须标出图来源标签：direct
+      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/graph.test.mjs:328:14)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'direct',
+    expected: /^tag:.+$/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at test/graph.test.mjs:379:1
+✖ I3 图到达不变量（判红点：关掉传播 maxHops=0 ⇒ (a) 变红；把 via/graph 的产出清掉 ⇒ (c)(d) 变红）：仅由标签图到达的行 rel=0/graph>0/via=tag:/match=none，且 score 与 absoluteDisp(rel+graph) 一致 (125.881771ms)
+  AssertionError [ERR_ASSERTION]: 图到达的 via 必须以 tag: 开头：direct
+      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/graph.test.mjs:409:10)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at test/graph.test.mjs:482:1
+✖ 红证 1（判红点：关掉传播 maxHops=0 或跳过图奖励 ⇒ 本条变红）：与查询无词法重合、但共享标签的记忆必须被召回 (149.87526ms)
+  AssertionError [ERR_ASSERTION]: 来源必须标出最强来源标签
+  + actual - expected
+  
+  + 'direct'
+  - 'tag:beta'
+  
+      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/graph.test.mjs:495:10)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'direct',
+    expected: 'tag:beta',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/graph.test.mjs:630:1
+✖ 红证 4（判红点：邻居遍历改成非确定序 ⇒ 本条变红）：同一库 + 同一查询两次调用，行文本逐字节相同 (200.69927ms)
+  AssertionError [ERR_ASSERTION]: 夹具里必须有图来源行
+      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/graph.test.mjs:643:10)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

@@ -1,0 +1,26 @@
+✖ I5 表头自检：单行、<= 400 字符，且可复算信息一个都不少 (106.753698ms)
+✔ I5 结构性断言：标度常数不得影响显示行数（判红点：表头回显常数的长度会改行数） (538.563958ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 1
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 664.303854
+
+✖ failing tests:
+
+test at test/header.test.mjs:16:1
+✖ I5 表头自检：单行、<= 400 字符，且可复算信息一个都不少 (106.753698ms)
+  AssertionError [ERR_ASSERTION]: 表头必须写明多样性只在候选 > 5 时施加：L1:query="alpha" 候选3;limit=5 是硬显示上限;列序:id|kind|title|tags|graph|via|rel|cov|match|score;rel=BM25原始相关度,match 依据;score=disp(final)=clip((final-0.0187)/(0.342-0.0187));match:rel>=0.0363 weak、>=0.1476 strong、否则 none(恒可复算);I2:novelty=0.6500 >= 阈值 0.5,expanded=true，kBase=5 -> kUsed=3;非低置信:cov_max=0.5000 >= 0.05;I3:final=rel+graph×多样性(候选>5才施加,开时不可由 rel/graph 复算)，graph硬上限<=0.018，图2节点/1边，枢纽被压0，reachable=0
+      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/header.test.mjs:71:10)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

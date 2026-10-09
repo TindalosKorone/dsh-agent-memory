@@ -22,7 +22,7 @@ import { fileURLToPath } from 'node:url'
 import {
   GRAPH_ACTIVATION_MIN, GRAPH_BACKFLOW_RHO, GRAPH_BONUS_CAP, GRAPH_BONUS_SCALE, GRAPH_DECAY,
   GRAPH_HUB_ETA, GRAPH_LAMBDA, GRAPH_MAX_FIELD_NEIGHBORS, GRAPH_MAX_HOPS, GRAPH_MAX_STATES,
-  GRAPH_OUT_BUDGET, cmpId, memoryGraphRewards, propagateTags, resolveGraphOptions,
+  GRAPH_OUT_BUDGET, SCALE_A, absoluteDisp, cmpId, matchLevel, memoryGraphRewards, propagateTags, resolveGraphOptions,
   tagGraphIndex, tagGraphSize,
 } from '../lib/pure.js'
 import { assertLossless, freshHome, memFile, tools } from './helpers.mjs'
@@ -374,6 +374,72 @@ test('I3 工具层：limit 仍是硬显示上限；空查询图面全静默；�
     }
     assertLossless('I3 空查询', e)
   }
+})
+
+test('I3 图到达不变量（判红点：关掉传播 maxHops=0 ⇒ (a) 变红；把 via/graph 的产出清掉 ⇒ (c)(d) 变红）：仅由标签图到达的行 rel=0/graph>0/via=tag:/match=none，且 score 与 absoluteDisp(rel+graph) 一致', async () => {
+  freshHome('graph-arrival-invariant')
+  const defs = tools()
+  const remember = defs.get('memory_remember')
+  // 夹具：全库 5 条 ⇒ 词法融合候选 = 5 <= DIVERSITY_MIN_CANDIDATES ⇒ 多样性**不**施加
+  //（这是 #3 里那条"score 恒可由 rel+graph 复算"成立的分支；> 5 时它就不成立了）。
+  const a = await remember.execute({ kind: 'fact', title: 'alpha focused note', body: 'alpha evidence here', tags: ['alpha'], source: 'test:graph' })
+  const b = await remember.execute({ kind: 'fact', title: 'alpha secondary', body: 'unrelated text content', tags: ['alpha', 'beta'], source: 'test:graph' })
+  const t = await remember.execute({ kind: 'fact', title: 'plain beta record', body: 'nothing to match here', tags: ['beta'], source: 'test:graph' })
+  for (let i = 0; i < 2; i += 1) {
+    await remember.execute({ kind: 'fact', title: `x filler item ${i}`, body: `plain filler body ${i}`, tags: ['x'], source: 'test:graph' })
+  }
+  for (const w of [a, b, t]) assert.equal(w.ok, true)
+  const ids = { t: t.id }
+  const recall = defs.get('memory_recall')
+  const r = await recall.execute({ query: 'alpha', limit: 3 })
+
+  // 夹具自检（区分力）：词法融合候选 <= 5 ⇒ 多样性不施加，
+  // 因此 score 必须能由打印的 rel+graph 精确复算（多样性一开这条等式就不成立 —— 见 #3）。
+  assert.equal(r.diversityApplied, false, `夹具必须落在多样性不施加的分支（matched=${r.matched} 必须 <= 5）`)
+  assert.ok(r.matched <= 5, `词法融合候选必须 <= 5，实际 ${r.matched}`)
+
+  // (a) 只共享标签、与查询无任何词法重合的记录必须被返回
+  const row = r.rows.find((x) => x.id === ids.t)
+  assert.ok(row !== undefined, `仅由标签图到达的记录必须被返回：${r.rows.map((x) => x.id).join('>')}`)
+  // (b) 无**词法**证据 ⇒ rel 恰好为 0（不是"很小"，也不做统一扣分）
+  assert.equal(row.rel, 0, '无词法证据 ⇒ rel 必须恰好为 0')
+  // (c) 但图有证据 ⇒ graph > 0 且在硬上限内
+  assert.ok(row.graph > 0 && row.graph <= r.graphBonusCap, `图到达必须 graph>0 且 <= graphBonusCap：${row.graph}`)
+  // (d) via 必须如实标出图来源标签（旧描述宣称这种行"rel/score 均为 0.0000、无证据"，是错的）
+  assert.ok(row.via.startsWith('tag:'), `图到达的 via 必须以 tag: 开头：${row.via}`)
+  assert.equal(row.via, 'tag:beta', `最强来源标签必须如实打印：${row.via}`)
+  // (e) match 是绝对判定：无词法证据 ⇒ none（且可由 rel + 阈值复算）
+  assert.equal(row.match, 'none', '无词法证据 ⇒ match 必须为 none')
+  assert.equal(row.match, matchLevel(row.rel, r.weakThreshold, r.strongThreshold), 'match 必须能由打印的 rel + 阈值复算')
+  // (f) score 必须是有限数，且**与 absoluteDisp(rel+graph) 一致**（0 或 >0 都允许，
+  //     但不允许出现"打印的 rel/graph 复算不出来的第三个值"）。
+  //     默认标度下它打印成 0.0000 —— 那只是因为 SCALE_A > GRAPH_BONUS_CAP（余量 0.0007），
+  //     不是这条记录没有图奖励；下面的区分力自检把这一点钉住。
+  assert.ok(Number.isFinite(row.score), `score 必须是有限数：${row.score}`)
+  assert.equal(row.score, absoluteDisp(row.rel + row.graph, r.scaleA, r.scaleB),
+    `score 必须 = absoluteDisp(rel+graph)（多样性不施加时）：rel=${row.rel} graph=${row.graph}`)
+  assert.equal(r.scaleA, SCALE_A, '夹具前提：默认标度 A')
+  assert.ok(r.scaleA > r.graphBonusCap, `夹具前提：默认标度地板高于图奖励上限（余量 ${r.scaleA - r.graphBonusCap}）`)
+  assert.equal(row.score, 0, `默认标度下这条记录打印 0.0000（因为 scaleA 高于 graph 上限）：${row.score}`)
+
+  // 打印列必须与结构化行逐字一致（行尾仍是 score）
+  const line = r.lines.find((l) => idOfLine(l) === ids.t)
+  assert.ok(line !== undefined, '这条记录必须真的被打印出来')
+  const f = line.split(SPLIT)
+  assert.equal(Number(f[4]), Number(row.graph.toFixed(4)), 'graph 必须打印在第 5 列')
+  assert.equal(f[5], row.via, 'via 必须打印在第 6 列')
+  assert.equal(Number(f.at(-1)), Number(row.score.toFixed(4)), 'score 必须仍在行尾')
+
+  // 区分力自检（证明"0.0000 由标度常数造成"）：把标度地板压到 0，
+  // 同一条记录（rel 仍为 0、graph 仍 >0）的 score 必须 > 0。
+  const r2 = await tools({ score: { scaleA: 0 } }).get('memory_recall').execute({ query: 'alpha', limit: 3 })
+  const row2 = r2.rows.find((x) => x.id === ids.t)
+  assert.ok(row2 !== undefined, '换标度后这条记录仍必须被返回')
+  assert.equal(row2.rel, 0, '换标度不得改变 rel')
+  assert.ok(row2.graph > 0, '换标度不得改变 graph')
+  assert.ok(row2.score > 0, `标度地板压到 0 后 score 必须 > 0：${row2.score}`)
+  assert.equal(row2.score, absoluteDisp(row2.rel + row2.graph, r2.scaleA, r2.scaleB),
+    '换标度后 score 仍必须 = absoluteDisp(rel+graph)')
 })
 
 test('I3 工具层：2000 条规模下工作量有界（图与传播都是线性量级，不许 O(n²) 爆炸）', async () => {

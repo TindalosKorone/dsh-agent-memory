@@ -57,10 +57,12 @@ export const RECALL_LIMIT_MAX = 50
 /**
  * L1 行的列清单 —— **唯一来源**（列名 + 列序都在这里，别再抄第二遍）。
  *
- * 三处都从它派生，因此结构上不可能互相漂移：
- *  - 渲染：`formatL1` 用 `Record<RecallColumn, string>` 的取值表 + `RECALL_COLUMNS.map(...)` 拼接
- *    ⇒ 列数恒 == RECALL_COLUMNS.length，列序恒 == 数组顺序；少给一列 tsc 直接报错，
- *    往数组里加一列而取值表没跟上也直接报错；
+ * 四处都从它派生（或按它的顺序对齐），因此结构上不可能互相漂移：
+ *  - 渲染：`recallCells` 用 `Record<RecallColumn, string>` 的取值表 + `formatL1` 的
+ *    `RECALL_COLUMNS.map(...)` 拼接 ⇒ 列数恒 == RECALL_COLUMNS.length，列序恒 == 数组顺序；
+ *    少给一列 tsc 直接报错，往数组里加一列而取值表没跟上也直接报错；
+ *  - 取值表键序：`recallCells` 的字面量键序（由 test/columns.test.mjs 运行时断言钉住）；
+ *  - 结构化行：`L1Row` 的字段序与输出 schema 里 `rows.properties` 的键序（同样由该用例钉住）；
  *  - 工具描述：memory_recall 的 description 里那串列清单是 `${RECALL_COLUMNS.join(' | ')}`；
  *  - 表头：`列序:${RECALL_COLUMNS.join('|')}`。
  *
@@ -99,13 +101,16 @@ export interface ExpandedRecord {
  * 一条 L1 的打分视图。**注意是两种标度，表头必须写清**：
  *  - `rel`   = BM25 **原始相关度**（绝对标度，不随批次归一化），`match` 就是拿它与阈值比出来的
  *              ⇒ 读者可用打印的 rel 自行验算 match（I1.3 自证要求）；
- *  - `score` = `disp(final)` 映射到 0..1 的**展示分**（仅用于排序展示，与 rel 不同标度）。
+ *  - `score` = `disp(final)` 映射到 0..1 的**展示分**（仅用于排序展示，与 rel 不同标度），
+ *              其中 `final = (rel + graph) × 多样性因子`。多样性因子 = `1 − β·maxSim`
+ *              （β 默认 0.3、maxSim = 与已选行的最大标签 Jaccard），**只在候选数 > 5 时施加**
+ *              （否则恒为 1）⇒ 多样性启用时 `score` 无法仅由打印的 rel/graph 精确复算。
  * I3 追加两列诊断：`graph`（图奖励，已应用硬上限）与 `via`（来源：direct / tag:<标签>）。
  * 列序**不在这里重复**：唯一来源是 `RECALL_COLUMNS`（`RECALL_COLUMNS.join(' | ')`），
  * 渲染见 formatL1、工具文案见 memory_recall 的 description、表头见下面构造处的「列序:」段。
  */
 export interface L1ScoreView {
-  /** 含多样性惩罚的最终展示分 disp(final)；列表按它降序 ⇒ 打印天然单调不增。 */
+  /** 最终展示分 disp(final)（final=(rel+graph)×多样性因子；按它降序 ⇒ 打印天然单调不增）。 */
   score: number
   /** 惩罚前的 BM25 原始相关度（**判定 match 所依据的量**；与 score 不同标度）。 */
   rel: number
@@ -119,17 +124,23 @@ export interface L1ScoreView {
   via: string
 }
 
-/** 召回的结构化行（与 lines 一一对应，便于消费方不用解析字符串）。 */
+/**
+ * 召回的结构化行（与 lines 一一对应，便于消费方不用解析字符串）。
+ *
+ * 字段序**必须**与 `RECALL_COLUMNS` 一致（同一份列清单不养第二个顺序）：本次对账把 I3 遗留的
+ * 旧序（`… rel, cov, match, graph, via, score`）对齐到打印列序。纯顺序调整 —— 字段名/类型/
+ * 必填性一个字不改；由 test/columns.test.mjs 的 `Object.keys(rows.properties)` 断言钉住。
+ */
 export interface L1Row {
   id: string
   kind: string
   title: string
   tags: string[]
+  graph: number
+  via: string
   rel: number
   cov: number
   match: MatchLevel
-  graph: number
-  via: string
   score: number
 }
 
@@ -149,12 +160,25 @@ export interface L1Row {
  *    （列序 / rel 语义与 match 依据 / 两个阈值 / disp(final) 公式与两个标度常数 / limit 是硬显示
  *    上限 / I2 结论 novelty·阈值·expanded·kBase->kUsed / 低置信 cov_max·激活阈值 / I3 结论
  *    final=rel+graph·graph 硬上限·图规模·枢纽被压数·reachable），详见下面构造处的注释；
- *  - final = rel + graph（再乘多样性惩罚）；rel = **BM25 原始相关度**（match 只依据它）。
+ *  - final = (rel + graph) × 多样性因子：多样性因子只在候选数 > 5 时施加（否则恒为 1），
+ *    因此**多样性启用时 score 无法仅由打印的 rel/graph 精确复算**；rel = BM25 原始相关度
+ *    （match 只依据它，恒可由 rel + 表头阈值复算）。
  */
 export function formatL1(rec: MemoryRecord, view: L1ScoreView): string {
-  // 取值表按**列名**给全：`Record<RecallColumn, string>` 是穷尽性检查 ——
-  // RECALL_COLUMNS 少改/多加一列而这里没跟着改，tsc 立刻报错（不是运行时静默漂移）。
-  const cells: Record<RecallColumn, string> = {
+  const cells = recallCells(rec, view)
+  // 列数与列序**只**由 RECALL_COLUMNS 决定（含「score 恒在末位」）。
+  return RECALL_COLUMNS.map((col) => cells[col]).join(RECALL_COLUMN_SEP)
+}
+
+/**
+ * L1 行的**取值表**（列名 → 打印文本）。抽成独立函数是为了让「键序」也能被运行时断言：
+ * `Object.keys(recallCells(...))` 必须逐项等于 `RECALL_COLUMNS`（test/columns.test.mjs）。
+ *
+ * 取值表按**列名**给全：`Record<RecallColumn, string>` 是穷尽性检查 ——
+ * RECALL_COLUMNS 少改/多加一列而这里没跟着改，tsc 立刻报错（不是运行时静默漂移）。
+ */
+export function recallCells(rec: MemoryRecord, view: L1ScoreView): Record<RecallColumn, string> {
+  return {
     id: rec.id,
     kind: rec.kind,
     title: rec.title,
@@ -166,8 +190,6 @@ export function formatL1(rec: MemoryRecord, view: L1ScoreView): string {
     match: view.match,
     score: view.score.toFixed(4),
   }
-  // 列数与列序**只**由 RECALL_COLUMNS 决定（含「score 恒在末位」）。
-  return RECALL_COLUMNS.map((col) => cells[col]).join(RECALL_COLUMN_SEP)
 }
 
 /**
@@ -344,10 +366,16 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
     description: '按查询召回记忆索引（L1）。每条一行：'
       + `${RECALL_COLUMNS.join(' | ')}。`
       + '**绝不返回 body**：要正文请拿 id 调 memory_expand。'
-      + 'score 是含多样性惩罚的最终分（按它降序，映射到 0..1 的展示标度，不随批次归一化）；'
-      + 'rel 是 BM25 原始相关度（**阈值直接作用于它**，可据此自行验算 match）；'
-      + 'cov 是标签覆盖率（仅诊断）；match 是绝对判定 none/weak/strong（由 rel 与绝对阈值比较得出）。'
-      + '与库无关的查询不会拿到满分：无证据候选 rel/score 均为 0.0000、match=none（只奖不罚，不整批否决）。'
+      + 'rel 是 BM25 原始相关度（**阈值直接作用于它**）；cov 是标签覆盖率（仅诊断）；'
+      + 'match 是绝对判定 none/weak/strong（由 rel 与绝对阈值比较得出，**始终可由打印的 rel + 表头阈值复算**）。'
+      + 'score=disp(final) 是映射到 0..1 的展示分（按它降序，不随批次归一化）；'
+      + 'final=(rel+graph)×多样性因子（因子=1-β×maxSim，β 默认 0.3、maxSim 是该行与已选行的最大标签 Jaccard 相似度），'
+      + '多样性因子**仅当候选数 > 5 时施加**（候选 <= 5 时 final=rel+graph、score=disp(rel+graph)；是否施加见结构化字段 diversityApplied）；'
+      + '因此多样性被启用时，score **无法仅由打印出的 rel/graph 精确复算**（β 与 maxSim 都不在打印列里）。'
+      + 'graph 是标签图传播给的**辅助**奖励（有硬上限 graphBonusCap，不会压过词法相关度）；'
+      + 'via 是该行来源：direct（词法直接命中）或 tag:<标签>（由该标签的图传播到达）。'
+      + '与库无关的查询不会拿到满分：无**词法**证据时 rel=0；仅由标签图到达的记录 graph>0、via=tag:<标签>，'
+      + '其 score 取决于标度常数（可能为 0 也可能 >0）；match=none（只奖不罚，不整批否决）。'
       + 'I2 分诊：以候选标签向量为基、在标签 idf 词法空间里做 Gram-Schmidt 残差金字塔，'
       + '得到 novelty（0.7×残差能量比 + 0.3×方向一致性）并据此决定是否扩检索。'
       + '**limit 是硬显示上限**：返回行数恒为 min(limit, 可用候选数)，扩检索只放大**内部**召回预算 '
@@ -447,6 +475,11 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
           rows: {
             type: 'array',
             required: true,
+            /**
+             * 键序必须与 `RECALL_COLUMNS` 一致（同一份列清单不养第二个顺序）：本次对账把 I3 遗留的
+             * 旧序对齐到打印列序。纯顺序调整 —— 字段名/类型/必填性一个字不改；
+             * 由 test/columns.test.mjs 的 `Object.keys(rows.properties)` 断言钉住。
+             */
             items: {
               type: 'object',
               additionalProperties: false,
@@ -455,11 +488,11 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
                 kind: { type: 'string', required: true },
                 title: { type: 'string', required: true },
                 tags: { type: 'array', items: { type: 'string' }, required: true },
+                graph: { type: 'number', required: true },
+                via: { type: 'string', required: true },
                 rel: { type: 'number', required: true },
                 cov: { type: 'number', required: true },
                 match: { type: 'string', required: true },
-                graph: { type: 'number', required: true },
-                via: { type: 'string', required: true },
                 score: { type: 'number', required: true },
               },
             },
@@ -626,15 +659,17 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
         }
         lines.push(formatL1(rec, view))
         rows.push({
+          // 键序与 RECALL_COLUMNS / schema rows.properties 一致（同一份列清单不养第二个顺序）：
+          // 纯顺序调整，字段名/类型一个字不改，也不影响 lines/text。
           id: rec.id,
           kind: rec.kind,
           title: rec.title,
           tags: [...rec.tags],
+          graph: view.graph,
+          via: view.via,
           rel: view.rel,
           cov: view.cov,
           match: view.match,
-          graph: view.graph,
-          via: view.via,
           score: view.score,
         })
       }
@@ -651,12 +686,21 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
       // 必须保留（一个都不能少，理由见括号）：
       //   ① 列序（RECALL_COLUMNS 的列名与顺序，由它派生）——行按 ` | ` 切片读列，列序本身就是契约；
       //   ② rel=BM25 原始相关度、且是 match 的判定依据——否则 match 无法复算；
-      //   ③ match 两个阈值数字——复算 none/weak/strong 唯一依据；
+      //   ③ match 两个阈值数字 + 否则 none + (恒可复算)——复算 none/weak/strong 的唯一依据；
       //   ④ score=disp(final) 的公式与两个标度常数——复算展示分的唯一依据；
       //   ⑤ limit 是硬显示上限——防止把「内部候选池预算」误读成显示上限；
       //   ⑥ I2 结论：novelty、novelty 阈值、expanded、kBase->kUsed——复算 expanded；
       //   ⑦ 低置信：cov_max 与激活阈值——复算 lowConfidence；
-      //   ⑧ I3 结论：final=rel+graph、graph 硬上限、图规模、枢纽被压数量、reachable——复算排序。
+      //   ⑧ I3 结论：final=rel+graph、graph 硬上限、图规模、枢纽被压数量、reachable——复算排序；
+      //   ⑨ 多样性（本次对账补上）：final=(rel+graph)×多样性因子、因子**只在候选 > 5 时施加**，
+      //      以及「多样性开时 score 无法仅由打印的 rel/graph 复算」——否则读者会以为
+      //      score 恒等于 disp(rel+graph)（这正是旧表头漏掉多样性的那处不成立表述）。
+      //
+      // 为腾出 ⑨ 与「match 恒可复算」的字符预算，本次同时压掉（都不是复算必需项）：
+      //   - limit 段的 `(min(limit,候选数))`（min 语义仍在工具描述与 structured `shown` 上）；
+      //   - 行首的 `记忆召回` 前缀与 `库N`（`L1:` 已足以自证；库容在结构化字段 total 上）；
+      //   - 未分诊分支的 `(‖q‖²≈0)` 与 `阈值 X 不门控`（原因在结构化字段 noQueryEnergy 上，
+      //     且该分支不门控 ⇒ 阈值数字本来就不参与复算）。
       //
       // 压掉的（这些量**一个都没删**，仍逐字在结构化返回字段/rows 里，本来就不占文本预算）：
       //   - 解释性 prose（「返回行数恒为…」「仅用于排序展示」「不扣分」这类长句）；
@@ -664,11 +708,12 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
       //   - 重复出现的「内部候选池预算」解释（kUsed 的语义只保留在结构化字段 kUsed 上）；
       //   - 非结论性诊断：basisSize/layers/logicalDepth、explainedRatio+residualRatio 守恒式、
       //     maxHops/maxStates/maxFieldNeighbors/gamma/rho、种子数/到达标签数/展开状态数/跳数、
-      //     枢纽名单、以及多样性 beta（MMR 的 beta 要配整份候选集才能复算，单列它复算不了）。
+      //     枢纽名单、以及多样性 beta（MMR 的 beta 要配整份候选集才能复算，单列它复算不了；
+      //     现在由 ⑨ 如实说明「开时不可由 rel/graph 复算」，不再假装 score 只由 rel/graph 决定）。
       // 另：旧表头那句「本次显示 N 条」在截断时**是错的**（打印的是 fitLines 之前的行数），
       //     本次直接删掉；真实显示行数由结构化字段 shown 与截断附注如实给出。
       const triageSeg = triage.noQueryEnergy
-        ? `I2:未分诊(‖q‖²≈0):novelty=0.0000,阈值 ${triageCfg.noveltyThreshold} 不门控,expanded=false,`
+        ? `I2:未分诊:novelty=0,阈值不门控,expanded=false,`
           + `kBase=${kBase} -> kUsed=${kUsed},0/0`
         : `I2:novelty=${triage.novelty.toFixed(4)} ${expanded ? '>=' : '<'} 阈值 ${triageCfg.noveltyThreshold},expanded=${expanded}，`
           + `kBase=${kBase} -> kUsed=${kUsed}`
@@ -679,15 +724,15 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
       const hubSuppressedCount = tagGraph.hubSuppressed.length
       const reachableWithGraph = rewardList.filter((x) => x.bonus > 0).length
 
-      const header = `记忆召回L1:query=${JSON.stringify(query)} 库${records.length} 候选${fused.length};`
-        + `limit=${limit} 是硬显示上限(min(limit,候选数));`
+      const header = `L1:query=${JSON.stringify(query)} 候选${fused.length};`
+        + `limit=${limit} 是硬显示上限;`
         + `列序:${RECALL_COLUMNS.join('|')};`
         + 'rel=BM25原始相关度,match 依据;'
         + `score=disp(final)=clip((final-${scoreCfg.scaleA})/(${scoreCfg.scaleB}-${scoreCfg.scaleA}));`
-        + `match:rel>=${scoreCfg.weak} weak、>=${scoreCfg.strong} strong、否则 none;`
+        + `match:rel>=${scoreCfg.weak} weak、>=${scoreCfg.strong} strong、否则 none(恒可复算);`
         + `${triageSeg};`
         + `${lowConfSeg};`
-        + `I3:final=rel+graph，graph硬上限<=${graphCfg.bonusCap}，图${graphSize.nodes}节点/${graphSize.edges}边，`
+        + `I3:final=rel+graph×多样性(候选>5时启用,开时不可由 rel/graph 复算)，graph硬上限<=${graphCfg.bonusCap}，图${graphSize.nodes}节点/${graphSize.edges}边，`
         + `枢纽被压${hubSuppressedCount}，reachable=${reachable}`
       const fitted = fitLines(header, lines, RECALL_MAX_CHARS)
       const text = records.length === 0

@@ -7,7 +7,10 @@
 // 其中 5 个就是这个原因（被迫把「8 行」改成「6 行」、把夹具标题压短）。
 //
 // 本文件钉住两件事（互为反向）：
-//   ① 表头只留「可复算所必需」的信息，且 <= 400 字符 —— 防减肥**减过头**（把复算依据删了）；
+//   ① 表头只留「可复算所必需」的信息，且 <= 400 字符 —— 防减肥**减过头**（把复算依据删了）。
+//      收尾对账后这一条还包含 ⑨ 多样性口径：final=(rel+graph)×多样性因子、因子只在候选 > 5 时
+//      施加、且如实说明「开时 score 无法仅由打印的 rel/graph 复算」（旧表头只写 final=rel+graph，
+//      等于向读者承诺 score 恒等于 disp(rel+graph)）；
 //   ② 显示行数只由 limit 与行长决定，与标度常数（连它们的小数位长度）无关 —— 防表头**长回去**。
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
@@ -63,6 +66,18 @@ test('I5 表头自检：单行、<= 400 字符，且可复算信息一个都不�
   assert.match(header, /图[0-9]+节点\/[0-9]+边/, `表头必须回显图规模：${header}`)
   assert.ok(header.includes('枢纽被压'), `表头必须回显枢纽被压数量：${header}`)
   assert.ok(header.includes(`reachable=${r.reachable}`), `表头必须回显 reachable：${header}`)
+  // ⑨ 多样性（本次对账补上）：final=(rel+graph)×多样性因子、因子只在候选 > 5 时施加，
+  //    且必须如实说明「多样性开时 score 无法仅由打印的 rel/graph 复算」——旧表头只写
+  //    final=rel+graph，等于向读者承诺 score 恒等于 disp(rel+graph)（判红点：改回旧句 ⇒ 本条变红）。
+  assert.ok(header.includes('final=rel+graph×多样性'),
+    `表头必须写明 final=(rel+graph)×多样性因子：${header}`)
+  assert.ok(header.includes('候选>5时启用'),
+    `表头必须写明多样性只在候选 > 5 时施加：${header}`)
+  assert.ok(header.includes('开时不可由 rel/graph 复算'),
+    `表头必须如实说明"多样性开时 score 不能仅由 rel/graph 复算"：${header}`)
+  // match 的恒可复算同样必须在表头（判红点：删掉 (恒可复算) ⇒ 本条变红）
+  assert.ok(header.includes('否则 none(恒可复算)'),
+    `表头必须写明 match 恒可由 rel + 阈值复算：${header}`)
 
   // 反向（防回涨）：非结论性诊断不得再占表头字符预算——它们仍逐字在结构化返回字段/rows 里。
   for (const gone of ['basisSize=', 'layers=', 'logicalDepth=', 'explainedRatio=', 'residualRatio=',

@@ -1,0 +1,46 @@
+✔ I6 单点真相：列清单自身的形状（首列 id、末列 score、无重复、分隔符带空格） (1.708438ms)
+✔ I6 防漂 1（判红点：把描述里的列清单改回旧的 8 列硬编码串 ⇒ 本条变红）：描述与列清单同源 (6.994323ms)
+✔ I6 防漂 2（判红点：让 formatL1 少渲染一列 / 调换列序 ⇒ 本条变红）：渲染行与列清单一致 (81.712812ms)
+✔ I6 防漂 3（判红点：把 schema 里 rel/cov 两个键换回 tags 之后（旧序）⇒ 本条变红）：rows.properties 键序 === RECALL_COLUMNS (12.827031ms)
+✖ I6 防漂 4（判红点：把 recallCells 字面量里两个键换位 ⇒ 本条变红）：取值表键序与真实 rows 键序都必须 === RECALL_COLUMNS (87.80401ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 4
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 204.642812
+
+✖ failing tests:
+
+test at test/columns.test.mjs:107:1
+✖ I6 防漂 4（判红点：把 recallCells 字面量里两个键换位 ⇒ 本条变红）：取值表键序与真实 rows 键序都必须 === RECALL_COLUMNS (87.80401ms)
+  AssertionError [ERR_ASSERTION]: 真实 rows 的键序（JSON 顺序）必须等于 RECALL_COLUMNS：id|kind|title|tags|rel|cov|match|graph|via|score
+  + actual - expected
+  
+    [
+      'id',
+      'kind',
+      'title',
+      'tags',
+  -   'graph',
+  -   'via',
+      'rel',
+      'cov',
+      'match',
+  +   'graph',
+  +   'via',
+      'score'
+    ]
+  
+      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/columns.test.mjs:131:12)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [Array],
+    expected: [Array],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

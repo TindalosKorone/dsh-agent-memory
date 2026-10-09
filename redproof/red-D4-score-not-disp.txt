@@ -1,0 +1,45 @@
+✔ I3 图：有序双向边（(A->B) 与 (B->A) 分别计数，绝不合成一个数；对称视图可另行取到） (3.038802ms)
+✔ I3 图：边权 log(1+λW) 压缩（禁止线性累加），且两个方向各自压缩后再相加 (0.631719ms)
+✔ I3 图：出流预算（每节点 Σ出边权 <= m_out）与枢纽校正 (频次/中位数)^-η (2.033177ms)
+✔ I3 图：入度与全局频次都能取到；出边按（权降序 → 码元升序）稳定排序 (0.441875ms)
+✔ I3 传播：跳数上限 / 每节点最强出边上限 / 立即回流抑制（不许沿刚来的那条边原路返回） (1.027552ms)
+✔ I3 传播：maxStates 硬上限（状态数绝不超限，撞上时如实标记） (16.88276ms)
+✔ I3 传播：确定性（同一图 + 同一批种子重复调用，逐字段完全相同） (1.030312ms)
+✔ I3 奖励：硬上限 GRAPH_BONUS_CAP；无证据恰好为 0；取 max 不取和 (0.744687ms)
+✔ I3 工具层：行内 graph/via 与结构化行一致，final=rel+graph 可用打印值复算，score 仍在行尾 (215.94526ms)
+✔ I3 工具层：limit 仍是硬显示上限；空查询图面全静默；无词法证据也不整批否决 (216.992448ms)
+✖ I3 图到达不变量（判红点：关掉传播 maxHops=0 ⇒ (a) 变红；把 via/graph 的产出清掉 ⇒ (c)(d) 变红）：仅由标签图到达的行 rel=0/graph>0/via=tag:/match=none，且 score 与 absoluteDisp(rel+graph) 一致 (112.462604ms)
+✔ I3 工具层：2000 条规模下工作量有界（图与传播都是线性量级，不许 O(n²) 爆炸） (188.494115ms)
+✔ 红证 1（判红点：关掉传播 maxHops=0 或跳过图奖励 ⇒ 本条变红）：与查询无词法重合、但共享标签的记忆必须被召回 (209.288958ms)
+✔ 红证 2（判红点：去掉枢纽校正 hubEta=0 ⇒ 判据变红）：万能标签被压住，不许淹没词法最强那条 (266.991302ms)
+✔ 红证 3（判红点：放开某个上限 ⇒ 本条变红）：maxStates / maxHops / maxFieldNeighbors 逐条断言 (2275.368957ms)
+✔ 红证 4（判红点：邻居遍历改成非确定序 ⇒ 本条变红）：同一库 + 同一查询两次调用，行文本逐字节相同 (202.985208ms)
+✔ 红证 5（判红点：把图/传播状态提到模块级复用 ⇒ 本条变红）：请求级隔离 (348.275989ms)
+✔ I3 口径：模块级默认常数、可配置覆盖、非法值回落（解析本身不抛） (1.004687ms)
+ℹ tests 18
+ℹ suites 0
+ℹ pass 17
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4073.741822
+
+✖ failing tests:
+
+test at test/graph.test.mjs:379:1
+✖ I3 图到达不变量（判红点：关掉传播 maxHops=0 ⇒ (a) 变红；把 via/graph 的产出清掉 ⇒ (c)(d) 变红）：仅由标签图到达的行 rel=0/graph>0/via=tag:/match=none，且 score 与 absoluteDisp(rel+graph) 一致 (112.462604ms)
+  AssertionError [ERR_ASSERTION]: score 必须 = absoluteDisp(rel+graph)（多样性不施加时）：rel=0 graph=0.018
+  
+  0.0001 !== 0
+  
+      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/graph.test.mjs:419:10)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0.0001,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

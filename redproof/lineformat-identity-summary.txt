@@ -1,0 +1,15 @@
+{
+ "cases": 7,
+ "sameLines": 7,
+ "diffLines": 0,
+ "sameRows": 7,
+ "diffRows": 0,
+ "sameHeader": 0,
+ "diffHeader": 7,
+ "oldKeyOrders": [
+  "id|kind|title|tags|rel|cov|match|graph|via|score"
+ ],
+ "newKeyOrders": [
+  "id|kind|title|tags|graph|via|rel|cov|match|score"
+ ]
+}

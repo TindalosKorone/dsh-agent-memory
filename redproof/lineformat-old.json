@@ -1,0 +1,127 @@
+[
+ {
+  "case": 0,
+  "query": "alpha",
+  "limit": 5,
+  "shown": 5,
+  "truncated": false,
+  "diversityApplied": true,
+  "header": "记忆召回L1:query=\"alpha\" 库7 候选7;limit=5 是硬显示上限(min(limit,候选数));列序:id|kind|title|tags|graph|via|rel|cov|match|score;rel=BM25原始相关度,match 依据;score=disp(final)=clip((final-0.0187)/(0.342-0.0187));match:rel>=0.0363 weak、>=0.1476 strong、否则 none;I2:novelty=0.0000 < 阈值 0.5,expanded=false，kBase=5 -> kUsed=5;非低置信:cov_max=1.0000 >= 0.05;I3:final=rel+graph，graph硬上限<=0.018，图5节点/3边，枢纽被压0，reachable=3",
+  "lines": [
+   "mem_ff01 | fact | alpha focused note | alpha | 0.0180 | direct | 0.5205 | 1.0000 | strong | 1.0000",
+   "mem_ff04 | pointer | long alpha body note | alpha,gamma | 0.0180 | direct | 0.3469 | 0.4155 | strong | 0.9017",
+   "mem_ff02 | lesson | alpha secondary note | alpha,beta | 0.0180 | direct | 0.3248 | 0.4155 | strong | 0.8434",
+   "mem_ff05 | fact | delta standalone | delta | 0.0180 | tag:delta | 0.0000 | 0.0000 | none | 0.0000",
+   "mem_ff07 | lesson | gamma bridge note | gamma,delta | 0.0180 | tag:gamma | 0.0000 | 0.0000 | none | 0.0000"
+  ],
+  "rowsCanonical": "[{\"cov\":1,\"graph\":0.018,\"id\":\"mem_ff01\",\"kind\":\"fact\",\"match\":\"strong\",\"rel\":0.520478252403369,\"score\":1,\"tags\":[\"alpha\"],\"title\":\"alpha focused note\",\"via\":\"direct\"},{\"cov\":0.41545198812081297,\"graph\":0.018,\"id\":\"mem_ff04\",\"kind\":\"pointer\",\"match\":\"strong\",\"rel\":0.3469483383594582,\"score\":0.9016581738494879,\"tags\":[\"alpha\",\"gamma\"],\"title\":\"long alpha body note\",\"via\":\"direct\"},{\"cov\":0.41545198812081297,\"graph\":0.018,\"id\":\"mem_ff02\",\"kind\":\"lesson\",\"match\":\"strong\",\"rel\":0.32479481599598714,\"score\":0.8434135279820262,\"tags\":[\"alpha\",\"beta\"],\"title\":\"alpha secondary note\",\"via\":\"direct\"},{\"cov\":0,\"graph\":0.018,\"id\":\"mem_ff05\",\"kind\":\"fact\",\"match\":\"none\",\"rel\":0,\"score\":0,\"tags\":[\"delta\"],\"title\":\"delta standalone\",\"via\":\"tag:delta\"},{\"cov\":0,\"graph\":0.018,\"id\":\"mem_ff07\",\"kind\":\"lesson\",\"match\":\"none\",\"rel\":0,\"score\":0,\"tags\":[\"gamma\",\"delta\"],\"title\":\"gamma bridge note\",\"via\":\"tag:gamma\"}]",
+  "rowKeyOrder": "id|kind|title|tags|rel|cov|match|graph|via|score"
+ },
+ {
+  "case": 1,
+  "query": "alpha",
+  "limit": 2,
+  "shown": 2,
+  "truncated": false,
+  "diversityApplied": true,
+  "header": "记忆召回L1:query=\"alpha\" 库7 候选7;limit=2 是硬显示上限(min(limit,候选数));列序:id|kind|title|tags|graph|via|rel|cov|match|score;rel=BM25原始相关度,match 依据;score=disp(final)=clip((final-0.0187)/(0.342-0.0187));match:rel>=0.0363 weak、>=0.1476 strong、否则 none;I2:novelty=0.0000 < 阈值 0.5,expanded=false，kBase=2 -> kUsed=2;非低置信:cov_max=1.0000 >= 0.05;I3:final=rel+graph，graph硬上限<=0.018，图5节点/3边，枢纽被压0，reachable=3",
+  "lines": [
+   "mem_ff01 | fact | alpha focused note | alpha | 0.0180 | direct | 0.5205 | 1.0000 | strong | 1.0000",
+   "mem_ff04 | pointer | long alpha body note | alpha,gamma | 0.0180 | direct | 0.3469 | 0.4155 | strong | 0.9017"
+  ],
+  "rowsCanonical": "[{\"cov\":1,\"graph\":0.018,\"id\":\"mem_ff01\",\"kind\":\"fact\",\"match\":\"strong\",\"rel\":0.520478252403369,\"score\":1,\"tags\":[\"alpha\"],\"title\":\"alpha focused note\",\"via\":\"direct\"},{\"cov\":0.41545198812081297,\"graph\":0.018,\"id\":\"mem_ff04\",\"kind\":\"pointer\",\"match\":\"strong\",\"rel\":0.3469483383594582,\"score\":0.9016581738494879,\"tags\":[\"alpha\",\"gamma\"],\"title\":\"long alpha body note\",\"via\":\"direct\"}]",
+  "rowKeyOrder": "id|kind|title|tags|rel|cov|match|graph|via|score"
+ },
+ {
+  "case": 2,
+  "query": "delta gamma",
+  "limit": 7,
+  "shown": 7,
+  "truncated": false,
+  "diversityApplied": true,
+  "header": "记忆召回L1:query=\"delta gamma\" 库7 候选7;limit=7 是硬显示上限(min(limit,候选数));列序:id|kind|title|tags|graph|via|rel|cov|match|score;rel=BM25原始相关度,match 依据;score=disp(final)=clip((final-0.0187)/(0.342-0.0187));match:rel>=0.0363 weak、>=0.1476 strong、否则 none;I2:novelty=0.0000 < 阈值 0.5,expanded=false，kBase=7 -> kUsed=7;非低置信:cov_max=1.0000 >= 0.05;I3:final=rel+graph，graph硬上限<=0.018，图5节点/3边，枢纽被压0，reachable=0",
+  "lines": [
+   "mem_ff07 | lesson | gamma bridge note | gamma,delta | 0.0180 | direct | 0.3104 | 1.0000 | strong | 0.9580",
+   "mem_ff05 | fact | delta standalone | delta | 0.0180 | direct | 0.2706 | 1.0000 | strong | 0.7010",
+   "mem_ff04 | pointer | long alpha body note | alpha,gamma | 0.0180 | direct | 0.0801 | 0.5845 | weak | 0.2152",
+   "mem_ff06 | fact | omega noise item | omega | 0.0000 | direct | 0.0000 | 0.0000 | none | 0.0000",
+   "mem_ff03 | preference | plain beta record | beta | 0.0000 | direct | 0.0000 | 0.0000 | none | 0.0000",
+   "mem_ff02 | lesson | alpha secondary note | alpha,beta | 0.0000 | direct | 0.0000 | 0.0000 | none | 0.0000",
+   "mem_ff01 | fact | alpha focused note | alpha | 0.0000 | direct | 0.0000 | 0.0000 | none | 0.0000"
+  ],
+  "rowsCanonical": "[{\"cov\":1,\"graph\":0.018,\"id\":\"mem_ff07\",\"kind\":\"lesson\",\"match\":\"strong\",\"rel\":0.3104342838419937,\"score\":0.9580398510423559,\"tags\":[\"gamma\",\"delta\"],\"title\":\"gamma bridge note\",\"via\":\"direct\"},{\"cov\":1,\"graph\":0.018,\"id\":\"mem_ff05\",\"kind\":\"fact\",\"match\":\"strong\",\"rel\":0.2706143936488954,\"score\":0.7009657735897342,\"tags\":[\"delta\"],\"title\":\"delta standalone\",\"via\":\"direct\"},{\"cov\":0.584548011879187,\"graph\":0.018,\"id\":\"mem_ff04\",\"kind\":\"pointer\",\"match\":\"weak\",\"rel\":0.08007321246181986,\"score\":0.21517442380339585,\"tags\":[\"alpha\",\"gamma\"],\"title\":\"long alpha body note\",\"via\":\"direct\"},{\"cov\":0,\"graph\":0,\"id\":\"mem_ff06\",\"kind\":\"fact\",\"match\":\"none\",\"rel\":0,\"score\":0,\"tags\":[\"omega\"],\"title\":\"omega noise item\",\"via\":\"direct\"},{\"cov\":0,\"graph\":0,\"id\":\"mem_ff03\",\"kind\":\"preference\",\"match\":\"none\",\"rel\":0,\"score\":0,\"tags\":[\"beta\"],\"title\":\"plain beta record\",\"via\":\"direct\"},{\"cov\":0,\"graph\":0,\"id\":\"mem_ff02\",\"kind\":\"lesson\",\"match\":\"none\",\"rel\":0,\"score\":0,\"tags\":[\"alpha\",\"beta\"],\"title\":\"alpha secondary note\",\"via\":\"direct\"},{\"cov\":0,\"graph\":0,\"id\":\"mem_ff01\",\"kind\":\"fact\",\"match\":\"none\",\"rel\":0,\"score\":0,\"tags\":[\"alpha\"],\"title\":\"alpha focused note\",\"via\":\"direct\"}]",
+  "rowKeyOrder": "id|kind|title|tags|rel|cov|match|graph|via|score"
+ },
+ {
+  "case": 3,
+  "query": "zeta 无关查询",
+  "limit": 5,
+  "shown": 5,
+  "truncated": false,
+  "diversityApplied": true,
+  "header": "记忆召回L1:query=\"zeta 无关查询\" 库7 候选7;limit=5 是硬显示上限(min(limit,候选数));列序:id|kind|title|tags|graph|via|rel|cov|match|score;rel=BM25原始相关度,match 依据;score=disp(final)=clip((final-0.0187)/(0.342-0.0187));match:rel>=0.0363 weak、>=0.1476 strong、否则 none;I2:novelty=1.0000 >= 阈值 0.5,expanded=true，kBase=5 -> kUsed=7;低置信:cov_max=0.0000 < 0.05;I3:final=rel+graph，graph硬上限<=0.018，图5节点/3边，枢纽被压0，reachable=0",
+  "lines": [
+   "mem_ff07 | lesson | gamma bridge note | gamma,delta | 0.0000 | direct | 0.0000 | 0.0000 | none | 0.0000",
+   "mem_ff06 | fact | omega noise item | omega | 0.0000 | direct | 0.0000 | 0.0000 | none | 0.0000",
+   "mem_ff05 | fact | delta standalone | delta | 0.0000 | direct | 0.0000 | 0.0000 | none | 0.0000",
+   "mem_ff04 | pointer | long alpha body note | alpha,gamma | 0.0000 | direct | 0.0000 | 0.0000 | none | 0.0000",
+   "mem_ff03 | preference | plain beta record | beta | 0.0000 | direct | 0.0000 | 0.0000 | none | 0.0000"
+  ],
+  "rowsCanonical": "[{\"cov\":0,\"graph\":0,\"id\":\"mem_ff07\",\"kind\":\"lesson\",\"match\":\"none\",\"rel\":0,\"score\":0,\"tags\":[\"gamma\",\"delta\"],\"title\":\"gamma bridge note\",\"via\":\"direct\"},{\"cov\":0,\"graph\":0,\"id\":\"mem_ff06\",\"kind\":\"fact\",\"match\":\"none\",\"rel\":0,\"score\":0,\"tags\":[\"omega\"],\"title\":\"omega noise item\",\"via\":\"direct\"},{\"cov\":0,\"graph\":0,\"id\":\"mem_ff05\",\"kind\":\"fact\",\"match\":\"none\",\"rel\":0,\"score\":0,\"tags\":[\"delta\"],\"title\":\"delta standalone\",\"via\":\"direct\"},{\"cov\":0,\"graph\":0,\"id\":\"mem_ff04\",\"kind\":\"pointer\",\"match\":\"none\",\"rel\":0,\"score\":0,\"tags\":[\"alpha\",\"gamma\"],\"title\":\"long alpha body note\",\"via\":\"direct\"},{\"cov\":0,\"graph\":0,\"id\":\"mem_ff03\",\"kind\":\"preference\",\"match\":\"none\",\"rel\":0,\"score\":0,\"tags\":[\"beta\"],\"title\":\"plain beta record\",\"via\":\"direct\"}]",
+  "rowKeyOrder": "id|kind|title|tags|rel|cov|match|graph|via|score"
+ },
+ {
+  "case": 4,
+  "query": "   ",
+  "limit": 5,
+  "shown": 5,
+  "truncated": false,
+  "diversityApplied": true,
+  "header": "记忆召回L1:query=\"   \" 库7 候选7;limit=5 是硬显示上限(min(limit,候选数));列序:id|kind|title|tags|graph|via|rel|cov|match|score;rel=BM25原始相关度,match 依据;score=disp(final)=clip((final-0.0187)/(0.342-0.0187));match:rel>=0.0363 weak、>=0.1476 strong、否则 none;I2:未分诊(‖q‖²≈0):novelty=0.0000,阈值 0.5 不门控,expanded=false,kBase=5 -> kUsed=5,0/0;低置信:cov_max=0.0000 < 0.05;I3:final=rel+graph，graph硬上限<=0.018，图5节点/3边，枢纽被压0，reachable=0",
+  "lines": [
+   "mem_ff07 | lesson | gamma bridge note | gamma,delta | 0.0000 | direct | 0.0000 | 0.0000 | none | 0.0000",
+   "mem_ff06 | fact | omega noise item | omega | 0.0000 | direct | 0.0000 | 0.0000 | none | 0.0000",
+   "mem_ff05 | fact | delta standalone | delta | 0.0000 | direct | 0.0000 | 0.0000 | none | 0.0000",
+   "mem_ff04 | pointer | long alpha body note | alpha,gamma | 0.0000 | direct | 0.0000 | 0.0000 | none | 0.0000",
+   "mem_ff03 | preference | plain beta record | beta | 0.0000 | direct | 0.0000 | 0.0000 | none | 0.0000"
+  ],
+  "rowsCanonical": "[{\"cov\":0,\"graph\":0,\"id\":\"mem_ff07\",\"kind\":\"lesson\",\"match\":\"none\",\"rel\":0,\"score\":0,\"tags\":[\"gamma\",\"delta\"],\"title\":\"gamma bridge note\",\"via\":\"direct\"},{\"cov\":0,\"graph\":0,\"id\":\"mem_ff06\",\"kind\":\"fact\",\"match\":\"none\",\"rel\":0,\"score\":0,\"tags\":[\"omega\"],\"title\":\"omega noise item\",\"via\":\"direct\"},{\"cov\":0,\"graph\":0,\"id\":\"mem_ff05\",\"kind\":\"fact\",\"match\":\"none\",\"rel\":0,\"score\":0,\"tags\":[\"delta\"],\"title\":\"delta standalone\",\"via\":\"direct\"},{\"cov\":0,\"graph\":0,\"id\":\"mem_ff04\",\"kind\":\"pointer\",\"match\":\"none\",\"rel\":0,\"score\":0,\"tags\":[\"alpha\",\"gamma\"],\"title\":\"long alpha body note\",\"via\":\"direct\"},{\"cov\":0,\"graph\":0,\"id\":\"mem_ff03\",\"kind\":\"preference\",\"match\":\"none\",\"rel\":0,\"score\":0,\"tags\":[\"beta\"],\"title\":\"plain beta record\",\"via\":\"direct\"}]",
+  "rowKeyOrder": "id|kind|title|tags|rel|cov|match|graph|via|score"
+ },
+ {
+  "case": 5,
+  "query": "alpha",
+  "limit": 5,
+  "shown": 5,
+  "truncated": false,
+  "diversityApplied": true,
+  "header": "记忆召回L1:query=\"alpha\" 库7 候选7;limit=5 是硬显示上限(min(limit,候选数));列序:id|kind|title|tags|graph|via|rel|cov|match|score;rel=BM25原始相关度,match 依据;score=disp(final)=clip((final-0.0187)/(0.342-0.0187));match:rel>=0.0363 weak、>=0.1476 strong、否则 none;I2:novelty=0.0000 < 阈值 0.5,expanded=false，kBase=5 -> kUsed=5;非低置信:cov_max=1.0000 >= 0.05;I3:final=rel+graph，graph硬上限<=0.018，图5节点/3边，枢纽被压0，reachable=0",
+  "lines": [
+   "mem_ff01 | fact | alpha focused note | alpha | 0.0000 | direct | 0.5205 | 1.0000 | strong | 1.0000",
+   "mem_ff04 | pointer | long alpha body note | alpha,gamma | 0.0000 | direct | 0.3469 | 0.4155 | strong | 0.8543",
+   "mem_ff02 | lesson | alpha secondary note | alpha,beta | 0.0000 | direct | 0.3248 | 0.4155 | strong | 0.7961",
+   "mem_ff07 | lesson | gamma bridge note | gamma,delta | 0.0000 | direct | 0.0000 | 0.0000 | none | 0.0000",
+   "mem_ff06 | fact | omega noise item | omega | 0.0000 | direct | 0.0000 | 0.0000 | none | 0.0000"
+  ],
+  "rowsCanonical": "[{\"cov\":1,\"graph\":0,\"id\":\"mem_ff01\",\"kind\":\"fact\",\"match\":\"strong\",\"rel\":0.520478252403369,\"score\":1,\"tags\":[\"alpha\"],\"title\":\"alpha focused note\",\"via\":\"direct\"},{\"cov\":0.41545198812081297,\"graph\":0,\"id\":\"mem_ff04\",\"kind\":\"pointer\",\"match\":\"strong\",\"rel\":0.3469483383594582,\"score\":0.8543337074096489,\"tags\":[\"alpha\",\"gamma\"],\"title\":\"long alpha body note\",\"via\":\"direct\"},{\"cov\":0.41545198812081297,\"graph\":0,\"id\":\"mem_ff02\",\"kind\":\"lesson\",\"match\":\"strong\",\"rel\":0.32479481599598714,\"score\":0.796089061542187,\"tags\":[\"alpha\",\"beta\"],\"title\":\"alpha secondary note\",\"via\":\"direct\"},{\"cov\":0,\"graph\":0,\"id\":\"mem_ff07\",\"kind\":\"lesson\",\"match\":\"none\",\"rel\":0,\"score\":0,\"tags\":[\"gamma\",\"delta\"],\"title\":\"gamma bridge note\",\"via\":\"direct\"},{\"cov\":0,\"graph\":0,\"id\":\"mem_ff06\",\"kind\":\"fact\",\"match\":\"none\",\"rel\":0,\"score\":0,\"tags\":[\"omega\"],\"title\":\"omega noise item\",\"via\":\"direct\"}]",
+  "rowKeyOrder": "id|kind|title|tags|rel|cov|match|graph|via|score"
+ },
+ {
+  "case": 6,
+  "query": "alpha",
+  "limit": 5,
+  "shown": 5,
+  "truncated": false,
+  "diversityApplied": true,
+  "header": "记忆召回L1:query=\"alpha\" 库7 候选7;limit=5 是硬显示上限(min(limit,候选数));列序:id|kind|title|tags|graph|via|rel|cov|match|score;rel=BM25原始相关度,match 依据;score=disp(final)=clip((final-0)/(0.342-0));match:rel>=0.0363 weak、>=0.1476 strong、否则 none;I2:novelty=0.0000 < 阈值 0.5,expanded=false，kBase=5 -> kUsed=5;非低置信:cov_max=1.0000 >= 0.05;I3:final=rel+graph，graph硬上限<=0.018，图5节点/3边，枢纽被压0，reachable=3",
+  "lines": [
+   "mem_ff01 | fact | alpha focused note | alpha | 0.0180 | direct | 0.5205 | 1.0000 | strong | 1.0000",
+   "mem_ff04 | pointer | long alpha body note | alpha,gamma | 0.0180 | direct | 0.3469 | 0.4155 | strong | 0.9070",
+   "mem_ff02 | lesson | alpha secondary note | alpha,beta | 0.0180 | direct | 0.3248 | 0.4155 | strong | 0.8520",
+   "mem_ff05 | fact | delta standalone | delta | 0.0180 | tag:delta | 0.0000 | 0.0000 | none | 0.0526",
+   "mem_ff07 | lesson | gamma bridge note | gamma,delta | 0.0180 | tag:gamma | 0.0000 | 0.0000 | none | 0.0447"
+  ],
+  "rowsCanonical": "[{\"cov\":1,\"graph\":0.018,\"id\":\"mem_ff01\",\"kind\":\"fact\",\"match\":\"strong\",\"rel\":0.520478252403369,\"score\":1,\"tags\":[\"alpha\"],\"title\":\"alpha focused note\",\"via\":\"direct\"},{\"cov\":0.41545198812081297,\"graph\":0.018,\"id\":\"mem_ff04\",\"kind\":\"pointer\",\"match\":\"strong\",\"rel\":0.3469483383594582,\"score\":0.9070353438758464,\"tags\":[\"alpha\",\"gamma\"],\"title\":\"long alpha body note\",\"via\":\"direct\"},{\"cov\":0.41545198812081297,\"graph\":0.018,\"id\":\"mem_ff02\",\"kind\":\"lesson\",\"match\":\"strong\",\"rel\":0.32479481599598714,\"score\":0.8519754198730675,\"tags\":[\"alpha\",\"beta\"],\"title\":\"alpha secondary note\",\"via\":\"direct\"},{\"cov\":0,\"graph\":0.018,\"id\":\"mem_ff05\",\"kind\":\"fact\",\"match\":\"none\",\"rel\":0,\"score\":0.05263157894736841,\"tags\":[\"delta\"],\"title\":\"delta standalone\",\"via\":\"tag:delta\"},{\"cov\":0,\"graph\":0.018,\"id\":\"mem_ff07\",\"kind\":\"lesson\",\"match\":\"none\",\"rel\":0,\"score\":0.044736842105263144,\"tags\":[\"gamma\",\"delta\"],\"title\":\"gamma bridge note\",\"via\":\"tag:gamma\"}]",
+  "rowKeyOrder": "id|kind|title|tags|rel|cov|match|graph|via|score"
+ }
+]

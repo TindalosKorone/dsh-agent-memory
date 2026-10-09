@@ -1,0 +1,51 @@
+用例收尾对账（I6.2/I7）红证汇总 —— 全部在本机实测，逐条「关什么 -> 哪条断言判红 -> 恢复后哈希」。
+
+被改文件基线（红证开始前 / 每次恢复后都必须回到这个哈希）：
+  src/index.ts  sha256 = 7fd08ac8746ba5b48be31ed65b3031d7865c0279fcf11ac2408bb09f81b1193f
+  test/graph.test.mjs       b3d23d492099473eb7161f276419a8f955b908aa4374541cc1e36c14a6155910
+  test/columns.test.mjs     f7f51df66e99074e26c0ef0676d291e6b6eed18c472350a5bdd702d839818c2f
+  test/header.test.mjs      4a8d34dd7b0d46bff72c2cdb9f8fe66f022ccf7d4ce85947ce9ce2c17123197a
+  test/description.test.mjs 704fcad0194817d819b5676c50196b52964369b2d94d02da13c23dc492a1eb45
+  package.json              见 step1-hashes-before-redproof.txt（描述追加后另有记录）
+
+【#3 描述】red-A-desc-old.txt（整段描述改回旧文案：只跑 node test/description.test.mjs）
+  判红：3 条新用例全红
+    #3 -> AssertionError: 描述必须写明 final=(rel+graph)×多样性因子
+    #2 -> AssertionError: 描述必须把"无证据"限定为无**词法**证据（图证据是另一种证据）
+    #1 -> AssertionError: 描述必须写明 graph 是标签图传播给的辅助奖励
+  单条判红（只改一句/删两句，其余保持正确）：
+    red-A1-score-old.txt         改回「score 是含多样性惩罚的最终分」      -> #3 红（反向断言）
+    red-A2-noevidence-old.txt    改回「无证据候选 rel/score 均为 0.0000」 -> #2 红
+    red-A3-graphvia-removed.txt  删掉 graph/via 两句                      -> #1 红（#2/#3 绿）
+  恢复后哈希：src/index.ts = 7fd08ac8…（每次红证后 cp 回备份并重新 tsc + sha256sum 核对）
+
+【#2 不变量】red-D1..D4（只跑 node test/graph.test.mjs）
+  red-D1-graph-off.txt       关掉传播（propagateTags(seedTags -> [])）          -> (a) 红：仅由标签图到达的记录必须被返回
+  red-D2-via-graph-cleared.txt 把行内 graph/via 的产出清零（graph=0, via='direct'）-> (c) 红：图到达必须 graph>0 且 <= graphBonusCap：0
+  red-D3-via-only-off.txt    只把 via 的产出关掉（graph 照旧）                   -> (d) 红：图到达的 via 必须以 tag: 开头：direct
+  red-D4-score-not-disp.txt  score 列人为偏移 +0.0001（其余全对）                -> (f) 红：score 必须 = absoluteDisp(rel+graph)（多样性不施加时）
+  说明：(b) rel=0 与 (e) match=none 是既有机制的红线（recall/triage 既有红证已在钉），
+        本用例把它们作为不变量一并断言，不另造"关掉 rel/match 语义"的破坏性补丁。
+  恢复后哈希：src/index.ts = 7fd08ac8…
+
+【#6 键序】red-B1..B3（只跑 node test/columns.test.mjs）
+  red-B1-schema-old-order.txt    schema rows.properties 键序换回旧序 -> 防漂 3 红（实际键序 id|kind|title|tags|rel|cov|match|graph|via|score）
+  red-B2-cells-old-order.txt     recallCells 字面量键序换回旧序    -> 防漂 4 红（recallCells 的键序必须等于 RECALL_COLUMNS）
+  red-B3-rows-push-old-order.txt rows.push 字面量键序换回旧序      -> 防漂 4 红（真实 rows 的键序必须等于 RECALL_COLUMNS）
+  恢复后哈希：src/index.ts = 7fd08ac8…
+
+【#3 表头】red-C-*.txt（只跑 node test/header.test.mjs，逐条只破坏一个词）
+  red-C-H1.txt  final=rel+graph×多样性(  ->  final=rel+graph(多样性(   -> 表头必须写明 final=(rel+graph)×多样性因子
+  red-C-H2.txt  候选>5时启用            ->  候选>5才施加               -> 表头必须写明多样性只在候选 > 5 时施加
+  red-C-H3.txt  开时不可由 rel/graph 复算 -> 开时不可由 rel 复算        -> 表头必须如实说明"多样性开时 score 不能仅由 rel/graph 复算"
+  red-C-H4.txt  否则 none(恒可复算)      ->  否则 none                  -> 表头必须写明 match 恒可由 rel + 阈值复算
+  恢复后哈希：src/index.ts = 7fd08ac8…
+
+【行格式逐字节不变】lineformat-old.json / lineformat-new.json / lineformat-identity-summary.txt
+  固定语料（7 条，固定 id/ts，直接落盘）+ 7 组查询/配置，分别跑改动前（f838689 的 src 构建到
+  .tmp-test/oldbuild/lib）与改动后的 lib/index.js：
+    lines 逐字节相同  7/7
+    rows 取值相同     7/7（键序排除在比较外）
+    表头不同          7/7（本次就是要改表头）
+    rows 键序   旧 = id|kind|title|tags|rel|cov|match|graph|via|score
+                新 = id|kind|title|tags|graph|via|rel|cov|match|score（= RECALL_COLUMNS）
