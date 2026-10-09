@@ -1,0 +1,21 @@
+文件清单 | 列名 19 个 | 磁盘实际 19 个
+protocol | pass=28 | fail=0
+cap | pass=4 | fail=0
+pure | pass=7 | fail=0
+scoring | pass=23 | fail=0
+recall | pass=8 | fail=0
+triage | pass=15 | fail=0
+lossless | pass=4 | fail=0
+storage | pass=13 | fail=0
+prune | pass=3 | fail=0
+inject | pass=28 | fail=0
+loose-inject | pass=4 | fail=0
+anchor | pass=11 | fail=0
+graph | pass=18 | fail=0
+calibrate | pass=10 | fail=0
+import-gotchas | pass=7 | fail=0
+header | pass=4 | fail=0
+columns | pass=5 | fail=0
+description | pass=3 | fail=0
+release | pass=2 | fail=0
+TOTAL | files=19 | pass=197 | fail=0

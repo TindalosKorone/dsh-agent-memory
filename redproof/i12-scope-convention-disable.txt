@@ -46,7 +46,7 @@ TSC_EXIT=0
 test at test/inject.test.mjs:583:1
 ✖ I4a.4 稳定段：写入 scope 约定（项目专属 project:<名>，跨项目通用默认 global），且不承诺自动推断 (46.153073ms)
   AssertionError [ERR_ASSERTION]: 稳定段必须写明 scope 约定，实测 遇到排查·为什么·复现·"以前是否踩过"这类问题，先用 memory_recall 查记忆库（跨会话经验教训）。
-      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/inject.test.mjs:591:10)
+      at TestContext.<anonymous> (file://<repo>/test/inject.test.mjs:591:10)
       at Test.runInAsyncScope (node:async_hooks:227:14)
       at Test.run (node:internal/test_runner/test:1325:25)
       at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
