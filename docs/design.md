@@ -20,7 +20,7 @@
 | **I3 共现图与有界传播** | 每次调用按当前库构建有序双向标签共现图（分方向计数、`log(1+λW)` 压缩、出流归一化到固定预算、枢纽抑制 `(inDeg/median)^-η`）+ 有界脉冲传播（跳数/状态数/出邻边数上限、衰减 γ、即时回流抑制 ρ），给排序加**有上限的辅助奖励** |
 | **语料导入** | `scripts/import-gotchas.mjs` 把 `gotchas.md` 批量导入记忆库，支持 dry-run 与备份 |
 | **标定（按 200 条级语料）** | `scripts/calibrate.mjs` 在负样本集上标出 `SCALE_A = p50(negatives)`、`WEAK = p95(negatives)` 等常数；负样本由 `scripts/negative-samples.mjs` 从冻结的跨域词表**确定性生成、≥200 条（实测 240 条）**，不再是 12 条手写小集（并打印小样本 vs 全集的敏感性对照）；**只打印建议，从不自动改写任何文件或配置** |
-| **表头减肥 / 标度解耦** | 召回表头从 1049~1066 字符（本机实测，见 `redproof/i5-header-old-measure.txt` 与 `redproof/i5-header-red.txt`）压到单行 <= 400 字符；此前表头把标度常数回显两遍，导致**改标定常数会连带改掉「显示几行」**，现在由 `test/header.test.mjs` 钉住「标度常数不得影响显示行数」 |
+| **表头减肥 / 标度解耦 / 有界回显** | 召回表头从 1049~1066 字符（本机实测，见 `redproof/i5-header-old-measure.txt` 与 `redproof/i5-header-red.txt`）压到单行；此前表头把标度常数回显两遍，导致**改标定常数会连带改掉「显示几行」**，现在由 `test/header.test.mjs` 钉住「标度常数不得影响显示行数」。**修正 1**：旧的「<= 400」只被 3 个短查询夹具验过，而表头的长度输入里有一个**无界量**（回显的查询串）与一个**配置相关量**（标度常数的十进制宽度）——长查询实测 742/932 字符、22 位小数常数把固定部分顶到 413。现在总上界 `HEADER_MAX_CHARS = 448` 由构造保证：`formatHeaderQuery()` 按**现算预算**先截断原始查询再 JSON 转义并标注 `…(截断)`，`formatHeaderConstant()` 把常数定宽回显（超宽用 `≈` 标注近似）；最坏情况用例覆盖 240 字符边界查询、`Number.MAX_VALUE` 常数与三位数库规模统计 |
 | **单点真相** | `RECALL_COLUMNS` 同时是四处（`recallCells` 键序、`L1Row` 字段序、输出 schema 的 `rows.properties` 键序、实际序列化行键序）的唯一来源，由 `test/columns.test.mjs` 在运行时钉住；列清单漂移会直接变红 |
 | **描述对账** | `memory_recall` 的**工具描述**由 `test/description.test.mjs` 逐条钉住：`graph`/`via` 列语义、`final=(rel+graph)×多样性因子` 与「仅当候选数 > 5 时施加」、多样性开时 `score` 无法仅由打印的 `rel`/`graph` 精确复算而 `match` 恒可由 `rel` + 表头阈值复算、无**词法**证据时 `rel=0` 但图到达行 `graph>0`/`via=tag:<标签>`/`match=none`；`β` 与候选数阈值**直接引用模块级常数**（说不成立公式即变红） |
 

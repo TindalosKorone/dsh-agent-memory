@@ -42,6 +42,36 @@ export declare const RECALL_MAX_CHARS = 2000;
 /** recall 单次取回条数上限。 */
 export declare const RECALL_LIMIT_MAX = 50;
 /**
+ * L1 表头的**总长硬上限（字符）** —— 这个界必须对**任意查询串**成立（修正 1）。
+ *
+ * 旧声明是「<= 400」，但表头里回显 `query=`，长度**随查询串增长**：
+ *  - 短查询（`alpha`）+ 默认标度 = 399 字符；换一组标度常数（回显宽度变大）就到 405~413；
+ *  - 长查询（200 个含 `"`/`\`/换行的字符）实测 742 字符，500 字符查询 932 字符 ——
+ *    即「<= 400」从未被最坏情况验过，是一句没成立的旧声明。
+ * 现在表头 = **固定部分**（与查询无关；长度由库规模与标度常数的回显宽度决定）
+ *          + **有界的 query 回显**（先按码点截断原始 query，再 JSON 转义，并标注已截断）。
+ * 回显的预算由 `HEADER_MAX_CHARS` 减去固定部分**现算**（不是常数），因此
+ * 「表头总长 <= HEADER_MAX_CHARS」是由构造保证的，与查询长度无关。
+ *
+ * 取值依据（本机实测）：固定部分在「默认标度 + 3 条库」下 382 字符；在
+ * 「常数回显最宽（见 HEADER_CONST_MAX_CHARS）+ 三位数库规模统计」下约 415 字符；
+ * 448 = 415 + `L1:query=` 前缀 9 + 分隔空格 1 + 回显预算 23，留了一点余量。
+ * 覆盖最坏情况的用例见 test/header.test.mjs 的「长查询/边界字符」段。
+ */
+export declare const HEADER_MAX_CHARS = 448;
+/**
+ * 表头里**标度常数回显**的宽度上限（字符）。
+ *
+ * 四个常数（scaleA/scaleB/weak/strong）在表头里共出现 5 次，它们的十进制宽度由**配置**决定，
+ * 不是常数：`0.0187` 是 6 字符，而 `0.12345678901234568` 是 19 字符、`Number.MAX_VALUE` 是 23 字符。
+ * 22 位小数的标度配置就能把固定部分从 382 顶到 413（本机实测）——这正是「<= 400」失效的第二条路径。
+ * 因此这里给回显**定宽**：`String(n)` 放得下就精确回显；放不下就用 `≈` 标注为**近似值**并降精度
+ * （精确值一个都没丢，仍逐字在结构化字段 scaleA/scaleB/weakThreshold/strongThreshold 上）。
+ */
+export declare const HEADER_CONST_MAX_CHARS = 9;
+/** query 回显被截断时的标记（单行、如实标注「已截断」）。 */
+export declare const HEADER_QUERY_TRUNCATION_MARK = "\u2026(\u622A\u65AD)";
+/**
  * L1 行的列清单 —— **唯一来源**（列名 + 列序都在这里，别再抄第二遍）。
  *
  * 四处都从它派生（或按它的顺序对齐），因此结构上不可能互相漂移：
@@ -159,6 +189,34 @@ export declare function recallCells(rec: MemoryRecord, view: L1ScoreView): Recor
  */
 export declare function fitLines(header: string, lines: ReadonlyArray<string>, limit: number): {
     lines: string[];
+    text: string;
+    truncated: boolean;
+};
+/**
+ * 把表头里的标度常数回显成**宽度有界**的片段（修正 1）。
+ *
+ * 为什么不直接 `String(n)`：那正是「<= 400」失效的第二条路径 —— 常数的十进制宽度由配置决定，
+ * 一个 22 位小数的 scaleB 就能把固定部分顶过 400。这里保证 `返回值.length <= maxChars`：
+ *  - `String(n)` 放得下 ⇒ 原样返回（**精确**，可复算）；
+ *  - 放不下 ⇒ 以 `≈` 开头、逐级降精度（toExponential(3..0)）取第一个放得下的形式 ⇒ 明确标注为**近似值**。
+ * 精确值仍逐字在结构化字段上（scaleA/scaleB/weakThreshold/strongThreshold），没有丢。
+ * 最坏情况（`Number.MAX_VALUE`、负数）在 toExponential(0) 处一定放得下（`≈-2e+308` = 8 字符）。
+ */
+export declare function formatHeaderConstant(n: number, maxChars?: number): string;
+/**
+ * 把原始查询串格式化进表头的 `query=` 回显槽（修正 1）。
+ *
+ * 纪律（顺序不能反）：
+ *  1. **先按码点截断原始 query**（用 `Array.from`，绝不在 UTF-16 代理对中间切，否则会造出孤立代理）；
+ *  2. **再对截断后的串做 `JSON.stringify` 转义** —— 绝不先转义再切，那会切断 `\"`、`\\`、`\n`、`\u00XX`
+ *     这类转义序列，产生非法文本或改变语义；
+ *  3. 转义后长度超过 `budget` 就继续缩短（逐码点回退），直到放得下，并如实标注 `…(截断)`。
+ *
+ * 因此 `返回值.text.length <= budget` **恒成立**（与查询长度无关），且结果永远单行
+ * （换行/回车等控制字符都被 JSON 转义成两字符或 `\u00XX`，不可能留下裸换行）。
+ * 完整查询串仍在结构化字段 `query` 上，一个字符都没丢。
+ */
+export declare function formatHeaderQuery(query: string, budget: number): {
     text: string;
     truncated: boolean;
 };

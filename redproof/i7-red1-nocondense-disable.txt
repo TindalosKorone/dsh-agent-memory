@@ -1,0 +1,42 @@
+✔ I5 表头自检：单行、<= 400 字符，且可复算信息一个都不少 (187.919843ms)
+✔ I5 结构性断言：标度常数不得影响显示行数（判红点：表头回显常数的长度会改行数） (1001.236718ms)
+✖ 修正 1 最坏情况：>=200 字符且含换行/引号/反斜杠/控制字符的查询下，表头仍 <= HEADER_MAX_CHARS、单行、且截断被如实标注 (112.724844ms)
+✖ 修正 1 最坏情况（固定部分）：标度常数回显宽度与库规模统计不能把表头顶过 HEADER_MAX_CHARS (2145.337447ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 2
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3515.914269
+
+✖ failing tests:
+
+test at test/header.test.mjs:178:1
+✖ 修正 1 最坏情况：>=200 字符且含换行/引号/反斜杠/控制字符的查询下，表头仍 <= HEADER_MAX_CHARS、单行、且截断被如实标注 (112.724844ms)
+  AssertionError [ERR_ASSERTION]: 表头必须 <= HEADER_MAX_CHARS=448，实际 992：L1:query="x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000" 候选3;limit=5 是硬显示上限;列序:id|kind|title|tags|graph|via|rel|cov|match|score;rel=BM25原始相关度,match 依据;score=disp(final)=clip((final-0.0187)/(0.342-0.0187));match:rel>=0.0363 weak、>=0.1476 strong、否则 none(恒可复算);I2:novelty=1.0000 >= 阈值 0.5,expanded=true，kBase=5 -> kUsed=3;低置信:cov_max=0.0000 < 0.05;I3:final=rel+graph×多样性(候选>5时启用,开时不可由 rel/graph 复算)，graph硬上限<=0.018，图2节点/1边，枢纽被压0，reachable=0
+      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/header.test.mjs:201:10)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at test/header.test.mjs:231:1
+✖ 修正 1 最坏情况（固定部分）：标度常数回显宽度与库规模统计不能把表头顶过 HEADER_MAX_CHARS (2145.337447ms)
+  AssertionError [ERR_ASSERTION]: 默认标度 / 超长边界查询：表头必须 <= 448，实际 994：L1:query="x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000x\"\\\n\t\u0000" 候选60;limit=5 是硬显示上限;列序:id|kind|title|tags|graph|via|rel|cov|match|score;rel=BM25原始相关度,match 依据;score=disp(final)=clip((final-0.0187)/(0.342-0.0187));match:rel>=0.0363 weak、>=0.1476 strong、否则 none(恒可复算);I2:novelty=1.0000 >= 阈值 0.5,expanded=true，kBase=5 -> kUsed=10;低置信:cov_max=0.0000 < 0.05;I3:final=rel+graph×多样性(候选>5时启用,开时不可由 rel/graph 复算)，graph硬上限<=0.018，图2节点/1边，枢纽被压0，reachable=0
+      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/header.test.mjs:260:14)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

@@ -1,0 +1,28 @@
+✔ I5 表头自检：单行、<= 400 字符，且可复算信息一个都不少 (200.197187ms)
+✔ I5 结构性断言：标度常数不得影响显示行数（判红点：表头回显常数的长度会改行数） (769.305365ms)
+✔ 修正 1 最坏情况：>=200 字符且含换行/引号/反斜杠/控制字符的查询下，表头仍 <= HEADER_MAX_CHARS、单行、且截断被如实标注 (108.981614ms)
+✖ 修正 1 最坏情况（固定部分）：标度常数回显宽度与库规模统计不能把表头顶过 HEADER_MAX_CHARS (1590.790676ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 3
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2712.072967
+
+✖ failing tests:
+
+test at test/header.test.mjs:231:1
+✖ 修正 1 最坏情况（固定部分）：标度常数回显宽度与库规模统计不能把表头顶过 HEADER_MAX_CHARS (1590.790676ms)
+  AssertionError [ERR_ASSERTION]: 负数极值 / 短查询 alpha：表头必须 <= 448，实际 451：L1:query="" 候选60;limit=5 是硬显示上限;列序:id|kind|title|tags|graph|via|rel|cov|match|score;rel=BM25原始相关度,match 依据;score=disp(final)=clip((final--1.7976931348623157e+308)/(-1.7976931348623157e+308--1.7976931348623157e+308));match:rel>=0.0363 weak、>=0.1476 strong、否则 none(恒可复算);I2:novelty=0.6500 >= 阈值 0.5,expanded=true，kBase=5 -> kUsed=10;非低置信:cov_max=0.5000 >= 0.05;I3:final=rel+graph×多样性(候选>5时启用,开时不可由 rel/graph 复算)，graph硬上限<=0.018，图2节点/1边，枢纽被压0，reachable=0
+      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/header.test.mjs:260:14)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

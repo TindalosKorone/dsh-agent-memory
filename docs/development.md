@@ -44,9 +44,10 @@ bash redproof/run-all.sh 证据路径   # 自定义输出；有 fail 时退出�
 | 脚本 | 用法 |
 | --- | --- |
 | `patch-src.mjs` | `node redproof/patch-src.mjs "<原串>" "<新串>"`，对 `src/index.ts` 做一次精确子串替换（找不到 / 多处命中即失败），让「关掉某个机制」这一步可复现、可核对 |
-| `measure-header.mjs` | `node redproof/measure-header.mjs`，量两处夹具的表头长度，确认「单行且 <= 400 字符」 |
+| `measure-header.mjs` | `node redproof/measure-header.mjs`，量两处夹具的表头长度，确认「单行」 |
 | `lineformat-probe.mjs` | `node redproof/lineformat-probe.mjs <lib/index.js 路径> <home 子目录名>`，用同一份固定语料 + 同一批查询对比改动前后的 L1 输出 |
-| `draft-header-lengths.mjs` | `node redproof/draft-header-lengths.mjs`，试算表头草稿长度，找 <= 400 的最短可行措辞组合 |
+| `draft-header-lengths.mjs` | `node redproof/draft-header-lengths.mjs`，试算表头草稿长度，找最短可行措辞组合 |
+| `i7a-header-after-measure.mjs` | `node redproof/i7a-header-after-measure.mjs`，量「修正 1」后的表头长度：短查询 / 240 字符边界查询 / `Number.MAX_VALUE` 常数，全部必须 `<= HEADER_MAX_CHARS` |
 
 **如何加一条红证**：
 

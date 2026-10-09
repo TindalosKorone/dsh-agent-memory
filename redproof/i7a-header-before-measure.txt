@@ -1,0 +1,21 @@
+修正 1 前置实测（改动**前**的构建，本机 2026-10-09；命令见文末）
+——用来证明旧声明「表头 <= 400 字符」从未被最坏情况验过。
+
+一、长度随**查询串**增长（默认标度，3 条同形记录）
+  短查询 alpha                     query.len=5     header.len=399   （旧用例覆盖的就是这种）
+  200 字符纯 ASCII                 query.len=200   header.len=592
+  200 字符含 " \ 换行              query.len=200   header.len=742
+  360 字符含 " \ 换行 + 中文       query.len=360   header.len=932
+
+二、长度随**标度常数的十进制宽度**增长（同一个短查询 alpha）
+  默认标度 0.0187/0.342             header.len=399
+  17 位小数 scaleB                  header.len=413   <- 对方实测「最大 405-413」由此而来
+  scaleB = 1.2345                   header.len=403
+  scaleA/scaleB = Number.MAX_VALUE  header.len=451
+
+三、对方把 405~413 归因于「短查询没盖住」；实测表明那是第二条路径：
+  短查询没盖住的是**查询串**那条（一、从 399 涨到 932），
+  而 405~413 是**常数回显宽度**那条（二）。两条都要堵，修正 1 才成立。
+
+改动后的同一批输入（可复现，全部必须 <= HEADER_MAX_CHARS = 448）：
+  node redproof/i7a-header-after-measure.mjs

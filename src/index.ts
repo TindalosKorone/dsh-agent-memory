@@ -57,6 +57,36 @@ export const RECALL_MAX_CHARS = 2000
 /** recall 单次取回条数上限。 */
 export const RECALL_LIMIT_MAX = 50
 /**
+ * L1 表头的**总长硬上限（字符）** —— 这个界必须对**任意查询串**成立（修正 1）。
+ *
+ * 旧声明是「<= 400」，但表头里回显 `query=`，长度**随查询串增长**：
+ *  - 短查询（`alpha`）+ 默认标度 = 399 字符；换一组标度常数（回显宽度变大）就到 405~413；
+ *  - 长查询（200 个含 `"`/`\`/换行的字符）实测 742 字符，500 字符查询 932 字符 ——
+ *    即「<= 400」从未被最坏情况验过，是一句没成立的旧声明。
+ * 现在表头 = **固定部分**（与查询无关；长度由库规模与标度常数的回显宽度决定）
+ *          + **有界的 query 回显**（先按码点截断原始 query，再 JSON 转义，并标注已截断）。
+ * 回显的预算由 `HEADER_MAX_CHARS` 减去固定部分**现算**（不是常数），因此
+ * 「表头总长 <= HEADER_MAX_CHARS」是由构造保证的，与查询长度无关。
+ *
+ * 取值依据（本机实测）：固定部分在「默认标度 + 3 条库」下 382 字符；在
+ * 「常数回显最宽（见 HEADER_CONST_MAX_CHARS）+ 三位数库规模统计」下约 415 字符；
+ * 448 = 415 + `L1:query=` 前缀 9 + 分隔空格 1 + 回显预算 23，留了一点余量。
+ * 覆盖最坏情况的用例见 test/header.test.mjs 的「长查询/边界字符」段。
+ */
+export const HEADER_MAX_CHARS = 448
+/**
+ * 表头里**标度常数回显**的宽度上限（字符）。
+ *
+ * 四个常数（scaleA/scaleB/weak/strong）在表头里共出现 5 次，它们的十进制宽度由**配置**决定，
+ * 不是常数：`0.0187` 是 6 字符，而 `0.12345678901234568` 是 19 字符、`Number.MAX_VALUE` 是 23 字符。
+ * 22 位小数的标度配置就能把固定部分从 382 顶到 413（本机实测）——这正是「<= 400」失效的第二条路径。
+ * 因此这里给回显**定宽**：`String(n)` 放得下就精确回显；放不下就用 `≈` 标注为**近似值**并降精度
+ * （精确值一个都没丢，仍逐字在结构化字段 scaleA/scaleB/weakThreshold/strongThreshold 上）。
+ */
+export const HEADER_CONST_MAX_CHARS = 9
+/** query 回显被截断时的标记（单行、如实标注「已截断」）。 */
+export const HEADER_QUERY_TRUNCATION_MARK = '…(截断)'
+/**
  * L1 行的列清单 —— **唯一来源**（列名 + 列序都在这里，别再抄第二遍）。
  *
  * 四处都从它派生（或按它的顺序对齐），因此结构上不可能互相漂移：
@@ -214,6 +244,56 @@ export function fitLines(header: string, lines: ReadonlyArray<string>, limit: nu
   const clipped = body(Math.max(0, limit - note.length))
   const text = clipped.text + note
   return { lines: clipped.kept, text, truncated: true }
+}
+
+/**
+ * 把表头里的标度常数回显成**宽度有界**的片段（修正 1）。
+ *
+ * 为什么不直接 `String(n)`：那正是「<= 400」失效的第二条路径 —— 常数的十进制宽度由配置决定，
+ * 一个 22 位小数的 scaleB 就能把固定部分顶过 400。这里保证 `返回值.length <= maxChars`：
+ *  - `String(n)` 放得下 ⇒ 原样返回（**精确**，可复算）；
+ *  - 放不下 ⇒ 以 `≈` 开头、逐级降精度（toExponential(3..0)）取第一个放得下的形式 ⇒ 明确标注为**近似值**。
+ * 精确值仍逐字在结构化字段上（scaleA/scaleB/weakThreshold/strongThreshold），没有丢。
+ * 最坏情况（`Number.MAX_VALUE`、负数）在 toExponential(0) 处一定放得下（`≈-2e+308` = 8 字符）。
+ */
+export function formatHeaderConstant(n: number, maxChars: number = HEADER_CONST_MAX_CHARS): string {
+  const exact = String(n)
+  if (exact.length <= maxChars) return exact
+  for (let precision = 3; precision >= 0; precision -= 1) {
+    const approx = `≈${n.toExponential(precision)}`
+    if (approx.length <= maxChars) return approx
+  }
+  // toExponential(0) 的理论上界是 8 字符（`≈-2e+308`）；真到这里说明 maxChars 被配得过小。
+  return `≈${n.toExponential(0)}`.slice(0, Math.max(1, maxChars))
+}
+
+/**
+ * 把原始查询串格式化进表头的 `query=` 回显槽（修正 1）。
+ *
+ * 纪律（顺序不能反）：
+ *  1. **先按码点截断原始 query**（用 `Array.from`，绝不在 UTF-16 代理对中间切，否则会造出孤立代理）；
+ *  2. **再对截断后的串做 `JSON.stringify` 转义** —— 绝不先转义再切，那会切断 `\"`、`\\`、`\n`、`\u00XX`
+ *     这类转义序列，产生非法文本或改变语义；
+ *  3. 转义后长度超过 `budget` 就继续缩短（逐码点回退），直到放得下，并如实标注 `…(截断)`。
+ *
+ * 因此 `返回值.text.length <= budget` **恒成立**（与查询长度无关），且结果永远单行
+ * （换行/回车等控制字符都被 JSON 转义成两字符或 `\u00XX`，不可能留下裸换行）。
+ * 完整查询串仍在结构化字段 `query` 上，一个字符都没丢。
+ */
+export function formatHeaderQuery(query: string, budget: number): { text: string; truncated: boolean } {
+  const points = Array.from(query)
+  let text = JSON.stringify(query)
+  if (text.length <= budget) return { text, truncated: false }
+  // 每个码点转义后**至少**占 1 个字符 ⇒ 放得下的前缀绝不可能长过 budget；据此设起点，
+  // 既拿到「最大的放得下的前缀」，又把回退次数钉在 O(budget)（不会因超长查询变成平方复杂度）。
+  let keep = Math.min(points.length, Math.max(0, budget))
+  while (keep > 0) {
+    keep -= 1
+    text = JSON.stringify(points.slice(0, keep).join('') + HEADER_QUERY_TRUNCATION_MARK)
+    if (text.length <= budget) return { text, truncated: true }
+  }
+  // 连「只剩标记」都放不下（预算极小）时，退化为空串回显 —— 仍是合法的 JSON 字符串字面量。
+  return { text: JSON.stringify(''), truncated: true }
 }
 
 /**
@@ -676,7 +756,13 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
         })
       }
 
-      // ── I5 表头减肥：单行、<= 400 字符，只留「可复算所必需」的结论性数字 ──────────────
+      // ── I5 表头减肥 + 修正 1：单行、总长 <= HEADER_MAX_CHARS，只留「可复算所必需」的结论性数字 ──
+      // 修正 1 修正的是**旧声明本身**：旧注释写「单行、<= 400 字符」，但那只在 3 个短查询夹具上量过
+      // （388~399），从未覆盖最坏情况 —— 表头回显 `query=` 时长随查询串线性增长，实测：
+      //   短查询 alpha = 399；200 字符含边界字符 = 742；360 字符 = 932；换一组回显更宽的标度常数 = 413。
+      // 现在两条路径都被堵死：① query 回显由 formatHeaderQuery 按**现算预算**截断并标注（见 HEADER_MAX_CHARS）；
+      // ② 标度常数由 formatHeaderConstant 定宽回显（见 HEADER_CONST_MAX_CHARS）。总长上界因此对
+      // 任意查询串、任意标度配置都成立，并由 test/header.test.mjs 的最坏情况用例钉住。
       // 旧表头 1049~1066 字符（本机实测，随查询与条数变化），而 RECALL_MAX_CHARS=2000 ⇒ 每次只剩
       // 7~9 行可见（40 条候选也只显示 7 行）。
       // 更糟的是旧表头把标度常数**本身**回显了两遍（score 公式 + 阈值），于是改
@@ -726,16 +812,30 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
       const hubSuppressedCount = tagGraph.hubSuppressed.length
       const reachableWithGraph = rewardList.filter((x) => x.bonus > 0).length
 
-      const header = `L1:query=${JSON.stringify(query)} 候选${fused.length};`
+      // 标度常数经 formatHeaderConstant 定宽回显（精确优先，超宽则 `≈` 标注近似）——
+      // 这是让「固定部分」真的与配置宽度无关的那一半；另一半是有界的 query 回显（见下）。
+      const constA = formatHeaderConstant(scoreCfg.scaleA)
+      const constB = formatHeaderConstant(scoreCfg.scaleB)
+      const constWeak = formatHeaderConstant(scoreCfg.weak)
+      const constStrong = formatHeaderConstant(scoreCfg.strong)
+      // 固定部分（与**查询串**完全无关）：长度由库规模统计与上面四个定宽常数决定。
+      const tail = ` 候选${fused.length};`
         + `limit=${limit} 是硬显示上限;`
         + `列序:${RECALL_COLUMNS.join('|')};`
         + 'rel=BM25原始相关度,match 依据;'
-        + `score=disp(final)=clip((final-${scoreCfg.scaleA})/(${scoreCfg.scaleB}-${scoreCfg.scaleA}));`
-        + `match:rel>=${scoreCfg.weak} weak、>=${scoreCfg.strong} strong、否则 none(恒可复算);`
+        + `score=disp(final)=clip((final-${constA})/(${constB}-${constA}));`
+        + `match:rel>=${constWeak} weak、>=${constStrong} strong、否则 none(恒可复算);`
         + `${triageSeg};`
         + `${lowConfSeg};`
         + `I3:final=rel+graph×多样性(候选>5时启用,开时不可由 rel/graph 复算)，graph硬上限<=${graphCfg.bonusCap}，图${graphSize.nodes}节点/${graphSize.edges}边，`
         + `枢纽被压${hubSuppressedCount}，reachable=${reachable}`
+      // query 回显的预算是**现算**的：HEADER_MAX_CHARS 减去固定部分与分隔符。于是
+      // 「表头总长 <= HEADER_MAX_CHARS」由构造保证，与查询串多长（含换行/引号/反斜杠）无关。
+      // 完整查询串永远在结构化字段 `query` 上，回显只是给人看的短标识。
+      const headerPrefix = 'L1:query='
+      const echoBudget = Math.max(2, HEADER_MAX_CHARS - headerPrefix.length - 1 - tail.length)
+      const echoed = formatHeaderQuery(query, echoBudget)
+      const header = `${headerPrefix}${echoed.text}${tail}`
       const fitted = fitLines(header, lines, RECALL_MAX_CHARS)
       const text = records.length === 0
         ? `${header}\n(记忆库为空：请先用 memory_remember 写入)`
