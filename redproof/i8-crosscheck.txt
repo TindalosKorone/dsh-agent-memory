@@ -1,0 +1,37 @@
+I8 交叉核对（独立于分析脚本，用同一构建直接调 memory_recall）
+
+[A] 假命中实锤：短消息的单字/确认语也能过 strong 门槛
+
+  query="ok"  码点=2  nWeak=5  nStrong=1
+    top1 rel=0.186730 match=strong
+    top1 title=写后回读的回包缺 `ok` ＋ 拒收码不进 CALL_REASON ⇒ 已成功的动作被渲染成「失败：原因未在本版登记」（
+  query="b"  码点=1  nWeak=5  nStrong=1
+    top1 rel=0.170655 match=strong
+    top1 title=闸门A拒启与闸门B自愈互锁：只有能spawn才会写engine.log，而拒启恰恰不spawn（0.14.3，#309）
+  query="做"  码点=1  nWeak=5  nStrong=2
+    top1 rel=0.182895 match=strong
+    top1 title=稀疏向量做 Gram-Schmidt 必须按并集减否则基不正交
+  query="好的"  码点=2  nWeak=2  nStrong=0
+    top1 rel=0.069701 match=weak
+    top1 title=「App 重启无效」= 根因在 Shizuku 侧的 UserService 实例，只清进程内标志位永远不会好；必须 `
+  query="已重启"  码点=3  nWeak=5  nStrong=0
+    top1 rel=0.100973 match=weak
+    top1 title=cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 每次重启
+  query="虚拟屏不能用吗？"  码点=8  nWeak=5  nStrong=1
+    top1 rel=0.150709 match=strong
+    top1 title=虚拟屏 screencap -d 必败只有屏的 owner 能抓到画面
+
+[B] 装机构建 vs 仓库 HEAD 的阈值差异（同一个探针查询，两次调用实测回显）
+
+本机在装构建的 memory_recall 表头（原样抄，见 redproof/i8-crosscheck.txt 本段）：
+  score=disp(final)=clip((final-0.0187)/(0.342-0.0187));match:rel>=0.0363 weak、>=0.1476 strong、否则 none(恒可复算)
+  ⇒ 装机 SCALE_A=0.0187 SCALE_B=0.3420 WEAK=0.0363 STRONG=0.1476
+
+仓库 HEAD（src/pure.ts 158 行，lib/pure.js 同步）：
+  ⇒ SCALE_A=0.0199 SCALE_B=0.3666 WEAK=0.0382 STRONG=0.1507
+
+影响：§6f 已算过 —— 用装机阈值重算，真实侧宽松 61.6%→64.3%、严格 3.6%→3.6%；
+      无关侧宽松 5.0%→6.3%、严格 0%→0%。结论对这个差异不敏感。
+
+注意：本分析脚本走 lib/（仓库 HEAD，WEAK=0.0382），这是任务指定的口径；
+      装机那套阈值更低一点，触发率只会更高，不会更低。

@@ -1,0 +1,2790 @@
+{
+ "generatedBy": "redproof/i8-autorecall-fire-rate.mjs",
+ "store": {
+  "path": "/data/user/0/com.dsharnessmobile.shell/files/home/.dsh/agent-memory/memory.ndjson",
+  "sha256": "be7162f0d2309cef7da19fd22af63ed2a8cefd70c6537897f30f1254cd5457a9",
+  "bytes": 374349,
+  "lines": 204
+ },
+ "inputFingerprint": "0d56d0fb3509fadca3a240ada1eefdd68ec33c6f59c500934201933c282e21f5",
+ "sessionsDirUsed": "/data/user/0/com.dsharnessmobile.shell/files/home/.dsh/sessions",
+ "thresholds": {
+  "weak": 0.0382,
+  "strong": 0.1507,
+  "scaleA": 0.0199,
+  "scaleB": 0.3666
+ },
+ "liveThresholds": {
+  "weak": 0.0363,
+  "strong": 0.1476
+ },
+ "frozenNow": 1791527315996,
+ "classification": {
+  "subagent-prompt": 24,
+  "runtime-context": 54,
+  "other:skill-catalog": 30,
+  "other:tool-jobs": 5,
+  "human": 112,
+  "other:user-approval": 6,
+  "other:agent-instructions": 2,
+  "other:agent-message": 25,
+  "other:subagent-settled": 23,
+  "other:compact-checkpoint": 1,
+  "other:model-selection": 1,
+  "other:goal": 12,
+  "other:tool-goal": 1
+ },
+ "sessions": [
+  {
+   "id": "session-eeec92cc-49f4-4a91-b813-b1bf2e56eba8",
+   "depth": 0,
+   "counts": {},
+   "humans": 0,
+   "events": 4,
+   "undelivered": 0
+  },
+  {
+   "id": "063cce11-4454-46e4-953c-a1ea00150334",
+   "depth": 1,
+   "counts": {
+    "subagent-prompt": 1,
+    "runtime-context": 1,
+    "other:skill-catalog": 1
+   },
+   "humans": 0,
+   "events": 130,
+   "undelivered": 0
+  },
+  {
+   "id": "0c872278-1276-4d5c-9315-65035785f4b4",
+   "depth": 1,
+   "counts": {
+    "subagent-prompt": 1,
+    "runtime-context": 1,
+    "other:skill-catalog": 1
+   },
+   "humans": 0,
+   "events": 575,
+   "undelivered": 0
+  },
+  {
+   "id": "0e21782f-132c-4201-a1ae-f8c6ceda3acd",
+   "depth": 1,
+   "counts": {
+    "subagent-prompt": 1,
+    "runtime-context": 1,
+    "other:skill-catalog": 1
+   },
+   "humans": 0,
+   "events": 731,
+   "undelivered": 0
+  },
+  {
+   "id": "10830166-757e-4440-ab15-0d7435ba20a5",
+   "depth": 1,
+   "counts": {
+    "subagent-prompt": 1,
+    "runtime-context": 1,
+    "other:skill-catalog": 1
+   },
+   "humans": 0,
+   "events": 852,
+   "undelivered": 0
+  },
+  {
+   "id": "1cc838b6-9fa9-4367-ae2f-4e3121222d90",
+   "depth": 1,
+   "counts": {
+    "subagent-prompt": 1,
+    "runtime-context": 2,
+    "other:skill-catalog": 1
+   },
+   "humans": 0,
+   "events": 482,
+   "undelivered": 0
+  },
+  {
+   "id": "1e72c4f5-9075-4d9e-9b9e-52f1d81dae77",
+   "depth": 1,
+   "counts": {
+    "subagent-prompt": 1,
+    "runtime-context": 1,
+    "other:skill-catalog": 1
+   },
+   "humans": 0,
+   "events": 520,
+   "undelivered": 0
+  },
+  {
+   "id": "38af29ac-a2f4-4a84-9032-3aecc188b2ea",
+   "depth": 1,
+   "counts": {
+    "subagent-prompt": 1,
+    "runtime-context": 1,
+    "other:skill-catalog": 1
+   },
+   "humans": 0,
+   "events": 416,
+   "undelivered": 0
+  },
+  {
+   "id": "3a2c67d9-9867-4d88-a648-b233e115e7c1",
+   "depth": 1,
+   "counts": {
+    "subagent-prompt": 1,
+    "runtime-context": 1,
+    "other:skill-catalog": 1,
+    "other:tool-jobs": 1
+   },
+   "humans": 0,
+   "events": 289,
+   "undelivered": 0
+  },
+  {
+   "id": "42b5499e-e4d9-4a16-be80-a722ff4437cc",
+   "depth": 1,
+   "counts": {
+    "subagent-prompt": 1,
+    "runtime-context": 1,
+    "other:skill-catalog": 1
+   },
+   "humans": 0,
+   "events": 666,
+   "undelivered": 0
+  },
+  {
+   "id": "6958b237-f770-4767-9c57-c5426b709eb2",
+   "depth": 1,
+   "counts": {
+    "subagent-prompt": 1,
+    "runtime-context": 1,
+    "other:skill-catalog": 1
+   },
+   "humans": 0,
+   "events": 724,
+   "undelivered": 0
+  },
+  {
+   "id": "799354ae-314f-40c5-92b0-743954238da3",
+   "depth": 1,
+   "counts": {
+    "subagent-prompt": 1,
+    "runtime-context": 1,
+    "other:skill-catalog": 1,
+    "other:tool-jobs": 1
+   },
+   "humans": 0,
+   "events": 427,
+   "undelivered": 0
+  },
+  {
+   "id": "8c15a25a-9485-44d0-af73-5d35e8944da0",
+   "depth": 1,
+   "counts": {
+    "subagent-prompt": 1,
+    "runtime-context": 1,
+    "other:skill-catalog": 1
+   },
+   "humans": 0,
+   "events": 580,
+   "undelivered": 0
+  },
+  {
+   "id": "8db5d4cd-7d9a-43f2-a5e3-d75a27e251ce",
+   "depth": 1,
+   "counts": {
+    "subagent-prompt": 1,
+    "runtime-context": 1,
+    "other:skill-catalog": 1
+   },
+   "humans": 0,
+   "events": 557,
+   "undelivered": 0
+  },
+  {
+   "id": "8f2a93fd-b19d-4a76-bb59-e4e8d9cc8981",
+   "depth": 1,
+   "counts": {
+    "subagent-prompt": 1,
+    "runtime-context": 1,
+    "other:skill-catalog": 1
+   },
+   "humans": 0,
+   "events": 724,
+   "undelivered": 0
+  },
+  {
+   "id": "927ee2ca-5fcf-4629-badc-90683a45bb36",
+   "depth": 1,
+   "counts": {
+    "subagent-prompt": 1,
+    "runtime-context": 1,
+    "other:skill-catalog": 1
+   },
+   "humans": 0,
+   "events": 556,
+   "undelivered": 0
+  },
+  {
+   "id": "97a54f4c-338c-44cd-adbd-cad13814979a",
+   "depth": 1,
+   "counts": {
+    "subagent-prompt": 1,
+    "runtime-context": 1,
+    "other:skill-catalog": 1
+   },
+   "humans": 0,
+   "events": 1590,
+   "undelivered": 0
+  },
+  {
+   "id": "b53e99d9-3fd5-4a39-8bdc-f5f34d95946b",
+   "depth": 1,
+   "counts": {
+    "subagent-prompt": 1,
+    "runtime-context": 1,
+    "other:skill-catalog": 1
+   },
+   "humans": 0,
+   "events": 508,
+   "undelivered": 0
+  },
+  {
+   "id": "b979a169-5f51-490e-98c2-98820ae3a380",
+   "depth": 1,
+   "counts": {
+    "subagent-prompt": 1,
+    "runtime-context": 2,
+    "other:skill-catalog": 1,
+    "other:tool-jobs": 1
+   },
+   "humans": 0,
+   "events": 652,
+   "undelivered": 0
+  },
+  {
+   "id": "c304a168-7e1a-4e7e-8808-c30d40a979b9",
+   "depth": 1,
+   "counts": {
+    "subagent-prompt": 1,
+    "runtime-context": 1,
+    "other:skill-catalog": 1
+   },
+   "humans": 0,
+   "events": 1311,
+   "undelivered": 0
+  },
+  {
+   "id": "d6066a81-a86d-4f7d-a487-5505f0b1be91",
+   "depth": 1,
+   "counts": {
+    "subagent-prompt": 1,
+    "runtime-context": 1,
+    "other:skill-catalog": 1
+   },
+   "humans": 0,
+   "events": 300,
+   "undelivered": 0
+  },
+  {
+   "id": "da8ea2fb-18df-4ef2-b848-ac43f3c358a4",
+   "depth": 1,
+   "counts": {
+    "subagent-prompt": 1,
+    "runtime-context": 1,
+    "other:skill-catalog": 1
+   },
+   "humans": 0,
+   "events": 514,
+   "undelivered": 0
+  },
+  {
+   "id": "df1a9e23-9123-4647-9055-1b9d18d1de36",
+   "depth": 1,
+   "counts": {
+    "subagent-prompt": 1,
+    "runtime-context": 1,
+    "other:skill-catalog": 1
+   },
+   "humans": 0,
+   "events": 409,
+   "undelivered": 0
+  },
+  {
+   "id": "e2f1fca1-b46f-4c13-a730-85865bb0aa14",
+   "depth": 1,
+   "counts": {
+    "subagent-prompt": 1,
+    "runtime-context": 1,
+    "other:skill-catalog": 1
+   },
+   "humans": 0,
+   "events": 219,
+   "undelivered": 0
+  },
+  {
+   "id": "e8b7a209-12b9-49fe-a52c-ee772f52f2ff",
+   "depth": 1,
+   "counts": {
+    "subagent-prompt": 1,
+    "runtime-context": 1,
+    "other:skill-catalog": 1
+   },
+   "humans": 0,
+   "events": 338,
+   "undelivered": 0
+  },
+  {
+   "id": "session-23861d46-0746-469a-8858-35d53e6a5332",
+   "depth": 0,
+   "counts": {
+    "human": 4,
+    "runtime-context": 1,
+    "other:skill-catalog": 1
+   },
+   "humans": 4,
+   "events": 142,
+   "undelivered": 0
+  },
+  {
+   "id": "session-43e854f2-d7fd-418e-8ded-e98f2c37d513",
+   "depth": 0,
+   "counts": {},
+   "humans": 0,
+   "events": 5,
+   "undelivered": 0
+  },
+  {
+   "id": "session-91aca712-768f-4fef-9272-cb6f265580b3",
+   "depth": 0,
+   "counts": {
+    "human": 2,
+    "runtime-context": 2,
+    "other:skill-catalog": 1,
+    "other:user-approval": 1,
+    "other:agent-instructions": 1
+   },
+   "humans": 2,
+   "events": 402,
+   "undelivered": 0
+  },
+  {
+   "id": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+   "depth": 0,
+   "counts": {
+    "other:user-approval": 1,
+    "human": 81,
+    "runtime-context": 19,
+    "other:skill-catalog": 2,
+    "other:agent-instructions": 1,
+    "other:tool-jobs": 2,
+    "other:agent-message": 25,
+    "other:subagent-settled": 23,
+    "other:compact-checkpoint": 1
+   },
+   "humans": 81,
+   "events": 4278,
+   "undelivered": 0
+  },
+  {
+   "id": "session-cde7bd4a-fb2d-4723-a531-02c20c14eb02",
+   "depth": 0,
+   "counts": {
+    "human": 22,
+    "runtime-context": 3,
+    "other:skill-catalog": 1,
+    "other:model-selection": 1,
+    "other:user-approval": 2,
+    "other:goal": 12,
+    "other:tool-goal": 1
+   },
+   "humans": 22,
+   "events": 1980,
+   "undelivered": 1
+  },
+  {
+   "id": "session-dddffaba-9d7b-45f0-bab5-996fff676db4",
+   "depth": 0,
+   "counts": {
+    "human": 3,
+    "runtime-context": 3,
+    "other:skill-catalog": 1,
+    "other:user-approval": 2
+   },
+   "humans": 3,
+   "events": 144,
+   "undelivered": 0
+  }
+ ],
+ "real": {
+  "turns": [
+   {
+    "session": "session-23861d46-0746-469a-8858-35d53e6a5332",
+    "chars": 8,
+    "maxRel": 0.0482972490184549,
+    "nWeak": 1,
+    "nStrong": 0,
+    "topTitle": "壳侧快照载荷的帧尺寸 `scr` 不随目标屏变化（恒缺省屏）⇒ 虚拟屏读屏拿到的「屏幕尺寸」是真实屏的（2026-10-06 真机实测，未修）",
+    "topRel": 0.0482972490184549,
+    "surface": true,
+    "topN": [
+     "壳侧快照载荷的帧尺寸 `scr` 不随目标屏变化（恒缺省屏）⇒ 虚拟屏读屏拿到的「屏幕尺寸」是真实屏的（2026-10-06 真机实测，未修）",
+     "虚拟屏 screencap -d 必败只有屏的 owner 能抓到画面",
+     "插件对协议 V2 载荷「形状失明」⇒ 屏幕尺寸恒「未回显」，且「树/截图尺寸必须一致」这条 fail-closed 判据从未触发过（2026-10-06 真机实测，已修）"
+    ],
+    "q": "你能看得到屏幕吗"
+   },
+   {
+    "session": "session-23861d46-0746-469a-8858-35d53e6a5332",
+    "chars": 8,
+    "maxRel": 0.11799755358119036,
+    "nWeak": 5,
+    "nStrong": 0,
+    "topTitle": "虚拟屏 screencap -d 必败只有屏的 owner 能抓到画面",
+    "topRel": 0.11799755358119036,
+    "surface": true,
+    "topN": [
+     "虚拟屏 screencap -d 必败只有屏的 owner 能抓到画面",
+     "`am` 退出码 0 ≠ 落在目标屏；且 16 KiB stdout 上限会把虚拟屏那一段吃掉（0.14.1，缺陷 C1）",
+     "虚拟屏 `screencap -d <id>` 必败（Status -2）⇒ 只有屏的 owner 能抓；这条同时闭环了坑 250 的「白图」（2026-10-08 实锤）"
+    ],
+    "q": "虚拟屏显示正常吗"
+   },
+   {
+    "session": "session-23861d46-0746-469a-8858-35d53e6a5332",
+    "chars": 11,
+    "maxRel": 0.039183963569663936,
+    "nWeak": 1,
+    "nStrong": 0,
+    "topTitle": "Shizuku 服务端 v13.6：`checkSelfPermission()` 恒 denied、`getUid()` 撤权后仍返回 0 ⇒ 用 API 分不清 「已授权」与「授权被撤」（2026-10-02 真机两轮实测）",
+    "topRel": 0.039183963569663936,
+    "surface": true,
+    "topN": [
+     "Shizuku 服务端 v13.6：`checkSelfPermission()` 恒 denied、`getUid()` 撤权后仍返回 0 ⇒ 用 API 分不清 「已授权」与「授权被撤」（2026-10-02 真机两轮实测）",
+     "原 root 策略只认 su 授权/旧开关，且派发后异常回退会重复命令（0.14.3 源码修订）",
+     "VCP 参考资料在本机的落点与授权边界 先读提炼报告再读原始文档"
+    ],
+    "q": "我重新授权了，能看到吗"
+   },
+   {
+    "session": "session-23861d46-0746-469a-8858-35d53e6a5332",
+    "chars": 8,
+    "maxRel": 0.06466410585355911,
+    "nWeak": 5,
+    "nStrong": 0,
+    "topTitle": "run-as 的权限视图不代表引擎运行时",
+    "topRel": 0.06466410585355911,
+    "surface": true,
+    "topN": [
+     "run-as 的权限视图不代表引擎运行时",
+     "文件写工具在 Android 上建不了新文件：`createIfAbsent` 的 link(2) 没有回退，而退役记录以为上游早就覆盖了它（0.14.1 真机实测 + 本轮实修）",
+     "本机把 Termux 前缀改了名 ⇒ 上游 deb 装不上（298 MB 下完却一个文件不落）+ 手工修复配方（2026-10-08 实锤，已绕开）"
+    ],
+    "q": "我启用了完全权限"
+   },
+   {
+    "session": "session-91aca712-768f-4fef-9272-cb6f265580b3",
+    "chars": 7,
+    "maxRel": 0.058497186143693806,
+    "nWeak": 3,
+    "nStrong": 0,
+    "topTitle": "壳侧快照载荷的帧尺寸 `scr` 不随目标屏变化（恒缺省屏）⇒ 虚拟屏读屏拿到的「屏幕尺寸」是真实屏的（2026-10-06 真机实测，未修）",
+    "topRel": 0.058497186143693806,
+    "surface": true,
+    "topN": [
+     "壳侧快照载荷的帧尺寸 `scr` 不随目标屏变化（恒缺省屏）⇒ 虚拟屏读屏拿到的「屏幕尺寸」是真实屏的（2026-10-06 真机实测，未修）",
+     "无障碍通道对虚拟屏 取树/截屏 曾被范围门误拒",
+     "插件对协议 V2 载荷「形状失明」⇒ 屏幕尺寸恒「未回显」，且「树/截图尺寸必须一致」这条 fail-closed 判据从未触发过（2026-10-06 真机实测，已修）"
+    ],
+    "q": "你能读取屏幕吗"
+   },
+   {
+    "session": "session-91aca712-768f-4fef-9272-cb6f265580b3",
+    "chars": 10,
+    "maxRel": 0.059730952457485414,
+    "nWeak": 3,
+    "nStrong": 0,
+    "topTitle": "run-as 的权限视图不代表引擎运行时",
+    "topRel": 0.059730952457485414,
+    "surface": true,
+    "topN": [
+     "run-as 的权限视图不代表引擎运行时",
+     "本机把 Termux 前缀改了名 ⇒ 上游 deb 装不上（298 MB 下完却一个文件不落）+ 手工修复配方（2026-10-08 实锤，已绕开）",
+     "文件写工具在 Android 上建不了新文件：`createIfAbsent` 的 link(2) 没有回退，而退役记录以为上游早就覆盖了它（0.14.1 真机实测 + 本轮实修）"
+    ],
+    "q": "我开启了权限，现在呢"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 13,
+    "maxRel": 0.06331073904383495,
+    "nWeak": 5,
+    "nStrong": 0,
+    "topTitle": "属主维护「结算过严」把启动挂成「等待属主维护」直到整机重启（2026-10-01 真机截图实锤）",
+    "topRel": 0.06331073904383495,
+    "surface": true,
+    "topN": [
+     "属主维护「结算过严」把启动挂成「等待属主维护」直到整机重启（2026-10-01 真机截图实锤）",
+     "无障碍通道对虚拟屏 取树/截屏 曾被范围门误拒",
+     "插件对协议 V2 载荷「形状失明」⇒ 屏幕尺寸恒「未回显」，且「树/截图尺寸必须一致」这条 fail-closed 判据从未触发过（2026-10-06 真机实测，已修）"
+    ],
+    "q": "已重启，看看截图工具能用吗"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 11,
+    "maxRel": 0.03139661169365578,
+    "nWeak": 0,
+    "nStrong": 0,
+    "topTitle": "来源链现场生成一次性签名证书，等于重新引入 e65818a 修掉的缺陷（2026-09-27，签名专项核查）",
+    "topRel": 0.03139661169365578,
+    "surface": true,
+    "topN": [
+     "来源链现场生成一次性签名证书，等于重新引入 e65818a 修掉的缺陷（2026-09-27，签名专项核查）",
+     "没命中不等于不存在 否定性结论必须先证明检查口径的覆盖力",
+     "悬浮窗完成位必须挂在服务级字段：自动收起是默认路径，「完成后用户还没看到面板」才是常态"
+    ],
+    "q": "你能查看上一次的对话吗"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 3,
+    "maxRel": 0.0825467348876501,
+    "nWeak": 5,
+    "nStrong": 0,
+    "topTitle": "免 hooks 环境 ELF 不可执行",
+    "topRel": 0.0825467348876501,
+    "surface": true,
+    "topN": [
+     "免 hooks 环境 ELF 不可执行",
+     "官方 gh 二进制在安卓上跑不了 因为 ET_EXEC 非 PIE 且是 glibc 构建",
+     "从 Git Bash 跑构建链会触发「假红」：子进程 `tar` 变成 MSYS 版，把 `D:\\…` 当远端主机（2026-09-19 两次打包实锤）"
+    ],
+    "q": "进行c"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 3,
+    "maxRel": 0.10097344557643191,
+    "nWeak": 5,
+    "nStrong": 0,
+    "topTitle": "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 每次重启即永久死亡",
+    "topRel": 0.10097344557643191,
+    "surface": true,
+    "topN": [
+     "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 每次重启即永久死亡",
+     "UserService 跨应用重启存活 ⇒ 新加的 AIDL 方法「装上了却调不到」（2026-09-30 实测）",
+     "看门狗熔断的「永久锁存」与启动预算互斥：半死引擎下自动 undo 与自动重启双双永久失效"
+    ],
+    "q": "已重启"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 8,
+    "maxRel": 0.03995009491085939,
+    "nWeak": 1,
+    "nStrong": 0,
+    "topTitle": "`settings.describe(options)` 的 options 被实现忽略（0.13.5 引擎侧踩坑，影响所有读其它命名空间的插件）",
+    "topRel": 0.03995009491085939,
+    "surface": true,
+    "topN": [
+     "`settings.describe(options)` 的 options 被实现忽略（0.13.5 引擎侧踩坑，影响所有读其它命名空间的插件）",
+     "插件对协议 V2 载荷失明导致尺寸恒未回显且尺寸判据从未触发",
+     "红证改常量会假绿 因为断言回显的期望值跟着常量一起漂移必须改行为"
+    ],
+    "q": "不回显影响使用吗"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 28,
+    "maxRel": 0.03586510074776269,
+    "nWeak": 0,
+    "nStrong": 0,
+    "topTitle": "渐进披露的解锁前置对模型不可见：模型如实报「工具不存在」，用户看到的是「工具全不可用」（2026-09-19 设备实测，用户第三问的另一半真因）",
+    "topRel": 0.03586510074776269,
+    "surface": true,
+    "topN": [
+     "渐进披露的解锁前置对模型不可见：模型如实报「工具不存在」，用户看到的是「工具全不可用」（2026-09-19 设备实测，用户第三问的另一半真因）",
+     "本机 Termux 前缀改名导致上游 deb 装不上必须手工展开修复",
+     "dsh-agent-memory 的 NOTICE 自称含 CC 法律文本但实际没有"
+    ],
+    "q": "假设不修复缺陷，现有的Android工具可以支持你哪些？"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 37,
+    "maxRel": 0.023690978318519077,
+    "nWeak": 0,
+    "nStrong": 0,
+    "topTitle": "文件写工具在 Android 上建不了新文件：`createIfAbsent` 的 link(2) 没有回退，而退役记录以为上游早就覆盖了它（0.14.1 真机实测 + 本轮实修）",
+    "topRel": 0.023690978318519077,
+    "surface": true,
+    "topN": [
+     "文件写工具在 Android 上建不了新文件：`createIfAbsent` 的 link(2) 没有回退，而退役记录以为上游早就覆盖了它（0.14.1 真机实测 + 本轮实修）",
+     "文件名净化把 `..` 当「非法字符」处理是无效防线（#177 实锤，0.13.8 修复）",
+     "dsh-agent-memory 的 NOTICE 自称含 CC 法律文本但实际没有"
+    ],
+    "q": "qq有没有什么lsposed或者别的模块可以防止它无限的写入表情包等文件？"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 8,
+    "maxRel": 0.09160544581625431,
+    "nWeak": 3,
+    "nStrong": 0,
+    "topTitle": "DSH 插件官方安装机制 声明 dsh.bundle.patch 才能装完自动挂载",
+    "topRel": 0.09160544581625431,
+    "surface": true,
+    "topN": [
+     "DSH 插件官方安装机制 声明 dsh.bundle.patch 才能装完自动挂载",
+     "本机 Termux 前缀改名导致上游 deb 装不上必须手工展开修复",
+     "做自己的插件前先读 VCP 的原始文档与实现 避免重复造轮子和重踩它已回退的坑"
+    ],
+    "q": "等等先别自己安装"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 44,
+    "maxRel": 0.03732856902412879,
+    "nWeak": 0,
+    "nStrong": 0,
+    "topTitle": "DSH 插件官方安装机制 声明 dsh.bundle.patch 才能装完自动挂载",
+    "topRel": 0.03732856902412879,
+    "surface": true,
+    "topN": [
+     "DSH 插件官方安装机制 声明 dsh.bundle.patch 才能装完自动挂载",
+     "做自己的插件前先读 VCP 的原始文档与实现 避免重复造轮子和重踩它已回退的坑",
+     "`render` 写成 `output` 的兄弟属性 ⇒ 模型面 `userRender is not a function`，而插件自带 52 例全绿（2026-10-06 真机实锤，已修）"
+    ],
+    "q": "lsposed或者基于zygisk模块有没有去开屏广告的插件，帮我找一下，不需要帮我安装"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 25,
+    "maxRel": 0.045439641935833996,
+    "nWeak": 1,
+    "nStrong": 0,
+    "topTitle": "DSH 子代理会话内无法再委派：subagent depth 2 exceeds maxDepth 1",
+    "topRel": 0.045439641935833996,
+    "surface": true,
+    "topN": [
+     "DSH 子代理会话内无法再委派：subagent depth 2 exceeds maxDepth 1",
+     "系统 HTTP 代理劫持壳侧本地探针（#118 根因1，2026-09-02 实锤）",
+     "快照行为测试调用已删除的 boot 导出，会把上游接口更新误报成功能失败（2026-09-27，远程 run 36291780773）"
+    ],
+    "q": "使用adguard启用http代理流量功能会更强吗"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 25,
+    "maxRel": 0.04648137479049626,
+    "nWeak": 2,
+    "nStrong": 0,
+    "topTitle": "不能变红的断言不是护栏 自证用例必须自带区分力检查否则是假绿",
+    "topRel": 0.04648137479049626,
+    "surface": true,
+    "topN": [
+     "不能变红的断言不是护栏 自证用例必须自带区分力检查否则是假绿",
+     "选锚点要区分力不要最高频 覆盖全库的标签信息量为零",
+     "只跑目标单测文件 ≠ 跑过该插件单测：改动跨模块时必跑聚合门禁（2026-09-26，本轮实证）"
+    ],
+    "q": "adguard cert模块会动system分区吗"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 19,
+    "maxRel": 0.02896400331003057,
+    "nWeak": 0,
+    "nStrong": 0,
+    "topTitle": "快照 node 需要 OPENSSL_CONF",
+    "topRel": 0.02896400331003057,
+    "surface": true,
+    "topN": [
+     "快照 node 需要 OPENSSL_CONF",
+     "无障碍截屏落应用私有目录 → 引擎 read_image 打不开；且多花一轮（#127，2026-09-10）",
+     "看门狗熔断的「永久锁存」与启动预算互斥：半死引擎下自动 undo 与自动重启双双永久失效"
+    ],
+    "q": "adguard的隐私跟踪保护需要开启吗"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 23,
+    "maxRel": 0.018733322349111552,
+    "nWeak": 0,
+    "nStrong": 0,
+    "topTitle": "快照行为测试调用已删除的 boot 导出，会把上游接口更新误报成功能失败（2026-09-27，远程 run 36291780773）",
+    "topRel": 0.018733322349111552,
+    "surface": true,
+    "topN": [
+     "快照行为测试调用已删除的 boot 导出，会把上游接口更新误报成功能失败（2026-09-27，远程 run 36291780773）",
+     "测试里的静默 `return` 会伪装成 PASS —— 撤掉修法照样绿（假绿）",
+     "su/Binder本地超时或杀客户端不是特权后代结算，应用重启也不能清UNKNOWN（0.14.3源码修订）"
+    ],
+    "q": "大肥鱼你能在后台帮我做b站的lv6进阶测试题吗"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 38,
+    "maxRel": 0.01688850778634831,
+    "nWeak": 0,
+    "nStrong": 0,
+    "topTitle": "DSH 插件官方安装机制 声明 dsh.bundle.patch 才能装完自动挂载",
+    "topRel": 0.01688850778634831,
+    "surface": true,
+    "topN": [
+     "DSH 插件官方安装机制 声明 dsh.bundle.patch 才能装完自动挂载",
+     "虚拟屏 screencap -d 必败只有屏的 owner 能抓到画面",
+     "做自己的插件前先读 VCP 的原始文档与实现 避免重复造轮子和重踩它已回退的坑"
+    ],
+    "q": "全自动吧，有的题目我也不太懂呢，界面我已经在后台开好了，你搞个副屏应该就行了"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 30,
+    "maxRel": 0.01745122148793663,
+    "nWeak": 0,
+    "nStrong": 0,
+    "topTitle": "「App 重启无效」= 根因在 Shizuku 侧的 UserService 实例，只清进程内标志位永远不会好；必须 `remove = true` 强制移除（2026-09-26，P1）",
+    "topRel": 0.01745122148793663,
+    "surface": true,
+    "topN": [
+     "「App 重启无效」= 根因在 Shizuku 侧的 UserService 实例，只清进程内标志位永远不会好；必须 `remove = true` 强制移除（2026-09-26，P1）",
+     "把「尚未探测」渲染成「未就绪」= 让模型放弃一个可用能力（0.14.1 设备实测，缺陷 A1）",
+     "插件按引擎 0.1.7 之前的 API 调 `ctx.shell.run()` ⇒ Termux 宿主通道从装上起就是死的；同理两处调用点（2026-10-08 实锤，已修）"
+    ],
+    "q": "是shizuku的问题吗？要我给你切换成ksu管理的的状态吗"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 95,
+    "maxRel": 0.018833310709877028,
+    "nWeak": 0,
+    "nStrong": 0,
+    "topTitle": "`am` 退出码 0 ≠ 落在目标屏；且 16 KiB stdout 上限会把虚拟屏那一段吃掉（0.14.1，缺陷 C1）",
+    "topRel": 0.018833310709877028,
+    "surface": true,
+    "topN": [
+     "`am` 退出码 0 ≠ 落在目标屏；且 16 KiB stdout 上限会把虚拟屏那一段吃掉（0.14.1，缺陷 C1）",
+     "把「尚未探测」渲染成「未就绪」= 让模型放弃一个可用能力（0.14.1 设备实测，缺陷 A1）",
+     "「只有 ADB / 纯 Shizuku」下控件树曾经只有一条烂路：`android_ui_tree` 只回 XML 文件路径（2026-09-19 用户实报 + 本轮实修）"
+    ],
+    "q": "虚拟屏是我销毁的，我看一片黑感觉有点怪，不过为啥只能读默认屏，是工具缺陷吗，还是我们需要重新做一套基于root权限的读屏和操作工具，原本这套工具好像只是给shizuku uid2000准备的"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 137,
+    "maxRel": 0.014227881084494874,
+    "nWeak": 0,
+    "nStrong": 0,
+    "topTitle": "dsh-agent-memory 已发布到 GitHub 的仓库地址凭据位置与再推配方",
+    "topRel": 0.014227881084494874,
+    "surface": true,
+    "topN": [
+     "dsh-agent-memory 已发布到 GitHub 的仓库地址凭据位置与再推配方",
+     "通道判据的权限面假阴性被当成「通道不存在」⇒ 误清隔离；且「通道不可用」不等于「旧特权任务已结束」（2026-10-02 review 复审第 1、2 点）",
+     "文件写工具在 Android 上建不了新文件：`createIfAbsent` 的 link(2) 没有回退，而退役记录以为上游早就覆盖了它（0.14.1 真机实测 + 本轮实修）"
+    ],
+    "q": "GitHub上有一个基于特权容器和ksu模块的实现，不过我感觉这个对于我们临时root来说可能不太友好（可能会动system）等分区，你检查一下有没有可以copy到本地来修改的内容https://github.com/AcidGr/dsh-preset-mobile-use"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 29,
+    "maxRel": 0.04418305169338392,
+    "nWeak": 4,
+    "nStrong": 0,
+    "topTitle": "虚拟屏 `screencap -d <id>` 必败（Status -2）⇒ 只有屏的 owner 能抓；这条同时闭环了坑 250 的「白图」（2026-10-08 实锤）",
+    "topRel": 0.04314456512789574,
+    "surface": true,
+    "topN": [
+     "虚拟屏 `screencap -d <id>` 必败（Status -2）⇒ 只有屏的 owner 能抓；这条同时闭环了坑 250 的「白图」（2026-10-08 实锤）",
+     "虚拟屏 screencap -d 必败只有屏的 owner 能抓到画面",
+     "无障碍通道对虚拟屏 取树/截屏 曾被范围门误拒"
+    ],
+    "q": "嘛，我切换到ksu侧了，你先试试创建虚拟屏能不能后台读取吧"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 58,
+    "maxRel": 0.042620935060081855,
+    "nWeak": 1,
+    "nStrong": 0,
+    "topTitle": "虚拟屏 `screencap -d <id>` 必败（Status -2）⇒ 只有屏的 owner 能抓；这条同时闭环了坑 250 的「白图」（2026-10-08 实锤）",
+    "topRel": 0.042620935060081855,
+    "surface": true,
+    "topN": [
+     "虚拟屏 `screencap -d <id>` 必败（Status -2）⇒ 只有屏的 owner 能抓；这条同时闭环了坑 250 的「白图」（2026-10-08 实锤）",
+     "`am` 退出码 0 ≠ 落在目标屏；且 16 KiB stdout 上限会把虚拟屏那一段吃掉（0.14.1，缺陷 C1）",
+     "热推脚本（hot-push.mjs）长期「自称可用、实际每个落点必失败」：adb push 建的 stage 目录对 run-as 身份不可列目录（2026-09-26）"
+    ],
+    "q": "只有shizuku能建立虚拟屏吗？我说的ksu侧是指我直接通过ksu授予你root权限了，而非通过shizuku授予"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 5,
+    "maxRel": 0.06411518802001324,
+    "nWeak": 3,
+    "nStrong": 0,
+    "topTitle": "公开仓泄漏面：设备序列号以「测试注释/夹具」形态随 新文件 混入（0.14.1 P0-c 实锤）",
+    "topRel": 0.06411518802001324,
+    "surface": true,
+    "topN": [
+     "公开仓泄漏面：设备序列号以「测试注释/夹具」形态随 新文件 混入（0.14.1 P0-c 实锤）",
+     "快照行为测试调用已删除的 boot 导出，会把上游接口更新误报成功能失败（2026-09-27，远程 run 36291780773）",
+     "契约测试的成员边界取错 ⇒ 防线被删掉仍然绿（2026-10-02 review 指出）"
+    ],
+    "q": "用c试试吧"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 3,
+    "maxRel": 0.10097344557643191,
+    "nWeak": 5,
+    "nStrong": 0,
+    "topTitle": "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 每次重启即永久死亡",
+    "topRel": 0.10097344557643191,
+    "surface": true,
+    "topN": [
+     "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 每次重启即永久死亡",
+     "UserService 跨应用重启存活 ⇒ 新加的 AIDL 方法「装上了却调不到」（2026-09-30 实测）",
+     "看门狗熔断的「永久锁存」与启动预算互斥：半死引擎下自动 undo 与自动重启双双永久失效"
+    ],
+    "q": "已重启"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 22,
+    "maxRel": 0.04978699331479525,
+    "nWeak": 5,
+    "nStrong": 0,
+    "topTitle": "构建器「跑到一半就正常退出」= 打包链静默复用陈旧快照（0.14.0 实锤，本轮修复）",
+    "topRel": 0.04978699331479525,
+    "surface": true,
+    "topN": [
+     "构建器「跑到一半就正常退出」= 打包链静默复用陈旧快照（0.14.0 实锤，本轮修复）",
+     "来源审计构建在 pnpm 安装后备份整个 vendor 包目录，会沿工作区符号链接递归（2026-09-27，远程 run 36261389579）",
+     "来源链不是逐字节可复现：两个独立根因，且「哈希恒漂」会让完整性判据整个失效（2026-09-28，两次远程 run 实测）"
+    ],
+    "q": "要不chroot一个debian容器来构建？"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 36,
+    "maxRel": 0.024347160212078906,
+    "nWeak": 0,
+    "nStrong": 0,
+    "topTitle": "Kotlin 行首 `+` 是一元加号、不是续行 ⇒ 静态自审全绿但编译炸",
+    "topRel": 0.024347160212078906,
+    "surface": true,
+    "topN": [
+     "Kotlin 行首 `+` 是一元加号、不是续行 ⇒ 静态自审全绿但编译炸",
+     "apt/dpkg 编译期路径（issue #80，2026-08-24 重写）",
+     "`stage/` 目录与 `snapshot.tar.xz` 不同步：门禁读了阶段树而非产物，得出与实际相反的结论"
+    ],
+    "q": "我同意最小验证，jadx反编译也需要上，对于有风险的模块我们都得确认一遍"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 28,
+    "maxRel": 0.03945649351156231,
+    "nWeak": 2,
+    "nStrong": 0,
+    "topTitle": "虚拟屏 `screencap -d <id>` 必败（Status -2）⇒ 只有屏的 owner 能抓；这条同时闭环了坑 250 的「白图」（2026-10-08 实锤）",
+    "topRel": 0.03945649351156231,
+    "surface": true,
+    "topN": [
+     "虚拟屏 `screencap -d <id>` 必败（Status -2）⇒ 只有屏的 owner 能抓；这条同时闭环了坑 250 的「白图」（2026-10-08 实锤）",
+     "虚拟屏 screencap -d 必败只有屏的 owner 能抓到画面",
+     "`screencap -d <Android displayId>` 对虚拟屏必然失败：必须用 SurfaceFlinger 的长整型 display token（0.14.1 块G F6 设备实测）"
+    ],
+    "q": "你刚才开启应用的时候，我的主屏依旧调转了，有开虚拟屏吗？"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 76,
+    "maxRel": 0.01193909566166547,
+    "nWeak": 0,
+    "nStrong": 0,
+    "topTitle": "只跑目标单测文件 ≠ 跑过该插件单测：改动跨模块时必跑聚合门禁（2026-09-26，本轮实证）",
+    "topRel": 0.01193909566166547,
+    "surface": true,
+    "topN": [
+     "只跑目标单测文件 ≠ 跑过该插件单测：改动跨模块时必跑聚合门禁（2026-09-26，本轮实证）",
+     "`render` 写成 `output` 的兄弟属性 ⇒ 模型面 `userRender is not a function`，而插件自带 52 例全绿（2026-10-06 真机实锤，已修）",
+     "文件写工具在 Android 上建不了新文件：`createIfAbsent` 的 link(2) 没有回退，而退役记录以为上游早就覆盖了它（0.14.1 真机实测 + 本轮实修）"
+    ],
+    "q": "我想给你装个记忆插件了，省的之后忘记，你做完测试帮我看看没有适合的记忆插件，不要太过臃肿，如果有类似使用rag+拓扑流行的语义动力学实现的插件就省心多了"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 60,
+    "maxRel": 0.027518614038265544,
+    "nWeak": 0,
+    "nStrong": 0,
+    "topTitle": "dsh-agent-memory 已发布到 GitHub 的仓库地址凭据位置与再推配方",
+    "topRel": 0.014350263444675609,
+    "surface": true,
+    "topN": [
+     "dsh-agent-memory 已发布到 GitHub 的仓库地址凭据位置与再推配方",
+     "来源链 APK 比正常链大 3.1 倍：完整 pnpm deploy 按 Linux 宿主平台拉进了 1.2 GB 的 Linux 原生载荷（2026-09-28）",
+     "做自己的插件前先读 VCP 的原始文档与实现 避免重复造轮子和重踩它已回退的坑"
+    ],
+    "q": "那我们手动写一套吧，你去看看GitHub上的vcptoolbox他的记忆功能实现，我们可以搬比较重要的点然后给他做成插件"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 98,
+    "maxRel": 0.010431466508540935,
+    "nWeak": 0,
+    "nStrong": 0,
+    "topTitle": "文件写工具在 Android 上建不了新文件：`createIfAbsent` 的 link(2) 没有回退，而退役记录以为上游早就覆盖了它（0.14.1 真机实测 + 本轮实修）",
+    "topRel": 0.010431466508540935,
+    "surface": true,
+    "topN": [
+     "文件写工具在 Android 上建不了新文件：`createIfAbsent` 的 link(2) 没有回退，而退役记录以为上游早就覆盖了它（0.14.1 真机实测 + 本轮实修）",
+     "渐进披露的解锁前置对模型不可见：模型如实报「工具不存在」，用户看到的是「工具全不可用」（2026-09-19 设备实测，用户第三问的另一半真因）",
+     "快照行为测试调用已删除的 boot 导出，会把上游接口更新误报成功能失败（2026-09-27，远程 run 36291780773）"
+    ],
+    "q": "我们可以先仔细阅读它的一些文档，作者做了比较多的测试，所以在搬系统前，我们不需要搬一整套系统，需要学习他的思想然后只搬需要的，因为作者的那套工作流并非上下文滚动窗口系统，我怕用在dsh上会有点问题"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 59,
+    "maxRel": 0.014958787974654705,
+    "nWeak": 0,
+    "nStrong": 0,
+    "topTitle": "`build-release.ps1` 的快照输入必须是 注入后 产物，不是 pre-injection 快照（2026-09-26，本轮实证）",
+    "topRel": 0.014958787974654705,
+    "surface": true,
+    "topN": [
+     "`build-release.ps1` 的快照输入必须是 注入后 产物，不是 pre-injection 快照（2026-09-26，本轮实证）",
+     "`inject-snapshot.py` 只替换快照内已存在的成员——给已有插件包「加新文件」不会进快照（幽灵缺陷温床）",
+     "DSH 子代理会话内无法再委派：subagent depth 2 exceeds maxDepth 1"
+    ],
+    "q": "不直接照抄是对的，不过我对你回答中的插件没法改动上下文注入有疑问，dsh的一切接插件理念下，上下文系统应该也是个插件吧"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 34,
+    "maxRel": 0.029235069234521002,
+    "nWeak": 0,
+    "nStrong": 0,
+    "topTitle": "VCP 参考资料在本机的落点与授权边界 先读提炼报告再读原始文档",
+    "topRel": 0.029235069234521002,
+    "surface": true,
+    "topN": [
+     "VCP 参考资料在本机的落点与授权边界 先读提炼报告再读原始文档",
+     "做自己的插件前先读 VCP 的原始文档与实现 避免重复造轮子和重踩它已回退的坑",
+     "dsh-agent-memory 已发布到 GitHub 的仓库地址凭据位置与再推配方"
+    ],
+    "q": "vcp的上下文和dsh原本的上下文系统，在工程方面，你觉得哪个更靠谱"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 25,
+    "maxRel": 0.031077238959380638,
+    "nWeak": 0,
+    "nStrong": 0,
+    "topTitle": "做自己的插件前先读 VCP 的原始文档与实现 避免重复造轮子和重踩它已回退的坑",
+    "topRel": 0.031077238959380638,
+    "surface": true,
+    "topN": [
+     "做自己的插件前先读 VCP 的原始文档与实现 避免重复造轮子和重踩它已回退的坑",
+     "归一化摘要要求在 大小写敏感 的文件系统上复算——macOS 上会得到另一个值（2026-09-28）",
+     "选锚点要区分力不要最高频 覆盖全库的标签信息量为零"
+    ],
+    "q": "那结合优缺点，我们需要怎么做我们自己的这套记忆系统"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 2,
+    "maxRel": 0.11003310339452735,
+    "nWeak": 5,
+    "nStrong": 0,
+    "topTitle": "官方 gh 二进制在安卓上跑不了 因为 ET_EXEC 非 PIE 且是 glibc 构建",
+    "topRel": 0.11003310339452735,
+    "surface": false,
+    "topN": [
+     "官方 gh 二进制在安卓上跑不了 因为 ET_EXEC 非 PIE 且是 glibc 构建",
+     "dsh-agent-memory 的 NOTICE 自称含 CC 法律文本但实际没有",
+     "打印的数必须与判定所用的量同一个口径 否则结论无法被读者复算"
+    ],
+    "q": "可以"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 2,
+    "maxRel": 0.11003310339452735,
+    "nWeak": 5,
+    "nStrong": 0,
+    "topTitle": "官方 gh 二进制在安卓上跑不了 因为 ET_EXEC 非 PIE 且是 glibc 构建",
+    "topRel": 0.11003310339452735,
+    "surface": false,
+    "topN": [
+     "官方 gh 二进制在安卓上跑不了 因为 ET_EXEC 非 PIE 且是 glibc 构建",
+     "dsh-agent-memory 的 NOTICE 自称含 CC 法律文本但实际没有",
+     "打印的数必须与判定所用的量同一个口径 否则结论无法被读者复算"
+    ],
+    "q": "可以"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 3,
+    "maxRel": 0.10097344557643191,
+    "nWeak": 5,
+    "nStrong": 0,
+    "topTitle": "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 每次重启即永久死亡",
+    "topRel": 0.10097344557643191,
+    "surface": true,
+    "topN": [
+     "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 每次重启即永久死亡",
+     "UserService 跨应用重启存活 ⇒ 新加的 AIDL 方法「装上了却调不到」（2026-09-30 实测）",
+     "看门狗熔断的「永久锁存」与启动预算互斥：半死引擎下自动 undo 与自动重启双双永久失效"
+    ],
+    "q": "已重启"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 16,
+    "maxRel": 0.02703636071659975,
+    "nWeak": 0,
+    "nStrong": 0,
+    "topTitle": "做自己的插件前先读 VCP 的原始文档与实现 避免重复造轮子和重踩它已回退的坑",
+    "topRel": 0.02703636071659975,
+    "surface": true,
+    "topN": [
+     "做自己的插件前先读 VCP 的原始文档与实现 避免重复造轮子和重踩它已回退的坑",
+     "VCP 参考资料在本机的落点与授权边界 先读提炼报告再读原始文档",
+     "dsh-agent-memory 已发布到 GitHub 的仓库地址凭据位置与再推配方"
+    ],
+    "q": "何不学习一下vcp他是怎么做的？"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 2,
+    "maxRel": 0.11003310339452735,
+    "nWeak": 5,
+    "nStrong": 0,
+    "topTitle": "官方 gh 二进制在安卓上跑不了 因为 ET_EXEC 非 PIE 且是 glibc 构建",
+    "topRel": 0.11003310339452735,
+    "surface": false,
+    "topN": [
+     "官方 gh 二进制在安卓上跑不了 因为 ET_EXEC 非 PIE 且是 glibc 构建",
+     "dsh-agent-memory 的 NOTICE 自称含 CC 法律文本但实际没有",
+     "打印的数必须与判定所用的量同一个口径 否则结论无法被读者复算"
+    ],
+    "q": "可以"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 3,
+    "maxRel": 0.10097344557643191,
+    "nWeak": 5,
+    "nStrong": 0,
+    "topTitle": "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 每次重启即永久死亡",
+    "topRel": 0.10097344557643191,
+    "surface": true,
+    "topN": [
+     "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 每次重启即永久死亡",
+     "UserService 跨应用重启存活 ⇒ 新加的 AIDL 方法「装上了却调不到」（2026-09-30 实测）",
+     "看门狗熔断的「永久锁存」与启动预算互斥：半死引擎下自动 undo 与自动重启双双永久失效"
+    ],
+    "q": "已重启"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 2,
+    "maxRel": 0.18672958665533151,
+    "nWeak": 5,
+    "nStrong": 1,
+    "topTitle": "写后回读的回包缺 `ok` ＋ 拒收码不进 CALL_REASON ⇒ 已成功的动作被渲染成「失败：原因未在本版登记」（2026-09-30，用户实测撤销同意）",
+    "topRel": 0.18672958665533151,
+    "surface": true,
+    "topN": [
+     "写后回读的回包缺 `ok` ＋ 拒收码不进 CALL_REASON ⇒ 已成功的动作被渲染成「失败：原因未在本版登记」（2026-09-30，用户实测撤销同意）",
+     "`am` 退出码 0 ≠ 落在目标屏；且 16 KiB stdout 上限会把虚拟屏那一段吃掉（0.14.1，缺陷 C1）",
+     "原生「打开方式」两条出口与白名单（0.13.7）"
+    ],
+    "q": "ok"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 3,
+    "maxRel": 0.10097344557643191,
+    "nWeak": 5,
+    "nStrong": 0,
+    "topTitle": "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 每次重启即永久死亡",
+    "topRel": 0.10097344557643191,
+    "surface": true,
+    "topN": [
+     "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 每次重启即永久死亡",
+     "UserService 跨应用重启存活 ⇒ 新加的 AIDL 方法「装上了却调不到」（2026-09-30 实测）",
+     "看门狗熔断的「永久锁存」与启动预算互斥：半死引擎下自动 undo 与自动重启双双永久失效"
+    ],
+    "q": "已重启"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 2,
+    "maxRel": 0.06970138481979464,
+    "nWeak": 2,
+    "nStrong": 0,
+    "topTitle": "「App 重启无效」= 根因在 Shizuku 侧的 UserService 实例，只清进程内标志位永远不会好；必须 `remove = true` 强制移除（2026-09-26，P1）",
+    "topRel": 0.06970138481979464,
+    "surface": true,
+    "topN": [
+     "「App 重启无效」= 根因在 Shizuku 侧的 UserService 实例，只清进程内标志位永远不会好；必须 `remove = true` 强制移除（2026-09-26，P1）",
+     "文件名净化把 `..` 当「非法字符」处理是无效防线（#177 实锤，0.13.8 修复）",
+     "不能变红的断言不是护栏 自证用例必须自带区分力检查否则是假绿"
+    ],
+    "q": "好的"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 3,
+    "maxRel": 0.10097344557643191,
+    "nWeak": 5,
+    "nStrong": 0,
+    "topTitle": "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 每次重启即永久死亡",
+    "topRel": 0.10097344557643191,
+    "surface": true,
+    "topN": [
+     "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 每次重启即永久死亡",
+     "UserService 跨应用重启存活 ⇒ 新加的 AIDL 方法「装上了却调不到」（2026-09-30 实测）",
+     "看门狗熔断的「永久锁存」与启动预算互斥：半死引擎下自动 undo 与自动重启双双永久失效"
+    ],
+    "q": "已重启"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 1,
+    "maxRel": 0.17065525573002352,
+    "nWeak": 5,
+    "nStrong": 1,
+    "topTitle": "闸门A拒启与闸门B自愈互锁：只有能spawn才会写engine.log，而拒启恰恰不spawn（0.14.3，#309）",
+    "topRel": 0.17065525573002352,
+    "surface": true,
+    "topN": [
+     "闸门A拒启与闸门B自愈互锁：只有能spawn才会写engine.log，而拒启恰恰不spawn（0.14.3，#309）",
+     "`uiautomator dump --display <n>` 会被收下但不生效：本仓曾把真实屏的树当虚拟屏证据（0.14.1 判定性实测）",
+     "快照内 git 的编译期 SHELL_PATH 等长重定位：落点必须晚于 7d（git.real 是那一步才诞生的），且白名单内绝大多数是符号链接（apk#247，0.14.1 真机复现 + 本轮落到产出链）"
+    ],
+    "q": "b"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 3,
+    "maxRel": 0.10097344557643191,
+    "nWeak": 5,
+    "nStrong": 0,
+    "topTitle": "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 每次重启即永久死亡",
+    "topRel": 0.10097344557643191,
+    "surface": true,
+    "topN": [
+     "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 每次重启即永久死亡",
+     "UserService 跨应用重启存活 ⇒ 新加的 AIDL 方法「装上了却调不到」（2026-09-30 实测）",
+     "看门狗熔断的「永久锁存」与启动预算互斥：半死引擎下自动 undo 与自动重启双双永久失效"
+    ],
+    "q": "已重启"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 24,
+    "maxRel": 0.04284394431961948,
+    "nWeak": 1,
+    "nStrong": 0,
+    "topTitle": "DSH 插件官方安装机制 声明 dsh.bundle.patch 才能装完自动挂载",
+    "topRel": 0.04284394431961948,
+    "surface": true,
+    "topN": [
+     "DSH 插件官方安装机制 声明 dsh.bundle.patch 才能装完自动挂载",
+     "快照 node 需要 OPENSSL_CONF",
+     "悬浮窗完成位必须挂在服务级字段：自动收起是默认路径，「完成后用户还没看到面板」才是常态"
+    ],
+    "q": "现在需要agent手动召回记忆，还是会自动召回，"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 39,
+    "maxRel": 0.03205228566409219,
+    "nWeak": 0,
+    "nStrong": 0,
+    "topTitle": "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 每次重启即永久死亡",
+    "topRel": 0.03205228566409219,
+    "surface": true,
+    "topN": [
+     "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 每次重启即永久死亡",
+     "`build-release.ps1` 的快照输入必须是 注入后 产物，不是 pre-injection 快照（2026-09-26，本轮实证）",
+     "选锚点要区分力不要最高频 覆盖全库的标签信息量为零"
+    ],
+    "q": "l3和l4有先后顺序吗，如果要注入则注入要放在system prompt的尾部"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 2,
+    "maxRel": 0.11003310339452735,
+    "nWeak": 5,
+    "nStrong": 0,
+    "topTitle": "官方 gh 二进制在安卓上跑不了 因为 ET_EXEC 非 PIE 且是 glibc 构建",
+    "topRel": 0.11003310339452735,
+    "surface": false,
+    "topN": [
+     "官方 gh 二进制在安卓上跑不了 因为 ET_EXEC 非 PIE 且是 glibc 构建",
+     "dsh-agent-memory 的 NOTICE 自称含 CC 法律文本但实际没有",
+     "打印的数必须与判定所用的量同一个口径 否则结论无法被读者复算"
+    ],
+    "q": "可以"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 2,
+    "maxRel": 0.06970138481979464,
+    "nWeak": 2,
+    "nStrong": 0,
+    "topTitle": "「App 重启无效」= 根因在 Shizuku 侧的 UserService 实例，只清进程内标志位永远不会好；必须 `remove = true` 强制移除（2026-09-26，P1）",
+    "topRel": 0.06970138481979464,
+    "surface": true,
+    "topN": [
+     "「App 重启无效」= 根因在 Shizuku 侧的 UserService 实例，只清进程内标志位永远不会好；必须 `remove = true` 强制移除（2026-09-26，P1）",
+     "文件名净化把 `..` 当「非法字符」处理是无效防线（#177 实锤，0.13.8 修复）",
+     "不能变红的断言不是护栏 自证用例必须自带区分力检查否则是假绿"
+    ],
+    "q": "好的"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 3,
+    "maxRel": 0.10097344557643191,
+    "nWeak": 5,
+    "nStrong": 0,
+    "topTitle": "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 每次重启即永久死亡",
+    "topRel": 0.10097344557643191,
+    "surface": true,
+    "topN": [
+     "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 每次重启即永久死亡",
+     "UserService 跨应用重启存活 ⇒ 新加的 AIDL 方法「装上了却调不到」（2026-09-30 实测）",
+     "看门狗熔断的「永久锁存」与启动预算互斥：半死引擎下自动 undo 与自动重启双双永久失效"
+    ],
+    "q": "已重启"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 40,
+    "maxRel": 0.014423409112945184,
+    "nWeak": 0,
+    "nStrong": 0,
+    "topTitle": "「App 重启无效」= 根因在 Shizuku 侧的 UserService 实例，只清进程内标志位永远不会好；必须 `remove = true` 强制移除（2026-09-26，P1）",
+    "topRel": 0.014423409112945184,
+    "surface": true,
+    "topN": [
+     "「App 重启无效」= 根因在 Shizuku 侧的 UserService 实例，只清进程内标志位永远不会好；必须 `remove = true` 强制移除（2026-09-26，P1）",
+     "无障碍截屏落应用私有目录 → 引擎 read_image 打不开；且多花一轮（#127，2026-09-10）",
+     "插件按引擎 0.1.7 之前的 API 调 `ctx.shell.run()` ⇒ Termux 宿主通道从装上起就是死的；同理两处调用点（2026-10-08 实锤，已修）"
+    ],
+    "q": "在做l3之前，我想问下召回的记忆应该不是无限多吧，只会根据话题的匹配度来召回吧？"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 5,
+    "maxRel": 0.08291797326660515,
+    "nWeak": 1,
+    "nStrong": 0,
+    "topTitle": "做自己的插件前先读 VCP 的原始文档与实现 避免重复造轮子和重踩它已回退的坑",
+    "topRel": 0.08291797326660515,
+    "surface": true,
+    "topN": [
+     "做自己的插件前先读 VCP 的原始文档与实现 避免重复造轮子和重踩它已回退的坑",
+     "稀疏向量做 Gram-Schmidt 必须按并集减否则基不正交",
+     "`robocopy /MIR` 镜像会把对端 正确 的 lockfile 覆盖成旧版；镜像前先核盘（2026-09-26，本轮实证）"
+    ],
+    "q": "先做l3吧"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 3,
+    "maxRel": 0.10097344557643191,
+    "nWeak": 5,
+    "nStrong": 0,
+    "topTitle": "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 每次重启即永久死亡",
+    "topRel": 0.10097344557643191,
+    "surface": true,
+    "topN": [
+     "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 每次重启即永久死亡",
+     "UserService 跨应用重启存活 ⇒ 新加的 AIDL 方法「装上了却调不到」（2026-09-30 实测）",
+     "看门狗熔断的「永久锁存」与启动预算互斥：半死引擎下自动 undo 与自动重启双双永久失效"
+    ],
+    "q": "已重启"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 9,
+    "maxRel": 0.040348309435979744,
+    "nWeak": 1,
+    "nStrong": 0,
+    "topTitle": "快照 node 需要 OPENSSL_CONF",
+    "topRel": 0.040348309435979744,
+    "surface": true,
+    "topN": [
+     "快照 node 需要 OPENSSL_CONF",
+     "VCP 参考资料在本机的落点与授权边界 先读提炼报告再读原始文档",
+     "profile patch 的合并语义是「按 id 只增不删」——错误的 row 会永久留在设备上（0.13.8 实锤）"
+    ],
+    "q": "我们需要攒一些语料"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 2,
+    "maxRel": 0.06970138481979464,
+    "nWeak": 2,
+    "nStrong": 0,
+    "topTitle": "「App 重启无效」= 根因在 Shizuku 侧的 UserService 实例，只清进程内标志位永远不会好；必须 `remove = true` 强制移除（2026-09-26，P1）",
+    "topRel": 0.06970138481979464,
+    "surface": true,
+    "topN": [
+     "「App 重启无效」= 根因在 Shizuku 侧的 UserService 实例，只清进程内标志位永远不会好；必须 `remove = true` 强制移除（2026-09-26，P1）",
+     "文件名净化把 `..` 当「非法字符」处理是无效防线（#177 实锤，0.13.8 修复）",
+     "不能变红的断言不是护栏 自证用例必须自带区分力检查否则是假绿"
+    ],
+    "q": "好的"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 7,
+    "maxRel": 0.06509907319748078,
+    "nWeak": 3,
+    "nStrong": 0,
+    "topTitle": "快照 node 需要 OPENSSL_CONF",
+    "topRel": 0.06509907319748078,
+    "surface": true,
+    "topN": [
+     "快照 node 需要 OPENSSL_CONF",
+     "「App 重启无效」= 根因在 Shizuku 侧的 UserService 实例，只清进程内标志位永远不会好；必须 `remove = true` 强制移除（2026-09-26，P1）",
+     "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 每次重启即永久死亡"
+    ],
+    "q": "需要我重启吗？"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 2,
+    "maxRel": 0.06970138481979464,
+    "nWeak": 2,
+    "nStrong": 0,
+    "topTitle": "「App 重启无效」= 根因在 Shizuku 侧的 UserService 实例，只清进程内标志位永远不会好；必须 `remove = true` 强制移除（2026-09-26，P1）",
+    "topRel": 0.06970138481979464,
+    "surface": true,
+    "topN": [
+     "「App 重启无效」= 根因在 Shizuku 侧的 UserService 实例，只清进程内标志位永远不会好；必须 `remove = true` 强制移除（2026-09-26，P1）",
+     "文件名净化把 `..` 当「非法字符」处理是无效防线（#177 实锤，0.13.8 修复）",
+     "不能变红的断言不是护栏 自证用例必须自带区分力检查否则是假绿"
+    ],
+    "q": "好的"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 3,
+    "maxRel": 0.10097344557643191,
+    "nWeak": 5,
+    "nStrong": 0,
+    "topTitle": "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 每次重启即永久死亡",
+    "topRel": 0.10097344557643191,
+    "surface": true,
+    "topN": [
+     "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 每次重启即永久死亡",
+     "UserService 跨应用重启存活 ⇒ 新加的 AIDL 方法「装上了却调不到」（2026-09-30 实测）",
+     "看门狗熔断的「永久锁存」与启动预算互斥：半死引擎下自动 undo 与自动重启双双永久失效"
+    ],
+    "q": "已重启"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 51,
+    "maxRel": 0.06475313998859568,
+    "nWeak": 1,
+    "nStrong": 0,
+    "topTitle": "做自己的插件前先读 VCP 的原始文档与实现 避免重复造轮子和重踩它已回退的坑",
+    "topRel": 0.06475313998859568,
+    "surface": true,
+    "topN": [
+     "做自己的插件前先读 VCP 的原始文档与实现 避免重复造轮子和重踩它已回退的坑",
+     "VCP 参考资料在本机的落点与授权边界 先读提炼报告再读原始文档",
+     "profile patch 的合并语义是「按 id 只增不删」——错误的 row 会永久留在设备上（0.13.8 实锤）"
+    ],
+    "q": "已重启，然后我想让你记一下，在做我们自己的插件时，可以先从vcp原本的文档或者代码读，以防止重复造轮子"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 2,
+    "maxRel": 0.06970138481979464,
+    "nWeak": 2,
+    "nStrong": 0,
+    "topTitle": "「App 重启无效」= 根因在 Shizuku 侧的 UserService 实例，只清进程内标志位永远不会好；必须 `remove = true` 强制移除（2026-09-26，P1）",
+    "topRel": 0.06970138481979464,
+    "surface": true,
+    "topN": [
+     "「App 重启无效」= 根因在 Shizuku 侧的 UserService 实例，只清进程内标志位永远不会好；必须 `remove = true` 强制移除（2026-09-26，P1）",
+     "文件名净化把 `..` 当「非法字符」处理是无效防线（#177 实锤，0.13.8 修复）",
+     "不能变红的断言不是护栏 自证用例必须自带区分力检查否则是假绿"
+    ],
+    "q": "好的"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 1,
+    "maxRel": 0.18289458713275103,
+    "nWeak": 5,
+    "nStrong": 2,
+    "topTitle": "稀疏向量做 Gram-Schmidt 必须按并集减否则基不正交",
+    "topRel": 0.18289458713275103,
+    "surface": true,
+    "topN": [
+     "稀疏向量做 Gram-Schmidt 必须按并集减否则基不正交",
+     "WSL 9p 挂载 chmod 无效 → 归档权限归一化只能在重打包层做（2026-09-08 实测）",
+     "做自己的插件前先读 VCP 的原始文档与实现 避免重复造轮子和重踩它已回退的坑"
+    ],
+    "q": "做"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 52,
+    "maxRel": 0.025894499159369668,
+    "nWeak": 0,
+    "nStrong": 0,
+    "topTitle": "dsh-agent-memory 已发布到 GitHub 的仓库地址凭据位置与再推配方",
+    "topRel": 0.025894499159369668,
+    "surface": true,
+    "topN": [
+     "dsh-agent-memory 已发布到 GitHub 的仓库地址凭据位置与再推配方",
+     "发布输入快照会随插件改动一起过期：`dsh-mobile-apk/snapshot/` 必须重出（2026-09-26，本轮实证）",
+     "镜像追到上游发布字节后，来源链还在重建旧源码树：市场补丁锚点必然失配（2026-09-27，远程 run 36312684359）"
+    ],
+    "q": "重启后我想让你把这个插件推送到GitHub，不过首先需要登录一下我的仓库，麻烦开个验证，然后把链接发给我"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 27,
+    "maxRel": 0.03503175268373442,
+    "nWeak": 0,
+    "nStrong": 0,
+    "topTitle": "dsh-agent-memory 已发布到 GitHub 的仓库地址凭据位置与再推配方",
+    "topRel": 0.03503175268373442,
+    "surface": true,
+    "topN": [
+     "dsh-agent-memory 已发布到 GitHub 的仓库地址凭据位置与再推配方",
+     "插件对协议 V2 载荷失明导致尺寸恒未回显且尺寸判据从未触发",
+     "插件对协议 V2 载荷「形状失明」⇒ 屏幕尺寸恒「未回显」，且「树/截图尺寸必须一致」这条 fail-closed 判据从未触发过（2026-10-06 真机实测，已修）"
+    ],
+    "q": "我们新建一个公共仓库然后license用上游的cc协议"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 33,
+    "maxRel": 0.024859915900710173,
+    "nWeak": 0,
+    "nStrong": 0,
+    "topTitle": "dsh-agent-memory 已发布到 GitHub 的仓库地址凭据位置与再推配方",
+    "topRel": 0.019673892227788314,
+    "surface": true,
+    "topN": [
+     "dsh-agent-memory 已发布到 GitHub 的仓库地址凭据位置与再推配方",
+     "文件写工具在 Android 上建不了新文件：`createIfAbsent` 的 link(2) 没有回退，而退役记录以为上游早就覆盖了它（0.14.1 真机实测 + 本轮实修）",
+     "来源链不是逐字节可复现：两个独立根因，且「哈希恒漂」会让完整性判据整个失效（2026-09-28，两次远程 run 实测）"
+    ],
+    "q": "我记得不是可以直接用github登录的吗，token方式太麻烦了🥲"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 18,
+    "maxRel": 0.04408688614411772,
+    "nWeak": 1,
+    "nStrong": 0,
+    "topTitle": "dsh-agent-memory 已发布到 GitHub 的仓库地址凭据位置与再推配方",
+    "topRel": 0.04408688614411772,
+    "surface": true,
+    "topN": [
+     "dsh-agent-memory 已发布到 GitHub 的仓库地址凭据位置与再推配方",
+     "来源链 APK 比正常链大 3.1 倍：完整 pnpm deploy 按 Linux 宿主平台拉进了 1.2 GB 的 Linux 原生载荷（2026-09-28）",
+     "上游 peer 门禁与 npm 解析用的是两套 semver 判据，caret 地板留在旧代会在安装期就炸（2026-09-24 追 0.1.7-rc.1 实锤）"
+    ],
+    "q": "1.好的2.用我的GitHub名就行"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 2,
+    "maxRel": 0.11003310339452735,
+    "nWeak": 5,
+    "nStrong": 0,
+    "topTitle": "官方 gh 二进制在安卓上跑不了 因为 ET_EXEC 非 PIE 且是 glibc 构建",
+    "topRel": 0.11003310339452735,
+    "surface": false,
+    "topN": [
+     "官方 gh 二进制在安卓上跑不了 因为 ET_EXEC 非 PIE 且是 glibc 构建",
+     "dsh-agent-memory 的 NOTICE 自称含 CC 法律文本但实际没有",
+     "打印的数必须与判定所用的量同一个口径 否则结论无法被读者复算"
+    ],
+    "q": "可以"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 27,
+    "maxRel": 0.03664559955660898,
+    "nWeak": 0,
+    "nStrong": 0,
+    "topTitle": "DSH 插件官方安装机制 声明 dsh.bundle.patch 才能装完自动挂载",
+    "topRel": 0.03664559955660898,
+    "surface": true,
+    "topN": [
+     "DSH 插件官方安装机制 声明 dsh.bundle.patch 才能装完自动挂载",
+     "做自己的插件前先读 VCP 的原始文档与实现 避免重复造轮子和重踩它已回退的坑",
+     "只跑目标单测文件 ≠ 跑过该插件单测：改动跨模块时必跑聚合门禁（2026-09-26，本轮实证）"
+    ],
+    "q": "目前这个记忆插件，会根据上下文场景自动抽取合适的记忆吗"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 16,
+    "maxRel": 0.025844164661277987,
+    "nWeak": 0,
+    "nStrong": 0,
+    "topTitle": "做自己的插件前先读 VCP 的原始文档与实现 避免重复造轮子和重踩它已回退的坑",
+    "topRel": 0.025844164661277987,
+    "surface": true,
+    "topN": [
+     "做自己的插件前先读 VCP 的原始文档与实现 避免重复造轮子和重踩它已回退的坑",
+     "VCP 参考资料在本机的落点与授权边界 先读提炼报告再读原始文档",
+     "dsh-agent-memory 已发布到 GitHub 的仓库地址凭据位置与再推配方"
+    ],
+    "q": "vcp他对于动态召回是怎么做的呢"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 22,
+    "maxRel": 0.036214346766211054,
+    "nWeak": 0,
+    "nStrong": 0,
+    "topTitle": "做自己的插件前先读 VCP 的原始文档与实现 避免重复造轮子和重踩它已回退的坑",
+    "topRel": 0.036214346766211054,
+    "surface": true,
+    "topN": [
+     "做自己的插件前先读 VCP 的原始文档与实现 避免重复造轮子和重踩它已回退的坑",
+     "DSH 插件官方安装机制 声明 dsh.bundle.patch 才能装完自动挂载",
+     "只跑目标单测文件 ≠ 跑过该插件单测：改动跨模块时必跑聚合门禁（2026-09-26，本轮实证）"
+    ],
+    "q": "如果没有动态召回，我们的记忆插件是如何运行的"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 32,
+    "maxRel": 0.02152617848767827,
+    "nWeak": 0,
+    "nStrong": 0,
+    "topTitle": "面板宽度有两份公式而其中一份是死代码，转屏又没人重算——横屏体验与「窗口比内容宽」两类假象同源（2026-09-24）",
+    "topRel": 0.02152617848767827,
+    "surface": true,
+    "topN": [
+     "面板宽度有两份公式而其中一份是死代码，转屏又没人重算——横屏体验与「窗口比内容宽」两类假象同源（2026-09-24）",
+     "引擎会话档位为事件溯源、按会话隔离（2026-08-27 澄清，非缺陷）",
+     "归一化摘要要求在 大小写敏感 的文件系统上复算——macOS 上会得到另一个值（2026-09-28）"
+    ],
+    "q": "我就从个人体验来说吧，假设我开一个新会话，插件会附带之前的记忆吗"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 40,
+    "maxRel": 0.03395880261051084,
+    "nWeak": 0,
+    "nStrong": 0,
+    "topTitle": "DSH 插件官方安装机制 声明 dsh.bundle.patch 才能装完自动挂载",
+    "topRel": 0.03395880261051084,
+    "surface": true,
+    "topN": [
+     "DSH 插件官方安装机制 声明 dsh.bundle.patch 才能装完自动挂载",
+     "做自己的插件前先读 VCP 的原始文档与实现 避免重复造轮子和重踩它已回退的坑",
+     "`render` 写成 `output` 的兄弟属性 ⇒ 模型面 `userRender is not a function`，而插件自带 52 例全绿（2026-10-06 真机实锤，已修）"
+    ],
+    "q": "你觉得有必要自动召回吗，普通的system prompt够提醒有一个记忆插件了吗"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 10,
+    "maxRel": 0.05801272959564844,
+    "nWeak": 2,
+    "nStrong": 0,
+    "topTitle": "做自己的插件前先读 VCP 的原始文档与实现 避免重复造轮子和重踩它已回退的坑",
+    "topRel": 0.05801272959564844,
+    "surface": true,
+    "topN": [
+     "做自己的插件前先读 VCP 的原始文档与实现 避免重复造轮子和重踩它已回退的坑",
+     "`robocopy /MIR` 镜像会把对端 正确 的 lockfile 覆盖成旧版；镜像前先核盘（2026-09-26，本轮实证）",
+     "公开仓泄漏面：设备序列号以「测试注释/夹具」形态随 新文件 混入（0.14.1 P0-c 实锤）"
+    ],
+    "q": "确实，先做1.2试试"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 11,
+    "maxRel": 0.0340411734151546,
+    "nWeak": 0,
+    "nStrong": 0,
+    "topTitle": "gh 无法执行本机的 git 包装脚本 改用 API 建仓加 git 本体推送",
+    "topRel": 0.0340411734151546,
+    "surface": true,
+    "topN": [
+     "gh 无法执行本机的 git 包装脚本 改用 API 建仓加 git 本体推送",
+     "本机 Termux 前缀改名导致上游 deb 装不上必须手工展开修复",
+     "做自己的插件前先读 VCP 的原始文档与实现 避免重复造轮子和重踩它已回退的坑"
+    ],
+    "q": "顺手改掉然后先别推送吧"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 37,
+    "maxRel": 0.036987325207537225,
+    "nWeak": 0,
+    "nStrong": 0,
+    "topTitle": "做自己的插件前先读 VCP 的原始文档与实现 避免重复造轮子和重踩它已回退的坑",
+    "topRel": 0.036987325207537225,
+    "surface": true,
+    "topN": [
+     "做自己的插件前先读 VCP 的原始文档与实现 避免重复造轮子和重踩它已回退的坑",
+     "没命中不等于不存在 否定性结论必须先证明检查口径的覆盖力",
+     "`render` 写成 `output` 的兄弟属性 ⇒ 模型面 `userRender is not a function`，而插件自带 52 例全绿（2026-10-06 真机实锤，已修）"
+    ],
+    "q": "先收掉然后我们再检查一遍，readme和目前的插件有没有冲突，没问题后推送"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 3,
+    "maxRel": 0.0813505870076652,
+    "nWeak": 5,
+    "nStrong": 0,
+    "topTitle": "本机 Termux 前缀改名导致上游 deb 装不上必须手工展开修复",
+    "topRel": 0.0813505870076652,
+    "surface": true,
+    "topN": [
+     "本机 Termux 前缀改名导致上游 deb 装不上必须手工展开修复",
+     "「只有 ADB / 纯 Shizuku」下控件树曾经只有一条烂路：`android_ui_tree` 只回 XML 文件路径（2026-09-19 用户实报 + 本轮实修）",
+     "通知消费只靠一次文件事件：事件一丢就永久停摆，而「另一个消费者还活着」把现场伪装成正常（0.14.1 真机实报 + 本轮实修）"
+    ],
+    "q": "只修1"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 115,
+    "maxRel": 0.014807317320936215,
+    "nWeak": 0,
+    "nStrong": 0,
+    "topTitle": "历史编号保留（内容不可还原）",
+    "topRel": 0.014807317320936215,
+    "surface": true,
+    "topN": [
+     "历史编号保留（内容不可还原）",
+     "渐进披露的解锁前置对模型不可见：模型如实报「工具不存在」，用户看到的是「工具全不可用」（2026-09-19 设备实测，用户第三问的另一半真因）",
+     "通知消费只靠一次文件事件：事件一丢就永久停摆，而「另一个消费者还活着」把现场伪装成正常（0.14.1 真机实报 + 本轮实修）"
+    ],
+    "q": "我看了下readme，不像是给人类看的，尽量精简，参考我仓库内的另一个cheat engine里的readme描述，最开始的readme只保留这个插件是啥，怎么用，故障排查如何，具体的放到doc文档里或者用一个agent文件夹归档"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 187,
+    "maxRel": 0.019565587513702024,
+    "nWeak": 0,
+    "nStrong": 0,
+    "topTitle": "dsh-agent-memory 的 NOTICE 自称含 CC 法律文本但实际没有",
+    "topRel": 0.009819355603143518,
+    "surface": true,
+    "topN": [
+     "dsh-agent-memory 的 NOTICE 自称含 CC 法律文本但实际没有",
+     "DSH 子代理会话内无法再委派：subagent depth 2 exceeds maxDepth 1",
+     "DSH 插件官方安装机制 声明 dsh.bundle.patch 才能装完自动挂载"
+    ],
+    "q": "好的，然后我再说一下几点：1.我们的安装方法不太对，应该参考dsh官方的做法来直接安装，而不是通过一个软链到达才能装，这太不智能了。2.不用把许可证描述的这么清楚，大家都知道cc协议，只需要写本插件采用ccby协议。3.不需要说明本仓库全为自行编写，而是，说明本仓库参考vcptoolbox项目，也不需要这么详细的列出借鉴的东西，只说出我们参考了什么。以上我们继续来优化一下"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 2,
+    "maxRel": 0.06970138481979464,
+    "nWeak": 2,
+    "nStrong": 0,
+    "topTitle": "「App 重启无效」= 根因在 Shizuku 侧的 UserService 实例，只清进程内标志位永远不会好；必须 `remove = true` 强制移除（2026-09-26，P1）",
+    "topRel": 0.06970138481979464,
+    "surface": true,
+    "topN": [
+     "「App 重启无效」= 根因在 Shizuku 侧的 UserService 实例，只清进程内标志位永远不会好；必须 `remove = true` 强制移除（2026-09-26，P1）",
+     "文件名净化把 `..` 当「非法字符」处理是无效防线（#177 实锤，0.13.8 修复）",
+     "不能变红的断言不是护栏 自证用例必须自带区分力检查否则是假绿"
+    ],
+    "q": "好的"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 22,
+    "maxRel": 0.028239467647715868,
+    "nWeak": 0,
+    "nStrong": 0,
+    "topTitle": "dsh-agent-memory 的 NOTICE 自称含 CC 法律文本但实际没有",
+    "topRel": 0.028239467647715868,
+    "surface": true,
+    "topN": [
+     "dsh-agent-memory 的 NOTICE 自称含 CC 法律文本但实际没有",
+     "通道判据的权限面假阴性被当成「通道不存在」⇒ 误清隔离；且「通道不可用」不等于「旧特权任务已结束」（2026-10-02 review 复审第 1、2 点）",
+     "渐进披露的解锁前置对模型不可见：模型如实报「工具不存在」，用户看到的是「工具全不可用」（2026-09-19 设备实测，用户第三问的另一半真因）"
+    ],
+    "q": "1.好的2.许可徽章不用管了，就当他不存在吧"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 3,
+    "maxRel": 0.10097344557643191,
+    "nWeak": 5,
+    "nStrong": 0,
+    "topTitle": "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 每次重启即永久死亡",
+    "topRel": 0.10097344557643191,
+    "surface": true,
+    "topN": [
+     "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 每次重启即永久死亡",
+     "UserService 跨应用重启存活 ⇒ 新加的 AIDL 方法「装上了却调不到」（2026-09-30 实测）",
+     "看门狗熔断的「永久锁存」与启动预算互斥：半死引擎下自动 undo 与自动重启双双永久失效"
+    ],
+    "q": "已重启"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 126,
+    "maxRel": 0.011537061524679235,
+    "nWeak": 0,
+    "nStrong": 0,
+    "topTitle": "负样本不能靠看起来像随机串 合成词可能在库正文里真实存在污染分位数",
+    "topRel": 0.011537061524679235,
+    "surface": true,
+    "topN": [
+     "负样本不能靠看起来像随机串 合成词可能在库正文里真实存在污染分位数",
+     "DSH 插件官方安装机制 声明 dsh.bundle.patch 才能装完自动挂载",
+     "本机 Termux 前缀改名导致上游 deb 装不上必须手工展开修复"
+    ],
+    "q": "实验和标定等语料增长了再说，我们还需要修改一下md，关于适用场景，只写适合和不适合，其他的不用写这么清楚。关于功能完全不需要写，agent在使用时就知道了。关于安装那里，只给命令，其他的全都不用，太啰唆了（本地开发和离线安装那栏也全部删掉）。其他都挺好"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 428,
+    "maxRel": 0.01283123748560419,
+    "nWeak": 0,
+    "nStrong": 0,
+    "topTitle": "文件写工具在 Android 上建不了新文件：`createIfAbsent` 的 link(2) 没有回退，而退役记录以为上游早就覆盖了它（0.14.1 真机实测 + 本轮实修）",
+    "topRel": 0.01283123748560419,
+    "surface": true,
+    "topN": [
+     "文件写工具在 Android 上建不了新文件：`createIfAbsent` 的 link(2) 没有回退，而退役记录以为上游早就覆盖了它（0.14.1 真机实测 + 本轮实修）",
+     "负样本不能靠看起来像随机串 合成词可能在库正文里真实存在污染分位数",
+     "本机把 Termux 前缀改了名 ⇒ 上游 deb 装不上（298 MB 下完却一个文件不落）+ 手工修复配方（2026-10-08 实锤，已绕开）"
+    ],
+    "q": "我在另一台pc的dsh上安装了，让他和自己的记忆插件对比测试了下，然后发了几点使用感受。 1.表头超过上限，实测最小393，最大405-413，可能是短查询没盖住。 2.工具说明过长：memory_recall描述1128字符，dsh有toolschema支持deferloading，或者在表头已回显常数的前提下把字段压到300字符。 3.发布面：package.json里private：true"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 129,
+    "maxRel": 0.014971403528015991,
+    "nWeak": 0,
+    "nStrong": 0,
+    "topTitle": "做自己的插件前先读 VCP 的原始文档与实现 避免重复造轮子和重踩它已回退的坑",
+    "topRel": 0.014971403528015991,
+    "surface": true,
+    "topN": [
+     "做自己的插件前先读 VCP 的原始文档与实现 避免重复造轮子和重踩它已回退的坑",
+     "DSH 插件官方安装机制 声明 dsh.bundle.patch 才能装完自动挂载",
+     "归一化摘要要求在 大小写敏感 的文件系统上复算——macOS 上会得到另一个值（2026-09-28）"
+    ],
+    "q": "上一个agent他还有个回复，他觉得自动召回很有必要，并且认为我们的做法可以绕过让字段变化导致缓存失效这点，可以让召回变成首轮且文本变化时自动调用。你觉得这个方法正确吗？会影响多轮的调用吗？对于这个插件的设计哲学（vcptoolbox的哲学）来说，适不适合？"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "chars": 4,
+    "maxRel": 0.060670296864167715,
+    "nWeak": 4,
+    "nStrong": 0,
+    "topTitle": "公开仓泄漏面：设备序列号以「测试注释/夹具」形态随 新文件 混入（0.14.1 P0-c 实锤）",
+    "topRel": 0.060670296864167715,
+    "surface": true,
+    "topN": [
+     "公开仓泄漏面：设备序列号以「测试注释/夹具」形态随 新文件 混入（0.14.1 P0-c 实锤）",
+     "官方 gh 二进制在安卓上跑不了 因为 ET_EXEC 非 PIE 且是 glibc 构建",
+     "契约测试的成员边界取错 ⇒ 防线被删掉仍然绿（2026-10-02 review 指出）"
+    ],
+    "q": "可以试试"
+   },
+   {
+    "session": "session-cde7bd4a-fb2d-4723-a531-02c20c14eb02",
+    "chars": 10,
+    "maxRel": 0.04204233218039377,
+    "nWeak": 1,
+    "nStrong": 0,
+    "topTitle": "壳侧快照载荷的帧尺寸 `scr` 不随目标屏变化（恒缺省屏）⇒ 虚拟屏读屏拿到的「屏幕尺寸」是真实屏的（2026-10-06 真机实测，未修）",
+    "topRel": 0.04204233218039377,
+    "surface": true,
+    "topN": [
+     "壳侧快照载荷的帧尺寸 `scr` 不随目标屏变化（恒缺省屏）⇒ 虚拟屏读屏拿到的「屏幕尺寸」是真实屏的（2026-10-06 真机实测，未修）",
+     "手机形态不能再锚 `[data-mobile]`（注入层 0.2.0）",
+     "插件对协议 V2 载荷「形状失明」⇒ 屏幕尺寸恒「未回显」，且「树/截图尺寸必须一致」这条 fail-closed 判据从未触发过（2026-10-06 真机实测，已修）"
+    ],
+    "q": "你能看到我手机屏幕吗"
+   },
+   {
+    "session": "session-cde7bd4a-fb2d-4723-a531-02c20c14eb02",
+    "chars": 9,
+    "maxRel": 0.10347665495795444,
+    "nWeak": 5,
+    "nStrong": 0,
+    "topTitle": "壳侧快照载荷的帧尺寸 `scr` 不随目标屏变化（恒缺省屏）⇒ 虚拟屏读屏拿到的「屏幕尺寸」是真实屏的（2026-10-06 真机实测，未修）",
+    "topRel": 0.10347665495795444,
+    "surface": true,
+    "topN": [
+     "壳侧快照载荷的帧尺寸 `scr` 不随目标屏变化（恒缺省屏）⇒ 虚拟屏读屏拿到的「屏幕尺寸」是真实屏的（2026-10-06 真机实测，未修）",
+     "虚拟屏 screencap -d 必败只有屏的 owner 能抓到画面",
+     "无障碍通道对虚拟屏 取树/截屏 曾被范围门误拒"
+    ],
+    "q": "你能操作虚拟屏幕吗"
+   },
+   {
+    "session": "session-cde7bd4a-fb2d-4723-a531-02c20c14eb02",
+    "chars": 12,
+    "maxRel": 0.04878840189176382,
+    "nWeak": 1,
+    "nStrong": 0,
+    "topTitle": "渐进披露的解锁前置对模型不可见：模型如实报「工具不存在」，用户看到的是「工具全不可用」（2026-09-19 设备实测，用户第三问的另一半真因）",
+    "topRel": 0.04878840189176382,
+    "surface": true,
+    "topN": [
+     "渐进披露的解锁前置对模型不可见：模型如实报「工具不存在」，用户看到的是「工具全不可用」（2026-09-19 设备实测，用户第三问的另一半真因）",
+     "快照 node 需要 OPENSSL_CONF",
+     "来源审计链的专有门禁不在任何清单里：新增第三条链时漏了「谁跑哪些门禁」这一步（2026-09-27）"
+    ],
+    "q": "有哪些工具你可以不需要？"
+   },
+   {
+    "session": "session-cde7bd4a-fb2d-4723-a531-02c20c14eb02",
+    "chars": 2114,
+    "maxRel": 0.012681277913582884,
+    "nWeak": 0,
+    "nStrong": 0,
+    "topTitle": "本机 execPath 是 linker64 而非 node 真 node 在 argv0 且 node --test 会误报失败为通过",
+    "topRel": 0.010789113314107299,
+    "surface": true,
+    "topN": [
+     "本机 execPath 是 linker64 而非 node 真 node 在 argv0 且 node --test 会误报失败为通过",
+     "DSH 子代理会话内无法再委派：subagent depth 2 exceeds maxDepth 1",
+     "免 hooks 环境 ELF 不可执行"
+    ],
+    "q": "目前这个运行环境有点问题，你能检查一下吗？不能动手机的system分区 node-addon-require-builtin: no prebuilt native binding for this platform; falling back to require() (dsh-mobile N1, requires --expose-internals): No usable native b"
+   },
+   {
+    "session": "session-cde7bd4a-fb2d-4723-a531-02c20c14eb02",
+    "chars": 24,
+    "maxRel": 0.03598641688557498,
+    "nWeak": 0,
+    "nStrong": 0,
+    "topTitle": "免 hooks 环境 ELF 不可执行",
+    "topRel": 0.03598641688557498,
+    "surface": true,
+    "topN": [
+     "免 hooks 环境 ELF 不可执行",
+     "来源审计链的专有门禁不在任何清单里：新增第三条链时漏了「谁跑哪些门禁」这一步（2026-09-27）",
+     "run-as 的权限视图不代表引擎运行时"
+    ],
+    "q": "目前你这个运行环境会时不时重启，没有别的问题了吗"
+   },
+   {
+    "session": "session-cde7bd4a-fb2d-4723-a531-02c20c14eb02",
+    "chars": 11,
+    "maxRel": 0.04644228294911091,
+    "nWeak": 1,
+    "nStrong": 0,
+    "topTitle": "run-as 的权限视图不代表引擎运行时",
+    "topRel": 0.04644228294911091,
+    "surface": true,
+    "topN": [
+     "run-as 的权限视图不代表引擎运行时",
+     "文件写工具在 Android 上建不了新文件：`createIfAbsent` 的 link(2) 没有回退，而退役记录以为上游早就覆盖了它（0.14.1 真机实测 + 本轮实修）",
+     "热推脚本（hot-push.mjs）长期「自称可用、实际每个落点必失败」：adb push 建的 stage 目录对 run-as 身份不可列目录（2026-09-26）"
+    ],
+    "q": "给你留哪些权限就够了？"
+   },
+   {
+    "session": "session-cde7bd4a-fb2d-4723-a531-02c20c14eb02",
+    "chars": 12,
+    "maxRel": 0.0327791974788631,
+    "nWeak": 0,
+    "nStrong": 0,
+    "topTitle": "系统 HTTP 代理劫持壳侧本地探针（#118 根因1，2026-09-02 实锤）",
+    "topRel": 0.0327791974788631,
+    "surface": true,
+    "topN": [
+     "系统 HTTP 代理劫持壳侧本地探针（#118 根因1，2026-09-02 实锤）",
+     "归一化摘要要求在 大小写敏感 的文件系统上复算——macOS 上会得到另一个值（2026-09-28）",
+     "渐进披露的解锁前置对模型不可见：模型如实报「工具不存在」，用户看到的是「工具全不可用」（2026-09-19 设备实测，用户第三问的另一半真因）"
+    ],
+    "q": "你可以看看系统内存占用吗"
+   },
+   {
+    "session": "session-cde7bd4a-fb2d-4723-a531-02c20c14eb02",
+    "chars": 4,
+    "maxRel": 0.10818721168460717,
+    "nWeak": 2,
+    "nStrong": 0,
+    "topTitle": "JavaBridge 线程里创建 WebView/弹窗 ⇒ bridge 回包还能带回异常，但进程随后原生崩溃（闪退）（2026-09-30，用户实测「点免责声明闪退」）",
+    "topRel": 0.10818721168460717,
+    "surface": true,
+    "topN": [
+     "JavaBridge 线程里创建 WebView/弹窗 ⇒ bridge 回包还能带回异常，但进程随后原生崩溃（闪退）（2026-09-30，用户实测「点免责声明闪退」）",
+     "文件写工具在 Android 上建不了新文件：`createIfAbsent` 的 link(2) 没有回退，而退役记录以为上游早就覆盖了它（0.14.1 真机实测 + 本轮实修）",
+     "退役 combo-lazy-A4：它的收益声明是 0.1.5 时代的量级，上游 0.1.7 惰性化之后结构性无对象；撤它时又牵出 C5 的两条门禁缺陷（2026-09-25）"
+    ],
+    "q": "又闪退了"
+   },
+   {
+    "session": "session-cde7bd4a-fb2d-4723-a531-02c20c14eb02",
+    "chars": 6,
+    "maxRel": 0.10891910394849812,
+    "nWeak": 4,
+    "nStrong": 0,
+    "topTitle": "会话 header meta 白名单",
+    "topRel": 0.10891910394849812,
+    "surface": true,
+    "topN": [
+     "会话 header meta 白名单",
+     "原生「打开方式」两条出口与白名单（0.13.7）",
+     "快照内 git 的编译期 SHELL_PATH 等长重定位：落点必须晚于 7d（git.real 是那一步才诞生的），且白名单内绝大多数是符号链接（apk#247，0.14.1 真机复现 + 本轮落到产出链）"
+    ],
+    "q": "加入白名单了"
+   },
+   {
+    "session": "session-cde7bd4a-fb2d-4723-a531-02c20c14eb02",
+    "chars": 7,
+    "maxRel": 0.12836507432731953,
+    "nWeak": 5,
+    "nStrong": 0,
+    "topTitle": "虚拟屏 screencap -d 必败只有屏的 owner 能抓到画面",
+    "topRel": 0.12836507432731953,
+    "surface": true,
+    "topN": [
+     "虚拟屏 screencap -d 必败只有屏的 owner 能抓到画面",
+     "`am` 退出码 0 ≠ 落在目标屏；且 16 KiB stdout 上限会把虚拟屏那一段吃掉（0.14.1，缺陷 C1）",
+     "`screencap -d <Android displayId>` 对虚拟屏必然失败：必须用 SurfaceFlinger 的长整型 display token（0.14.1 块G F6 设备实测）"
+    ],
+    "q": "虚拟屏占用高吗"
+   },
+   {
+    "session": "session-cde7bd4a-fb2d-4723-a531-02c20c14eb02",
+    "chars": 9,
+    "maxRel": 0.05585692835814333,
+    "nWeak": 1,
+    "nStrong": 0,
+    "topTitle": "本机 Termux 前缀改名导致上游 deb 装不上必须手工展开修复",
+    "topRel": 0.05585692835814333,
+    "surface": true,
+    "topN": [
+     "本机 Termux 前缀改名导致上游 deb 装不上必须手工展开修复",
+     "来源链不是逐字节可复现：两个独立根因，且「哈希恒漂」会让完整性判据整个失效（2026-09-28，两次远程 run 实测）",
+     "打印的数必须与判定所用的量同一个口径 否则结论无法被读者复算"
+    ],
+    "q": "这两个修复简单吗？"
+   },
+   {
+    "session": "session-cde7bd4a-fb2d-4723-a531-02c20c14eb02",
+    "chars": 2,
+    "maxRel": 0.06970138481979464,
+    "nWeak": 2,
+    "nStrong": 0,
+    "topTitle": "「App 重启无效」= 根因在 Shizuku 侧的 UserService 实例，只清进程内标志位永远不会好；必须 `remove = true` 强制移除（2026-09-26，P1）",
+    "topRel": 0.06970138481979464,
+    "surface": true,
+    "topN": [
+     "「App 重启无效」= 根因在 Shizuku 侧的 UserService 实例，只清进程内标志位永远不会好；必须 `remove = true` 强制移除（2026-09-26，P1）",
+     "文件名净化把 `..` 当「非法字符」处理是无效防线（#177 实锤，0.13.8 修复）",
+     "不能变红的断言不是护栏 自证用例必须自带区分力检查否则是假绿"
+    ],
+    "q": "好的"
+   },
+   {
+    "session": "session-cde7bd4a-fb2d-4723-a531-02c20c14eb02",
+    "chars": 3,
+    "maxRel": 0.10097344557643191,
+    "nWeak": 5,
+    "nStrong": 0,
+    "topTitle": "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 每次重启即永久死亡",
+    "topRel": 0.10097344557643191,
+    "surface": true,
+    "topN": [
+     "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 每次重启即永久死亡",
+     "UserService 跨应用重启存活 ⇒ 新加的 AIDL 方法「装上了却调不到」（2026-09-30 实测）",
+     "看门狗熔断的「永久锁存」与启动预算互斥：半死引擎下自动 undo 与自动重启双双永久失效"
+    ],
+    "q": "已重启"
+   },
+   {
+    "session": "session-cde7bd4a-fb2d-4723-a531-02c20c14eb02",
+    "chars": 10,
+    "maxRel": 0.06813186586329892,
+    "nWeak": 1,
+    "nStrong": 0,
+    "topTitle": "gh 无法执行本机的 git 包装脚本 改用 API 建仓加 git 本体推送",
+    "topRel": 0.06813186586329892,
+    "surface": true,
+    "topN": [
+     "gh 无法执行本机的 git 包装脚本 改用 API 建仓加 git 本体推送",
+     "快照行为测试调用已删除的 boot 导出，会把上游接口更新误报成功能失败（2026-09-27，远程 run 36291780773）",
+     "工具声明了它执行不了的参数：`android_act_input` 的 `screenId` 永远无法兑现（0.14.1，缺陷 B1）"
+    ],
+    "q": "只删除验证脚本就行了"
+   },
+   {
+    "session": "session-cde7bd4a-fb2d-4723-a531-02c20c14eb02",
+    "chars": 31,
+    "maxRel": 0.013955331218795006,
+    "nWeak": 0,
+    "nStrong": 0,
+    "topTitle": "选锚点要区分力不要最高频 覆盖全库的标签信息量为零",
+    "topRel": 0.013955331218795006,
+    "surface": true,
+    "topN": [
+     "选锚点要区分力不要最高频 覆盖全库的标签信息量为零",
+     "公开仓泄漏面：设备序列号以「测试注释/夹具」形态随 新文件 混入（0.14.1 P0-c 实锤）",
+     "快照面板修复把布局树当成 DOM 树，测试又省略同一层包装节点（2026-10-03，issue #288）"
+    ],
+    "q": "我有点想试试你能不能帮我开导航，你能试试帮我开高德导航到公司吗"
+   },
+   {
+    "session": "session-cde7bd4a-fb2d-4723-a531-02c20c14eb02",
+    "chars": 8,
+    "maxRel": 0.15070867548889608,
+    "nWeak": 5,
+    "nStrong": 1,
+    "topTitle": "虚拟屏 screencap -d 必败只有屏的 owner 能抓到画面",
+    "topRel": 0.15070867548889608,
+    "surface": true,
+    "topN": [
+     "虚拟屏 screencap -d 必败只有屏的 owner 能抓到画面",
+     "无障碍通道对虚拟屏 取树/截屏 曾被范围门误拒",
+     "`am` 退出码 0 ≠ 落在目标屏；且 16 KiB stdout 上限会把虚拟屏那一段吃掉（0.14.1，缺陷 C1）"
+    ],
+    "q": "虚拟屏不能用吗？"
+   },
+   {
+    "session": "session-cde7bd4a-fb2d-4723-a531-02c20c14eb02",
+    "chars": 20,
+    "maxRel": 0.03278918202506286,
+    "nWeak": 0,
+    "nStrong": 0,
+    "topTitle": "cordis 缺依赖不抛错只把 fiber 停在 PENDING 硬依赖会让整个插件静默变死",
+    "topRel": 0.03278918202506286,
+    "surface": true,
+    "topN": [
+     "cordis 缺依赖不抛错只把 fiber 停在 PENDING 硬依赖会让整个插件静默变死",
+     "测试里的静默 `return` 会伪装成 PASS —— 撤掉修法照样绿（假绿）",
+     "通知链路三缺（2026-08-24 用户实测「任务完成没通知」根因）"
+    ],
+    "q": "那这样的话岂不是没法做静默后台的任务了？"
+   },
+   {
+    "session": "session-cde7bd4a-fb2d-4723-a531-02c20c14eb02",
+    "chars": 27,
+    "maxRel": 0.04099926485056081,
+    "nWeak": 3,
+    "nStrong": 0,
+    "topTitle": "虚拟屏 screencap -d 必败只有屏的 owner 能抓到画面",
+    "topRel": 0.04099926485056081,
+    "surface": true,
+    "topN": [
+     "虚拟屏 screencap -d 必败只有屏的 owner 能抓到画面",
+     "壳侧快照载荷的帧尺寸 `scr` 不随目标屏变化（恒缺省屏）⇒ 虚拟屏读屏拿到的「屏幕尺寸」是真实屏的（2026-10-06 真机实测，未修）",
+     "虚拟屏 `screencap -d <id>` 必败（Status -2）⇒ 只有屏的 owner 能抓；这条同时闭环了坑 250 的「白图」（2026-10-08 实锤）"
+    ],
+    "q": "虚拟屏的按键/文本和识别你觉得在这一轮使用上有何不便？"
+   },
+   {
+    "session": "session-cde7bd4a-fb2d-4723-a531-02c20c14eb02",
+    "chars": 223,
+    "maxRel": 0.013206391826043301,
+    "nWeak": 0,
+    "nStrong": 0,
+    "topTitle": "gh 无法执行本机的 git 包装脚本 改用 API 建仓加 git 本体推送",
+    "topRel": 0.00878880964855338,
+    "surface": true,
+    "topN": [
+     "gh 无法执行本机的 git 包装脚本 改用 API 建仓加 git 本体推送",
+     "做自己的插件前先读 VCP 的原始文档与实现 避免重复造轮子和重踩它已回退的坑",
+     "渐进披露的解锁前置对模型不可见：模型如实报「工具不存在」，用户看到的是「工具全不可用」（2026-09-19 设备实测，用户第三问的另一半真因）"
+    ],
+    "q": "我觉得得重写一套读屏和操作工具，你觉得呢？我们需要本地建立一个git仓库，先将原本的这部分模块clone下来，然后按照更适合agent工作的方式修改，比如更加隐蔽的解锁而不是一次性暴露所有工具，通过向导工具逐步解锁，并且向导工具具有工具链调用或者有一些组合工具能完成一连串的动作，减少agent的重复次数。所有的这些模块或者插件需要完全按照官方的corids标准进行编写，如果和原本的作者有冲突的内容"
+   },
+   {
+    "session": "session-cde7bd4a-fb2d-4723-a531-02c20c14eb02",
+    "chars": 92,
+    "maxRel": 0.023647977860842204,
+    "nWeak": 0,
+    "nStrong": 0,
+    "topTitle": "dsh-agent-memory 已发布到 GitHub 的仓库地址凭据位置与再推配方",
+    "topRel": 0.023647977860842204,
+    "surface": true,
+    "topN": [
+     "dsh-agent-memory 已发布到 GitHub 的仓库地址凭据位置与再推配方",
+     "来源链 APK 比正常链大 3.1 倍：完整 pnpm deploy 按 Linux 宿主平台拉进了 1.2 GB 的 Linux 原生载荷（2026-09-28）",
+     "文件写工具在 Android 上建不了新文件：`createIfAbsent` 的 link(2) 没有回退，而退役记录以为上游早就覆盖了它（0.14.1 真机实测 + 本轮实修）"
+    ],
+    "q": "1.考虑到兼容性可以不同名 2.可以保留 3.这个按照你的节奏来 4.尽可能改写 5.https://github.com/kelai141/dsh-mobile-apk这是源项目地址"
+   },
+   {
+    "session": "session-cde7bd4a-fb2d-4723-a531-02c20c14eb02",
+    "chars": 3,
+    "maxRel": 0.10097344557643191,
+    "nWeak": 5,
+    "nStrong": 0,
+    "topTitle": "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 每次重启即永久死亡",
+    "topRel": 0.10097344557643191,
+    "surface": true,
+    "topN": [
+     "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 每次重启即永久死亡",
+     "UserService 跨应用重启存活 ⇒ 新加的 AIDL 方法「装上了却调不到」（2026-09-30 实测）",
+     "看门狗熔断的「永久锁存」与启动预算互斥：半死引擎下自动 undo 与自动重启双双永久失效"
+    ],
+    "q": "已重启"
+   },
+   {
+    "session": "session-cde7bd4a-fb2d-4723-a531-02c20c14eb02",
+    "chars": 3,
+    "maxRel": 0.10097344557643191,
+    "nWeak": 5,
+    "nStrong": 0,
+    "topTitle": "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 每次重启即永久死亡",
+    "topRel": 0.10097344557643191,
+    "surface": true,
+    "topN": [
+     "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 每次重启即永久死亡",
+     "UserService 跨应用重启存活 ⇒ 新加的 AIDL 方法「装上了却调不到」（2026-09-30 实测）",
+     "看门狗熔断的「永久锁存」与启动预算互斥：半死引擎下自动 undo 与自动重启双双永久失效"
+    ],
+    "q": "已重启"
+   },
+   {
+    "session": "session-dddffaba-9d7b-45f0-bab5-996fff676db4",
+    "chars": 7,
+    "maxRel": 0.05534967256768717,
+    "nWeak": 2,
+    "nStrong": 0,
+    "topTitle": "壳侧快照载荷的帧尺寸 `scr` 不随目标屏变化（恒缺省屏）⇒ 虚拟屏读屏拿到的「屏幕尺寸」是真实屏的（2026-10-06 真机实测，未修）",
+    "topRel": 0.05534967256768717,
+    "surface": true,
+    "topN": [
+     "壳侧快照载荷的帧尺寸 `scr` 不随目标屏变化（恒缺省屏）⇒ 虚拟屏读屏拿到的「屏幕尺寸」是真实屏的（2026-10-06 真机实测，未修）",
+     "插件对协议 V2 载荷「形状失明」⇒ 屏幕尺寸恒「未回显」，且「树/截图尺寸必须一致」这条 fail-closed 判据从未触发过（2026-10-06 真机实测，已修）",
+     "归一化摘要要求在 大小写敏感 的文件系统上复算——macOS 上会得到另一个值（2026-09-28）"
+    ],
+    "q": "你看得到屏幕吗"
+   },
+   {
+    "session": "session-dddffaba-9d7b-45f0-bab5-996fff676db4",
+    "chars": 11,
+    "maxRel": 0.05242728107146704,
+    "nWeak": 1,
+    "nStrong": 0,
+    "topTitle": "run-as 的权限视图不代表引擎运行时",
+    "topRel": 0.05242728107146704,
+    "surface": true,
+    "topN": [
+     "run-as 的权限视图不代表引擎运行时",
+     "文件写工具在 Android 上建不了新文件：`createIfAbsent` 的 link(2) 没有回退，而退役记录以为上游早就覆盖了它（0.14.1 真机实测 + 本轮实修）",
+     "profiles 目录里放 root 属主文件 → 引擎 watcher EACCES 崩溃（0.13.8 调试时踩到）"
+    ],
+    "q": "已经调整了权限,现在呢"
+   },
+   {
+    "session": "session-dddffaba-9d7b-45f0-bab5-996fff676db4",
+    "chars": 2,
+    "maxRel": 0.06279136157445511,
+    "nWeak": 4,
+    "nStrong": 0,
+    "topTitle": "「App 重启无效」= 根因在 Shizuku 侧的 UserService 实例，只清进程内标志位永远不会好；必须 `remove = true` 强制移除（2026-09-26，P1）",
+    "topRel": 0.06279136157445511,
+    "surface": true,
+    "topN": [
+     "「App 重启无效」= 根因在 Shizuku 侧的 UserService 实例，只清进程内标志位永远不会好；必须 `remove = true` 强制移除（2026-09-26，P1）",
+     "工具声明了它执行不了的参数：`android_act_input` 的 `screenId` 永远无法兑现（0.14.1，缺陷 B1）",
+     "来源链漏了聚合门禁的前置：调 `build-apk.mjs` 却不跑 Kotlin 单测，必然死在那条门禁上（2026-09-28，run 36365082160）"
+    ],
+    "q": "好了"
+   }
+  ],
+  "looseRate": 0.6160714285714286,
+  "strictRate": 0.03571428571428571,
+  "changePairs": 107,
+  "changeCount": 105,
+  "shapes": {
+   "none": {
+    "everyTurn": 112,
+    "changeOnly": 110,
+    "firstOnly": 5
+   },
+   "loose": {
+    "everyTurn": 69,
+    "changeOnly": 67,
+    "firstOnly": 5
+   },
+   "strict": {
+    "everyTurn": 4,
+    "changeOnly": 4,
+    "firstOnly": 2
+   }
+  },
+  "budget": {
+   "loose": {
+    "mean": 169.94202898550725,
+    "median": 172,
+    "n": 69
+   },
+   "strict": {
+    "mean": 166,
+    "median": 149,
+    "n": 4
+   },
+   "none": {
+    "mean": 167.25,
+    "median": 172,
+    "n": 112
+   }
+  },
+  "perSession": [
+   {
+    "session": "session-23861d46-0746-469a-8858-35d53e6a5332",
+    "turns": 4,
+    "loose": 4,
+    "strict": 0
+   },
+   {
+    "session": "session-91aca712-768f-4fef-9272-cb6f265580b3",
+    "turns": 2,
+    "loose": 2,
+    "strict": 0
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "turns": 81,
+    "loose": 45,
+    "strict": 3
+   },
+   {
+    "session": "session-cde7bd4a-fb2d-4723-a531-02c20c14eb02",
+    "turns": 22,
+    "loose": 15,
+    "strict": 1
+   },
+   {
+    "session": "session-dddffaba-9d7b-45f0-bab5-996fff676db4",
+    "turns": 3,
+    "loose": 3,
+    "strict": 0
+   }
+  ],
+  "strictHits": [
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "q": "ok",
+    "maxRel": 0.18672958665533151,
+    "top": "写后回读的回包缺 `ok` ＋ 拒收码不进 CALL_REASON ⇒ 已成功的动作被渲染成「失败：原因未在本版登记」（2026-09-30，用户实测撤销同意）"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "q": "b",
+    "maxRel": 0.17065525573002352,
+    "top": "闸门A拒启与闸门B自愈互锁：只有能spawn才会写engine.log，而拒启恰恰不spawn（0.14.3，#309）"
+   },
+   {
+    "session": "session-ae3fe47e-7111-473f-bfe9-a5268933a152",
+    "q": "做",
+    "maxRel": 0.18289458713275103,
+    "top": "稀疏向量做 Gram-Schmidt 必须按并集减否则基不正交"
+   },
+   {
+    "session": "session-cde7bd4a-fb2d-4723-a531-02c20c14eb02",
+    "q": "虚拟屏不能用吗？",
+    "maxRel": 0.15070867548889608,
+    "top": "虚拟屏 screencap -d 必败只有屏的 owner 能抓到画面"
+   }
+  ],
+  "shortTriggered": [
+   {
+    "q": "ok",
+    "maxRel": 0.18672958665533151,
+    "nWeak": 5,
+    "top": "写后回读的回包缺 `ok` ＋ 拒收码不进 CALL_REASON ⇒ 已成功的动作被渲染成「失败：原因未在本版登记」（2026-09-30，用户实测撤销同意）"
+   },
+   {
+    "q": "做",
+    "maxRel": 0.18289458713275103,
+    "nWeak": 5,
+    "top": "稀疏向量做 Gram-Schmidt 必须按并集减否则基不正交"
+   },
+   {
+    "q": "b",
+    "maxRel": 0.17065525573002352,
+    "nWeak": 5,
+    "top": "闸门A拒启与闸门B自愈互锁：只有能spawn才会写engine.log，而拒启恰恰不spawn（0.14.3，#309）"
+   },
+   {
+    "q": "虚拟屏不能用吗？",
+    "maxRel": 0.15070867548889608,
+    "nWeak": 5,
+    "top": "虚拟屏 screencap -d 必败只有屏的 owner 能抓到画面"
+   },
+   {
+    "q": "虚拟屏占用高吗",
+    "maxRel": 0.12836507432731953,
+    "nWeak": 5,
+    "top": "虚拟屏 screencap -d 必败只有屏的 owner 能抓到画面"
+   },
+   {
+    "q": "虚拟屏显示正常吗",
+    "maxRel": 0.11799755358119036,
+    "nWeak": 5,
+    "top": "虚拟屏 screencap -d 必败只有屏的 owner 能抓到画面"
+   },
+   {
+    "q": "可以",
+    "maxRel": 0.11003310339452735,
+    "nWeak": 5,
+    "top": "官方 gh 二进制在安卓上跑不了 因为 ET_EXEC 非 PIE 且是 glibc 构建"
+   },
+   {
+    "q": "可以",
+    "maxRel": 0.11003310339452735,
+    "nWeak": 5,
+    "top": "官方 gh 二进制在安卓上跑不了 因为 ET_EXEC 非 PIE 且是 glibc 构建"
+   },
+   {
+    "q": "可以",
+    "maxRel": 0.11003310339452735,
+    "nWeak": 5,
+    "top": "官方 gh 二进制在安卓上跑不了 因为 ET_EXEC 非 PIE 且是 glibc 构建"
+   },
+   {
+    "q": "可以",
+    "maxRel": 0.11003310339452735,
+    "nWeak": 5,
+    "top": "官方 gh 二进制在安卓上跑不了 因为 ET_EXEC 非 PIE 且是 glibc 构建"
+   },
+   {
+    "q": "可以",
+    "maxRel": 0.11003310339452735,
+    "nWeak": 5,
+    "top": "官方 gh 二进制在安卓上跑不了 因为 ET_EXEC 非 PIE 且是 glibc 构建"
+   },
+   {
+    "q": "加入白名单了",
+    "maxRel": 0.10891910394849812,
+    "nWeak": 4,
+    "top": "会话 header meta 白名单"
+   },
+   {
+    "q": "又闪退了",
+    "maxRel": 0.10818721168460717,
+    "nWeak": 2,
+    "top": "JavaBridge 线程里创建 WebView/弹窗 ⇒ bridge 回包还能带回异常，但进程随后原生崩溃（闪退）（2026-09-30，用户实测「点免责声明闪退」）"
+   },
+   {
+    "q": "你能操作虚拟屏幕吗",
+    "maxRel": 0.10347665495795444,
+    "nWeak": 5,
+    "top": "壳侧快照载荷的帧尺寸 `scr` 不随目标屏变化（恒缺省屏）⇒ 虚拟屏读屏拿到的「屏幕尺寸」是真实屏的（2026-10-06 真机实测，未修）"
+   },
+   {
+    "q": "已重启",
+    "maxRel": 0.10097344557643191,
+    "nWeak": 5,
+    "top": "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 每次重启即永久死亡"
+   },
+   {
+    "q": "已重启",
+    "maxRel": 0.10097344557643191,
+    "nWeak": 5,
+    "top": "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 每次重启即永久死亡"
+   },
+   {
+    "q": "已重启",
+    "maxRel": 0.10097344557643191,
+    "nWeak": 5,
+    "top": "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 每次重启即永久死亡"
+   },
+   {
+    "q": "已重启",
+    "maxRel": 0.10097344557643191,
+    "nWeak": 5,
+    "top": "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 每次重启即永久死亡"
+   },
+   {
+    "q": "已重启",
+    "maxRel": 0.10097344557643191,
+    "nWeak": 5,
+    "top": "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 每次重启即永久死亡"
+   },
+   {
+    "q": "已重启",
+    "maxRel": 0.10097344557643191,
+    "nWeak": 5,
+    "top": "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 每次重启即永久死亡"
+   },
+   {
+    "q": "已重启",
+    "maxRel": 0.10097344557643191,
+    "nWeak": 5,
+    "top": "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 每次重启即永久死亡"
+   },
+   {
+    "q": "已重启",
+    "maxRel": 0.10097344557643191,
+    "nWeak": 5,
+    "top": "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 每次重启即永久死亡"
+   },
+   {
+    "q": "已重启",
+    "maxRel": 0.10097344557643191,
+    "nWeak": 5,
+    "top": "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 每次重启即永久死亡"
+   },
+   {
+    "q": "已重启",
+    "maxRel": 0.10097344557643191,
+    "nWeak": 5,
+    "top": "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 每次重启即永久死亡"
+   },
+   {
+    "q": "已重启",
+    "maxRel": 0.10097344557643191,
+    "nWeak": 5,
+    "top": "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 每次重启即永久死亡"
+   },
+   {
+    "q": "已重启",
+    "maxRel": 0.10097344557643191,
+    "nWeak": 5,
+    "top": "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 每次重启即永久死亡"
+   },
+   {
+    "q": "已重启",
+    "maxRel": 0.10097344557643191,
+    "nWeak": 5,
+    "top": "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 每次重启即永久死亡"
+   },
+   {
+    "q": "已重启",
+    "maxRel": 0.10097344557643191,
+    "nWeak": 5,
+    "top": "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 每次重启即永久死亡"
+   },
+   {
+    "q": "等等先别自己安装",
+    "maxRel": 0.09160544581625431,
+    "nWeak": 3,
+    "top": "DSH 插件官方安装机制 声明 dsh.bundle.patch 才能装完自动挂载"
+   },
+   {
+    "q": "先做l3吧",
+    "maxRel": 0.08291797326660515,
+    "nWeak": 1,
+    "top": "做自己的插件前先读 VCP 的原始文档与实现 避免重复造轮子和重踩它已回退的坑"
+   },
+   {
+    "q": "进行c",
+    "maxRel": 0.0825467348876501,
+    "nWeak": 5,
+    "top": "免 hooks 环境 ELF 不可执行"
+   },
+   {
+    "q": "只修1",
+    "maxRel": 0.0813505870076652,
+    "nWeak": 5,
+    "top": "本机 Termux 前缀改名导致上游 deb 装不上必须手工展开修复"
+   },
+   {
+    "q": "好的",
+    "maxRel": 0.06970138481979464,
+    "nWeak": 2,
+    "top": "「App 重启无效」= 根因在 Shizuku 侧的 UserService 实例，只清进程内标志位永远不会好；必须 `remove = true` 强制移除（2026-09-26，P1）"
+   },
+   {
+    "q": "好的",
+    "maxRel": 0.06970138481979464,
+    "nWeak": 2,
+    "top": "「App 重启无效」= 根因在 Shizuku 侧的 UserService 实例，只清进程内标志位永远不会好；必须 `remove = true` 强制移除（2026-09-26，P1）"
+   },
+   {
+    "q": "好的",
+    "maxRel": 0.06970138481979464,
+    "nWeak": 2,
+    "top": "「App 重启无效」= 根因在 Shizuku 侧的 UserService 实例，只清进程内标志位永远不会好；必须 `remove = true` 强制移除（2026-09-26，P1）"
+   },
+   {
+    "q": "好的",
+    "maxRel": 0.06970138481979464,
+    "nWeak": 2,
+    "top": "「App 重启无效」= 根因在 Shizuku 侧的 UserService 实例，只清进程内标志位永远不会好；必须 `remove = true` 强制移除（2026-09-26，P1）"
+   },
+   {
+    "q": "好的",
+    "maxRel": 0.06970138481979464,
+    "nWeak": 2,
+    "top": "「App 重启无效」= 根因在 Shizuku 侧的 UserService 实例，只清进程内标志位永远不会好；必须 `remove = true` 强制移除（2026-09-26，P1）"
+   },
+   {
+    "q": "好的",
+    "maxRel": 0.06970138481979464,
+    "nWeak": 2,
+    "top": "「App 重启无效」= 根因在 Shizuku 侧的 UserService 实例，只清进程内标志位永远不会好；必须 `remove = true` 强制移除（2026-09-26，P1）"
+   },
+   {
+    "q": "好的",
+    "maxRel": 0.06970138481979464,
+    "nWeak": 2,
+    "top": "「App 重启无效」= 根因在 Shizuku 侧的 UserService 实例，只清进程内标志位永远不会好；必须 `remove = true` 强制移除（2026-09-26，P1）"
+   },
+   {
+    "q": "只删除验证脚本就行了",
+    "maxRel": 0.06813186586329892,
+    "nWeak": 1,
+    "top": "gh 无法执行本机的 git 包装脚本 改用 API 建仓加 git 本体推送"
+   },
+   {
+    "q": "需要我重启吗？",
+    "maxRel": 0.06509907319748078,
+    "nWeak": 3,
+    "top": "快照 node 需要 OPENSSL_CONF"
+   },
+   {
+    "q": "我启用了完全权限",
+    "maxRel": 0.06466410585355911,
+    "nWeak": 5,
+    "top": "run-as 的权限视图不代表引擎运行时"
+   },
+   {
+    "q": "用c试试吧",
+    "maxRel": 0.06411518802001324,
+    "nWeak": 3,
+    "top": "公开仓泄漏面：设备序列号以「测试注释/夹具」形态随 新文件 混入（0.14.1 P0-c 实锤）"
+   },
+   {
+    "q": "已重启，看看截图工具能用吗",
+    "maxRel": 0.06331073904383495,
+    "nWeak": 5,
+    "top": "属主维护「结算过严」把启动挂成「等待属主维护」直到整机重启（2026-10-01 真机截图实锤）"
+   },
+   {
+    "q": "好了",
+    "maxRel": 0.06279136157445511,
+    "nWeak": 4,
+    "top": "「App 重启无效」= 根因在 Shizuku 侧的 UserService 实例，只清进程内标志位永远不会好；必须 `remove = true` 强制移除（2026-09-26，P1）"
+   },
+   {
+    "q": "可以试试",
+    "maxRel": 0.060670296864167715,
+    "nWeak": 4,
+    "top": "公开仓泄漏面：设备序列号以「测试注释/夹具」形态随 新文件 混入（0.14.1 P0-c 实锤）"
+   },
+   {
+    "q": "我开启了权限，现在呢",
+    "maxRel": 0.059730952457485414,
+    "nWeak": 3,
+    "top": "run-as 的权限视图不代表引擎运行时"
+   },
+   {
+    "q": "你能读取屏幕吗",
+    "maxRel": 0.058497186143693806,
+    "nWeak": 3,
+    "top": "壳侧快照载荷的帧尺寸 `scr` 不随目标屏变化（恒缺省屏）⇒ 虚拟屏读屏拿到的「屏幕尺寸」是真实屏的（2026-10-06 真机实测，未修）"
+   },
+   {
+    "q": "确实，先做1.2试试",
+    "maxRel": 0.05801272959564844,
+    "nWeak": 2,
+    "top": "做自己的插件前先读 VCP 的原始文档与实现 避免重复造轮子和重踩它已回退的坑"
+   },
+   {
+    "q": "这两个修复简单吗？",
+    "maxRel": 0.05585692835814333,
+    "nWeak": 1,
+    "top": "本机 Termux 前缀改名导致上游 deb 装不上必须手工展开修复"
+   },
+   {
+    "q": "你看得到屏幕吗",
+    "maxRel": 0.05534967256768717,
+    "nWeak": 2,
+    "top": "壳侧快照载荷的帧尺寸 `scr` 不随目标屏变化（恒缺省屏）⇒ 虚拟屏读屏拿到的「屏幕尺寸」是真实屏的（2026-10-06 真机实测，未修）"
+   },
+   {
+    "q": "已经调整了权限,现在呢",
+    "maxRel": 0.05242728107146704,
+    "nWeak": 1,
+    "top": "run-as 的权限视图不代表引擎运行时"
+   },
+   {
+    "q": "有哪些工具你可以不需要？",
+    "maxRel": 0.04878840189176382,
+    "nWeak": 1,
+    "top": "渐进披露的解锁前置对模型不可见：模型如实报「工具不存在」，用户看到的是「工具全不可用」（2026-09-19 设备实测，用户第三问的另一半真因）"
+   },
+   {
+    "q": "你能看得到屏幕吗",
+    "maxRel": 0.0482972490184549,
+    "nWeak": 1,
+    "top": "壳侧快照载荷的帧尺寸 `scr` 不随目标屏变化（恒缺省屏）⇒ 虚拟屏读屏拿到的「屏幕尺寸」是真实屏的（2026-10-06 真机实测，未修）"
+   },
+   {
+    "q": "给你留哪些权限就够了？",
+    "maxRel": 0.04644228294911091,
+    "nWeak": 1,
+    "top": "run-as 的权限视图不代表引擎运行时"
+   },
+   {
+    "q": "1.好的2.用我的GitHub名就行",
+    "maxRel": 0.04408688614411772,
+    "nWeak": 1,
+    "top": "dsh-agent-memory 已发布到 GitHub 的仓库地址凭据位置与再推配方"
+   },
+   {
+    "q": "你能看到我手机屏幕吗",
+    "maxRel": 0.04204233218039377,
+    "nWeak": 1,
+    "top": "壳侧快照载荷的帧尺寸 `scr` 不随目标屏变化（恒缺省屏）⇒ 虚拟屏读屏拿到的「屏幕尺寸」是真实屏的（2026-10-06 真机实测，未修）"
+   },
+   {
+    "q": "我们需要攒一些语料",
+    "maxRel": 0.040348309435979744,
+    "nWeak": 1,
+    "top": "快照 node 需要 OPENSSL_CONF"
+   },
+   {
+    "q": "不回显影响使用吗",
+    "maxRel": 0.03995009491085939,
+    "nWeak": 1,
+    "top": "`settings.describe(options)` 的 options 被实现忽略（0.13.5 引擎侧踩坑，影响所有读其它命名空间的插件）"
+   },
+   {
+    "q": "我重新授权了，能看到吗",
+    "maxRel": 0.039183963569663936,
+    "nWeak": 1,
+    "top": "Shizuku 服务端 v13.6：`checkSelfPermission()` 恒 denied、`getUid()` 撤权后仍返回 0 ⇒ 用 API 分不清 「已授权」与「授权被撤」（2026-10-02 真机两轮实测）"
+   }
+  ]
+ },
+ "negative": {
+  "n": 240,
+  "looseRate": 0.05,
+  "strictRate": 0,
+  "looseHits": [
+   {
+    "q": "今天天气怎么样",
+    "maxRel": 0.047541481270706475,
+    "top": "负样本不能靠看起来像随机串 合成词可能在库正文里真实存在污染分位数"
+   },
+   {
+    "q": "zzqq xxvv nonexistent-token",
+    "maxRel": 0.05143597427321279,
+    "top": "`screencap -d <Android displayId>` 对虚拟屏必然失败：必须用 SurfaceFlinger 的长整型 display token（0.14.1 块G F6 设备实测）"
+   },
+   {
+    "q": "zz0q-nonexistent-token-0",
+    "maxRel": 0.0697098338747396,
+    "top": "`screencap -d <Android displayId>` 对虚拟屏必然失败：必须用 SurfaceFlinger 的长整型 display token（0.14.1 块G F6 设备实测）"
+   },
+   {
+    "q": "zz1q-nonexistent-token-1",
+    "maxRel": 0.07449326760585001,
+    "top": "`screencap -d <Android displayId>` 对虚拟屏必然失败：必须用 SurfaceFlinger 的长整型 display token（0.14.1 块G F6 设备实测）"
+   },
+   {
+    "q": "zz2q-nonexistent-token-2",
+    "maxRel": 0.06252989802541745,
+    "top": "`screencap -d <Android displayId>` 对虚拟屏必然失败：必须用 SurfaceFlinger 的长整型 display token（0.14.1 块G F6 设备实测）"
+   },
+   {
+    "q": "zz3q-nonexistent-token-3",
+    "maxRel": 0.055829533001308086,
+    "top": "`screencap -d <Android displayId>` 对虚拟屏必然失败：必须用 SurfaceFlinger 的长整型 display token（0.14.1 块G F6 设备实测）"
+   },
+   {
+    "q": "zz4q-nonexistent-token-4",
+    "maxRel": 0.05383758927277606,
+    "top": "`screencap -d <Android displayId>` 对虚拟屏必然失败：必须用 SurfaceFlinger 的长整型 display token（0.14.1 块G F6 设备实测）"
+   },
+   {
+    "q": "zz5q-nonexistent-token-5",
+    "maxRel": 0.054635459241008315,
+    "top": "`screencap -d <Android displayId>` 对虚拟屏必然失败：必须用 SurfaceFlinger 的长整型 display token（0.14.1 块G F6 设备实测）"
+   },
+   {
+    "q": "体检报告 vs dentist checkup",
+    "maxRel": 0.047068637972199484,
+    "top": "VCP 参考资料在本机的落点与授权边界 先读提炼报告再读原始文档"
+   },
+   {
+    "q": "greenhouse和血压测量",
+    "maxRel": 0.04076991668026393,
+    "top": "红证改常量会假绿 因为断言回显的期望值跟着常量一起漂移必须改行为"
+   },
+   {
+    "q": "greenhouse or 体检报告",
+    "maxRel": 0.053116157625872275,
+    "top": "VCP 参考资料在本机的落点与授权边界 先读提炼报告再读原始文档"
+   },
+   {
+    "q": "compost bin or 体检报告",
+    "maxRel": 0.047550208606364386,
+    "top": "VCP 参考资料在本机的落点与授权边界 先读提炼报告再读原始文档"
+   }
+  ]
+ },
+ "truncation": {
+  "points": 200,
+  "realLooseRate": 0.6160714285714286,
+  "realStrictRate": 0.03571428571428571,
+  "negLooseRate": 0.05,
+  "negStrictRate": 0
+ },
+ "minQueryLength": [
+  {
+   "minChars": 1,
+   "turns": 112,
+   "loose": 69,
+   "strict": 4
+  },
+  {
+   "minChars": 4,
+   "turns": 80,
+   "loose": 37,
+   "strict": 1
+  },
+  {
+   "minChars": 8,
+   "turns": 71,
+   "loose": 28,
+   "strict": 1
+  },
+  {
+   "minChars": 12,
+   "turns": 53,
+   "loose": 12,
+   "strict": 0
+  },
+  {
+   "minChars": 20,
+   "turns": 46,
+   "loose": 9,
+   "strict": 0
+  }
+ ],
+ "subagentPrompts": {
+  "n": 24,
+  "loose": 0,
+  "strict": 0
+ },
+ "distinctQueries": 89,
+ "readOnly": {
+  "before": "be7162f0d2309cef7da19fd22af63ed2a8cefd70c6537897f30f1254cd5457a9",
+  "after": "be7162f0d2309cef7da19fd22af63ed2a8cefd70c6537897f30f1254cd5457a9",
+  "unchanged": true
+ }
+}

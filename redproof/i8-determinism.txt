@@ -1,0 +1,20 @@
+I8 可复跑性证明（冻结输入下的两次运行）
+日期无关：不记录运行时间，只看 diff。
+
+配方：
+  cp -r "$DSH_HOME/sessions" .tmp-test/i8/sessions-frozen
+  node redproof/i8-autorecall-fire-rate.mjs --sessions-dir .tmp-test/i8/sessions-frozen > run1.txt
+  node redproof/i8-autorecall-fire-rate.mjs --sessions-dir .tmp-test/i8/sessions-frozen > run2.txt
+  diff run1.txt run2.txt            # 空 = 逐字节一致
+
+结果（本次实测）：
+  stdout        : 逐字节一致（diff 空）
+  证据 .txt     : 逐字节一致（diff 空）
+  证据 .json    : 逐字节一致（diff 空）
+
+对照：不冻结、直接跑真实 sessions/ 时，唯一差异是活会话的事件数（本机自己就在跑）：
+  44c44
+  <   8db5d4cd-... 1 0 1 1 1 371     # run1
+  ---
+  >   8db5d4cd-... 1 0 1 1 1 377     # run2（同一会话又追加了 6 个事件）
+  所有比率数字两次完全相同（69/112、4/112、5.0%、0.0%、98.1%）—— 变的是输入，不是结论。

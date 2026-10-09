@@ -1,0 +1,330 @@
+==============================================================================
+I8 自动召回触发率实测（只读；不改插件行为）
+==============================================================================
+DSH_HOME      = /data/user/0/com.dsharnessmobile.shell/files/home/.dsh
+记忆库        = /data/user/0/com.dsharnessmobile.shell/files/home/.dsh/agent-memory/memory.ndjson
+  sha256      = be7162f0d2309cef7da19fd22af63ed2a8cefd70c6537897f30f1254cd5457a9
+  字节/条数   = 374349 / 204
+  mtimeMs     = 1791527316005.5518
+会话文件      = 31 个（/data/user/0/com.dsharnessmobile.shell/files/home/.dsh/sessions）
+输入指纹      = 0d56d0fb3509fadca3a240ada1eefdd68ec33c6f59c500934201933c282e21f5  ← 两次运行这行不同即「输入在变」，不是脚本不确定
+冻结时钟 now  = 1791527315996（= 库内最大 ts；为可复跑而固定，rel 与时间无关）
+阈值（import 自 lib/pure.js）: WEAK=0.0382 STRONG=0.1507 SCALE_A=0.0199 SCALE_B=0.3666
+recall 参数   = limit:5；注入体量按 top-3 标题计
+
+§1 消息分类计数（判据见脚本 classifyUserMessage 注释）
+------------------------------------------------------------------------------
+真实用户轮次(human)         112   ← 唯一计入触发率的分母
+  runtime-context             54  ← 我们自己注入的快照，不是话题信号
+  other:skill-catalog         30
+  other:agent-message         25
+  subagent-prompt             24  ← 父代理注入的子代理提示词，不是人的话题信号
+  other:subagent-settled      23
+  other:goal                  12
+  other:user-approval          6
+  other:tool-jobs              5
+  other:agent-instructions     2
+  other:compact-checkpoint     1
+  other:model-selection        1
+  other:tool-goal              1
+
+按会话明细（depth=delegationDepth；只列有 user 消息的会话）:
+  session(前缀)          depth  human  runtime-ctx  subagent  其他  events  交付对账
+  063cce11-4454-46e4-953     1      0            1         1     1     130  spliced=1 未落账=0
+  0c872278-1276-4d5c-931     1      0            1         1     1     575  spliced=1 未落账=0
+  0e21782f-132c-4201-a1a     1      0            1         1     1     731  spliced=1 未落账=0
+  10830166-757e-4440-ab1     1      0            1         1     1     852  spliced=1 未落账=0
+  1cc838b6-9fa9-4367-ae2     1      0            2         1     1     482  spliced=1 未落账=0
+  1e72c4f5-9075-4d9e-9b9     1      0            1         1     1     520  spliced=1 未落账=0
+  38af29ac-a2f4-4a84-903     1      0            1         1     1     416  spliced=1 未落账=0
+  3a2c67d9-9867-4d88-a64     1      0            1         1     2     289  spliced=1 未落账=0
+  42b5499e-e4d9-4a16-be8     1      0            1         1     1     666  spliced=1 未落账=0
+  6958b237-f770-4767-9c5     1      0            1         1     1     724  spliced=1 未落账=0
+  799354ae-314f-40c5-92b     1      0            1         1     2     427  spliced=1 未落账=0
+  8c15a25a-9485-44d0-af7     1      0            1         1     1     580  spliced=1 未落账=0
+  8db5d4cd-7d9a-43f2-a5e     1      0            1         1     1     557  spliced=1 未落账=0
+  8f2a93fd-b19d-4a76-bb5     1      0            1         1     1     724  spliced=1 未落账=0
+  927ee2ca-5fcf-4629-bad     1      0            1         1     1     556  spliced=1 未落账=0
+  97a54f4c-338c-44cd-adb     1      0            1         1     1    1590  spliced=1 未落账=0
+  b53e99d9-3fd5-4a39-8bd     1      0            1         1     1     508  spliced=1 未落账=0
+  b979a169-5f51-490e-98c     1      0            2         1     2     652  spliced=1 未落账=0
+  c304a168-7e1a-4e7e-880     1      0            1         1     1    1311  spliced=1 未落账=0
+  d6066a81-a86d-4f7d-a48     1      0            1         1     1     300  spliced=1 未落账=0
+  da8ea2fb-18df-4ef2-b84     1      0            1         1     1     514  spliced=1 未落账=0
+  df1a9e23-9123-4647-905     1      0            1         1     1     409  spliced=1 未落账=0
+  e2f1fca1-b46f-4c13-a73     1      0            1         1     1     219  spliced=1 未落账=0
+  e8b7a209-12b9-49fe-a52     1      0            1         1     1     338  spliced=1 未落账=0
+  session-23861d46-0746-     0      4            1         0     1     142  spliced=4 未落账=0
+  session-91aca712-768f-     0      2            2         0     3     402  spliced=2 未落账=0
+  session-ae3fe47e-7111-     0     81           19         0    55    4278  spliced=81 未落账=0
+  session-cde7bd4a-fb2d-     0     22            3         0    17    1980  spliced=23 未落账=1
+  session-dddffaba-9d7b-     0      3            3         0     3     144  spliced=3 未落账=0
+
+结构异常/跳过：
+  - 无任何 user/message 的会话 2 个（已空跑或只有策略事件，如实跳过，不计入分母）
+      session-eeec92cc-49f4-4a91-b813-b1bf2e56eba8  cwd=/data/data/com.dsharnessmobile.shell/files/home/.dsh/workspaces/incoming  events=4
+      session-43e854f2-d7fd-418e-8ded-e98f2c37d513  cwd=/storage/emulated/0/deepseek  events=5
+  - 解不开的 JSON 行合计 0 行（已跳过）
+  - 真实用户轮次分布在 5 个 depth=0 会话里
+
+§2 逐轮模拟自动召回（真实库，limit:5）
+------------------------------------------------------------------------------
+总轮次                          112
+宽松门槛（存在任一 rel>=weak）  69  → 触发率 61.6%
+严格门槛（最高 rel>=strong）    4  → 触发率 3.6%
+一个 weak 都没命中（全 none）   43  → 38.4%
+最高行 rel 与 max(rel) 不一致的轮次: 6（排序按 final 而非 rel）
+
+逐会话明细（★必须拆开看：31 个会话里只有 5 个含人的轮次，其中一个开发会话独占 81/112 轮，能代表全机）:
+  session(前缀)          轮次   宽松触发        严格触发
+  session-ae3fe47e-7111-     81  55.6% (45/81)    3.7% (3/81)
+  session-cde7bd4a-fb2d-     22  68.2% (15/22)    4.5% (1/22)
+  session-23861d46-0746-      4   100.0% (4/4)     0.0% (0/4)
+  session-dddffaba-9d7b-      3   100.0% (3/3)     0.0% (0/3)
+  session-91aca712-768f-      2   100.0% (2/2)     0.0% (0/2)
+
+命中级别分布（按 max(rel) 判定的那一行）:
+  strong     4  3.6%
+  weak      65  58.0%
+  none      43  38.4%
+
+边缘触发（触发但很勉强：max rel < 1.5×weak 门槛）:
+  19 / 69 个触发轮次 (27.5%)  阈值 1.5×weak=0.0573
+触发但 top-1 与查询**零表面重叠**（标签/标题都没有共同词元，rel 只能来自 body）: 5 / 69 (7.2%)
+  注意：这个机械判据**不能**当相关性判据。反过来不成立 —— 有表面重叠也常常毫不相关（见 §5 短消息清单：
+  「ok」与标题里的 `ok` 有表面重叠，却是典型的假命中）。它只用来说明「连表面词元都没有」的极端一类。
+
+§3 变频率（相邻两轮之间 top-3 标题集合是否变化）与注入体量
+------------------------------------------------------------------------------
+相邻轮次对（同会话内）        107
+其中 top-3 集合发生变化        105  → 变频率 98.1%
+含真实用户轮次的会话数         5
+
+形态对照（会追加多少条快照消息 / 缓存断点）:
+  无门槛(每轮): 每轮都注入 112 次 | 只在变化时注入 110 次 | 只在首轮注入 5 次
+  宽松门槛  : 每轮都注入 69 次 | 只在变化时注入 67 次 | 只在首轮注入 5 次
+  严格门槛  : 每轮都注入 4 次 | 只在变化时注入 4 次 | 只在首轮注入 2 次
+  ↑「只在变化时」= 首次注入 + 相邻两个**触发轮**之间 top-3 集合发生变化时才注入。
+  ★ 读法：宽松门槛下「每轮都注入 69」→「只在变化时注入 67」，只省下 2 次 ——
+    「只在文本变化时触发」这个优化在本机几乎不起作用，因为相邻两轮的 top-3 几乎总会变。
+
+平均注入体量（触发时 top-3 标题拼接的字符数，文本预算）:
+  宽松门槛 n=69  均值 169.9  中位 172.0  最小 0  最大 268
+  严格门槛 n=4  均值 166.0  中位 149.0  最小 0  最大 241
+  无门槛   n=112  均值 167.3  中位 172.0  最小 0  最大 268
+
+§4 双侧对照：scripts/negative-samples.mjs 的跨域无关查询（确定性生成，与库内容无关）
+------------------------------------------------------------------------------
+负样本条数                        240
+宽松门槛触发                      12  → 触发率 5.0%
+严格门槛触发                      0  → 触发率 0.0%
+（构建器声明目标 240；实际 240）
+
+双侧触发率表:
+  门槛        真实用户轮次(n=112)      240 无关查询(n=240)
+  宽松 weak            61.6% (69/112)          5.0% (12/240)
+  严格 strong           3.6% (4/112)          0.0% (0/240)
+
+无关查询里触发的那几条（必须如实列出，不许为了好看删掉）:
+  query="今天天气怎么样"  maxRel=0.0475 nWeak=1 top="负样本不能靠看起来像随机串 合成词可能在库正文里真实存在污染分位数" (0.0475)
+  query="zzqq xxvv nonexistent-token"  maxRel=0.0514 nWeak=1 top="`screencap -d <Android displayId>` 对虚拟屏必" (0.0514)
+  query="zz0q-nonexistent-token-0"  maxRel=0.0697 nWeak=2 top="`screencap -d <Android displayId>` 对虚拟屏必" (0.0697)
+  query="zz1q-nonexistent-token-1"  maxRel=0.0745 nWeak=2 top="`screencap -d <Android displayId>` 对虚拟屏必" (0.0745)
+  query="zz2q-nonexistent-token-2"  maxRel=0.0625 nWeak=2 top="`screencap -d <Android displayId>` 对虚拟屏必" (0.0625)
+  query="zz3q-nonexistent-token-3"  maxRel=0.0558 nWeak=3 top="`screencap -d <Android displayId>` 对虚拟屏必" (0.0558)
+  query="zz4q-nonexistent-token-4"  maxRel=0.0538 nWeak=3 top="`screencap -d <Android displayId>` 对虚拟屏必" (0.0538)
+  query="zz5q-nonexistent-token-5"  maxRel=0.0546 nWeak=3 top="`screencap -d <Android displayId>` 对虚拟屏必" (0.0546)
+  query="体检报告 vs dentist checkup"  maxRel=0.0471 nWeak=1 top="VCP 参考资料在本机的落点与授权边界 先读提炼报告再读原始文档" (0.0471)
+  query="greenhouse和血压测量"  maxRel=0.0408 nWeak=1 top="红证改常量会假绿 因为断言回显的期望值跟着常量一起漂移必须改行为" (0.0408)
+  ...（共 12 条，此处只列前 10）
+
+§5 抽样对比（触发 / 未触发，各取若干，含命中标题与 rel）
+------------------------------------------------------------------------------
+
+【触发·严格门槛命中（全部列出，不抽样）】
+  rel=0.1867 chars=2 session=session-ae3f
+    Q: ok
+    top: "写后回读的回包缺 `ok` ＋ 拒收码不进 CALL_REASON ⇒ 已成功的动作被渲染成「失败：原因未在本版登记」（2026-09-30"
+  rel=0.1829 chars=1 session=session-ae3f
+    Q: 做
+    top: "稀疏向量做 Gram-Schmidt 必须按并集减否则基不正交"
+  rel=0.1707 chars=1 session=session-ae3f
+    Q: b
+    top: "闸门A拒启与闸门B自愈互锁：只有能spawn才会写engine.log，而拒启恰恰不spawn（0.14.3，#309）"
+  rel=0.1507 chars=8 session=session-cde7
+    Q: 虚拟屏不能用吗？
+    top: "虚拟屏 screencap -d 必败只有屏的 owner 能抓到画面"
+
+【触发·短消息清单（<=20 码点，全部列出按 rel 降序）——这是最需要人眼核对相关性的一类】
+  短消息触发 60 / 69 个触发轮次；短消息总共 67 轮
+  rel=0.1867/weak=5 Q="ok" → "写后回读的回包缺 `ok` ＋ 拒收码不进 CALL_REASON ⇒ 已成功的动作被渲染成"
+  rel=0.1829/weak=5 Q="做" → "稀疏向量做 Gram-Schmidt 必须按并集减否则基不正交"
+  rel=0.1707/weak=5 Q="b" → "闸门A拒启与闸门B自愈互锁：只有能spawn才会写engine.log，而拒启恰恰不spaw"
+  rel=0.1507/weak=5 Q="虚拟屏不能用吗？" → "虚拟屏 screencap -d 必败只有屏的 owner 能抓到画面"
+  rel=0.1284/weak=5 Q="虚拟屏占用高吗" → "虚拟屏 screencap -d 必败只有屏的 owner 能抓到画面"
+  rel=0.1180/weak=5 Q="虚拟屏显示正常吗" → "虚拟屏 screencap -d 必败只有屏的 owner 能抓到画面"
+  rel=0.1100/weak=5 Q="可以" → "官方 gh 二进制在安卓上跑不了 因为 ET_EXEC 非 PIE 且是 glibc 构建"
+  rel=0.1100/weak=5 Q="可以" → "官方 gh 二进制在安卓上跑不了 因为 ET_EXEC 非 PIE 且是 glibc 构建"
+  rel=0.1100/weak=5 Q="可以" → "官方 gh 二进制在安卓上跑不了 因为 ET_EXEC 非 PIE 且是 glibc 构建"
+  rel=0.1100/weak=5 Q="可以" → "官方 gh 二进制在安卓上跑不了 因为 ET_EXEC 非 PIE 且是 glibc 构建"
+  rel=0.1100/weak=5 Q="可以" → "官方 gh 二进制在安卓上跑不了 因为 ET_EXEC 非 PIE 且是 glibc 构建"
+  rel=0.1089/weak=4 Q="加入白名单了" → "会话 header meta 白名单"
+  rel=0.1082/weak=2 Q="又闪退了" → "JavaBridge 线程里创建 WebView/弹窗 ⇒ bridge 回包还能带回异常，"
+  rel=0.1035/weak=5 Q="你能操作虚拟屏幕吗" → "壳侧快照载荷的帧尺寸 `scr` 不随目标屏变化（恒缺省屏）⇒ 虚拟屏读屏拿到的「屏幕尺寸」"
+  rel=0.1010/weak=5 Q="已重启" → "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表"
+  rel=0.1010/weak=5 Q="已重启" → "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表"
+  rel=0.1010/weak=5 Q="已重启" → "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表"
+  rel=0.1010/weak=5 Q="已重启" → "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表"
+  rel=0.1010/weak=5 Q="已重启" → "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表"
+  rel=0.1010/weak=5 Q="已重启" → "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表"
+  rel=0.1010/weak=5 Q="已重启" → "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表"
+  rel=0.1010/weak=5 Q="已重启" → "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表"
+  rel=0.1010/weak=5 Q="已重启" → "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表"
+  rel=0.1010/weak=5 Q="已重启" → "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表"
+  rel=0.1010/weak=5 Q="已重启" → "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表"
+  rel=0.1010/weak=5 Q="已重启" → "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表"
+  rel=0.1010/weak=5 Q="已重启" → "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表"
+  rel=0.1010/weak=5 Q="已重启" → "cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表"
+  rel=0.0916/weak=3 Q="等等先别自己安装" → "DSH 插件官方安装机制 声明 dsh.bundle.patch 才能装完自动挂载"
+  rel=0.0829/weak=1 Q="先做l3吧" → "做自己的插件前先读 VCP 的原始文档与实现 避免重复造轮子和重踩它已回退的坑"
+  rel=0.0825/weak=5 Q="进行c" → "免 hooks 环境 ELF 不可执行"
+  rel=0.0814/weak=5 Q="只修1" → "本机 Termux 前缀改名导致上游 deb 装不上必须手工展开修复"
+  rel=0.0697/weak=2 Q="好的" → "「App 重启无效」= 根因在 Shizuku 侧的 UserService 实例，只清进程"
+  rel=0.0697/weak=2 Q="好的" → "「App 重启无效」= 根因在 Shizuku 侧的 UserService 实例，只清进程"
+  rel=0.0697/weak=2 Q="好的" → "「App 重启无效」= 根因在 Shizuku 侧的 UserService 实例，只清进程"
+  rel=0.0697/weak=2 Q="好的" → "「App 重启无效」= 根因在 Shizuku 侧的 UserService 实例，只清进程"
+  rel=0.0697/weak=2 Q="好的" → "「App 重启无效」= 根因在 Shizuku 侧的 UserService 实例，只清进程"
+  rel=0.0697/weak=2 Q="好的" → "「App 重启无效」= 根因在 Shizuku 侧的 UserService 实例，只清进程"
+  rel=0.0697/weak=2 Q="好的" → "「App 重启无效」= 根因在 Shizuku 侧的 UserService 实例，只清进程"
+  rel=0.0681/weak=1 Q="只删除验证脚本就行了" → "gh 无法执行本机的 git 包装脚本 改用 API 建仓加 git 本体推送"
+  rel=0.0651/weak=3 Q="需要我重启吗？" → "快照 node 需要 OPENSSL_CONF"
+  rel=0.0647/weak=5 Q="我启用了完全权限" → "run-as 的权限视图不代表引擎运行时"
+  rel=0.0641/weak=3 Q="用c试试吧" → "公开仓泄漏面：设备序列号以「测试注释/夹具」形态随 新文件 混入（0.14.1 P0-c 实"
+  rel=0.0633/weak=5 Q="已重启，看看截图工具能用吗" → "属主维护「结算过严」把启动挂成「等待属主维护」直到整机重启（2026-10-01 真机截图实"
+  rel=0.0628/weak=4 Q="好了" → "「App 重启无效」= 根因在 Shizuku 侧的 UserService 实例，只清进程"
+  rel=0.0607/weak=4 Q="可以试试" → "公开仓泄漏面：设备序列号以「测试注释/夹具」形态随 新文件 混入（0.14.1 P0-c 实"
+  rel=0.0597/weak=3 Q="我开启了权限，现在呢" → "run-as 的权限视图不代表引擎运行时"
+  rel=0.0585/weak=3 Q="你能读取屏幕吗" → "壳侧快照载荷的帧尺寸 `scr` 不随目标屏变化（恒缺省屏）⇒ 虚拟屏读屏拿到的「屏幕尺寸」"
+  rel=0.0580/weak=2 Q="确实，先做1.2试试" → "做自己的插件前先读 VCP 的原始文档与实现 避免重复造轮子和重踩它已回退的坑"
+  rel=0.0559/weak=1 Q="这两个修复简单吗？" → "本机 Termux 前缀改名导致上游 deb 装不上必须手工展开修复"
+  rel=0.0553/weak=2 Q="你看得到屏幕吗" → "壳侧快照载荷的帧尺寸 `scr` 不随目标屏变化（恒缺省屏）⇒ 虚拟屏读屏拿到的「屏幕尺寸」"
+  rel=0.0524/weak=1 Q="已经调整了权限,现在呢" → "run-as 的权限视图不代表引擎运行时"
+  rel=0.0488/weak=1 Q="有哪些工具你可以不需要？" → "渐进披露的解锁前置对模型不可见：模型如实报「工具不存在」，用户看到的是「工具全不可用」（20"
+  rel=0.0483/weak=1 Q="你能看得到屏幕吗" → "壳侧快照载荷的帧尺寸 `scr` 不随目标屏变化（恒缺省屏）⇒ 虚拟屏读屏拿到的「屏幕尺寸」"
+  rel=0.0464/weak=1 Q="给你留哪些权限就够了？" → "run-as 的权限视图不代表引擎运行时"
+  rel=0.0441/weak=1 Q="1.好的2.用我的GitHub名就行" → "dsh-agent-memory 已发布到 GitHub 的仓库地址凭据位置与再推配方"
+  rel=0.0420/weak=1 Q="你能看到我手机屏幕吗" → "壳侧快照载荷的帧尺寸 `scr` 不随目标屏变化（恒缺省屏）⇒ 虚拟屏读屏拿到的「屏幕尺寸」"
+  rel=0.0403/weak=1 Q="我们需要攒一些语料" → "快照 node 需要 OPENSSL_CONF"
+  rel=0.0400/weak=1 Q="不回显影响使用吗" → "`settings.describe(options)` 的 options 被实现忽略（0"
+  rel=0.0392/weak=1 Q="我重新授权了，能看到吗" → "Shizuku 服务端 v13.6：`checkSelfPermission()` 恒 de"
+  判读提示：上面这些短消息多为「ok / 好的 / 已重启」这类确认语，它们没有话题内容；
+  命中的是库里无处不在的通用词元（如标题里出现的 `ok`、`重启`）。这不是「话题相关」。
+
+【触发·抽样（按 max rel 降序取 4 条，看命中的确像同一话题）】
+  rel=0.1867 match=strong chars=2 session=session-ae3f
+    Q: ok
+    #1 rel=0.1867  写后回读的回包缺 `ok` ＋ 拒收码不进 CALL_REASON ⇒ 已成功的动作被渲染成「失败：原因未在本版
+    #2 rel=0.0634  `am` 退出码 0 ≠ 落在目标屏；且 16 KiB stdout 上限会把虚拟屏那一段吃掉（0.14.1，缺
+    #3 rel=0.0550  原生「打开方式」两条出口与白名单（0.13.7）
+  rel=0.1010 match=weak chars=3 session=session-ae3f
+    Q: 已重启
+    #1 rel=0.1010  cordis 重启 fiber 的顺序是「先跑新实例、后释放旧 effect」⇒ 单槽注册表上的 effect 
+    #2 rel=0.0871  UserService 跨应用重启存活 ⇒ 新加的 AIDL 方法「装上了却调不到」（2026-09-30 实测
+    #3 rel=0.0804  看门狗熔断的「永久锁存」与启动预算互斥：半死引擎下自动 undo 与自动重启双双永久失效
+  rel=0.0697 match=weak chars=2 session=session-ae3f
+    Q: 好的
+    #1 rel=0.0697  「App 重启无效」= 根因在 Shizuku 侧的 UserService 实例，只清进程内标志位永远不会好；
+    #2 rel=0.0410  文件名净化把 `..` 当「非法字符」处理是无效防线（#177 实锤，0.13.8 修复）
+    #3 rel=0.0284  不能变红的断言不是护栏 自证用例必须自带区分力检查否则是假绿
+  rel=0.0553 match=weak chars=7 session=session-dddf
+    Q: 你看得到屏幕吗
+    #1 rel=0.0553  壳侧快照载荷的帧尺寸 `scr` 不随目标屏变化（恒缺省屏）⇒ 虚拟屏读屏拿到的「屏幕尺寸」是真实屏的（2026
+    #2 rel=0.0412  插件对协议 V2 载荷「形状失明」⇒ 屏幕尺寸恒「未回显」，且「树/截图尺寸必须一致」这条 fail-close
+    #3 rel=0.0321  归一化摘要要求在 大小写敏感 的文件系统上复算——macOS 上会得到另一个值（2026-09-28）
+
+【边缘触发 / 零表面重叠（噪声嫌疑最大，如实列出）】
+  rel=0.0483 surface=true chars=8 session=session-2386
+    Q: 你能看得到屏幕吗
+    top: "壳侧快照载荷的帧尺寸 `scr` 不随目标屏变化（恒缺省屏）⇒ 虚拟屏读屏拿到的「屏幕尺寸」是真实屏的（2026-10-" rel=0.0483
+  rel=0.0392 surface=true chars=11 session=session-2386
+    Q: 我重新授权了，能看到吗
+    top: "Shizuku 服务端 v13.6：`checkSelfPermission()` 恒 denied、`getUid()" rel=0.0392
+  rel=0.0400 surface=true chars=8 session=session-ae3f
+    Q: 不回显影响使用吗
+    top: "`settings.describe(options)` 的 options 被实现忽略（0.13.5 引擎侧踩坑，影响" rel=0.0400
+  rel=0.0454 surface=true chars=25 session=session-ae3f
+    Q: 使用adguard启用http代理流量功能会更强吗
+    top: "DSH 子代理会话内无法再委派：subagent depth 2 exceeds maxDepth 1" rel=0.0454
+
+【未触发（一个 weak 都没有）】
+  maxRel=0.0314 chars=11 session=session-ae3f
+    Q: 你能查看上一次的对话吗
+    top: "来源链现场生成一次性签名证书，等于重新引入 e65818a 修掉的缺陷（2026-09-27，签名专项核查）" rel=0.0314
+  maxRel=0.0243 chars=36 session=session-ae3f
+    Q: 我同意最小验证，jadx反编译也需要上，对于有风险的模块我们都得确认一遍
+    top: "Kotlin 行首 `+` 是一元加号、不是续行 ⇒ 静态自审全绿但编译炸" rel=0.0243
+  maxRel=0.0350 chars=27 session=session-ae3f
+    Q: 我们新建一个公共仓库然后license用上游的cc协议
+    top: "dsh-agent-memory 已发布到 GitHub 的仓库地址凭据位置与再推配方" rel=0.0350
+  maxRel=0.0282 chars=22 session=session-ae3f
+    Q: 1.好的2.许可徽章不用管了，就当他不存在吧
+    top: "dsh-agent-memory 的 NOTICE 自称含 CC 法律文本但实际没有" rel=0.0282
+
+§6 敏感性对照（都只为说明「真实侧数字受什么影响」，不改变主结论口径）
+------------------------------------------------------------------------------
+6a 加一条「最短查询长度」闸门后的触发率（1~2 个字符的查询是假命中主源）:
+  最短长度   保留轮次   宽松触发            严格触发
+  >=1            112   61.6% (69/112)     3.6% (4/112)
+  >=4             80   46.3% (37/80)      1.3% (1/80)
+  >=8             71   39.4% (28/71)      1.4% (1/71)
+  >=12            53   22.6% (12/53)      0.0% (0/53)
+  >=20            46   19.6% (9/46)       0.0% (0/46)
+  （对照：240 条无关查询全部 >=4 码点，其宽松触发率 5.0% 不受这道闸门影响）
+
+6b 轮次文本重复度：112 轮里只有 89 条不同文本（去重率 20.5%）
+  最高频的几条（同一个查询会反复触发同一批记忆）:
+    x14  "已重启"
+    x 7  "好的"
+    x 5  "可以"
+    x 1  "你能看得到屏幕吗"
+    x 1  "虚拟屏显示正常吗"
+    x 1  "我重新授权了，能看到吗"
+6c 按查询长度分桶的触发率（★实测与直觉相反：抬高的不是长文，是短口语消息）:
+  桶            轮次   宽松触发   严格触发
+  <50 码点          95     70.5%      4.2%
+  50-199          14     14.3%      0.0%
+  200-999          2      0.0%      0.0%
+  >=1000           1      0.0%      0.0%
+
+6d 查询截断到前 200 码点后重跑（同一批轮次）:
+  宽松 61.6% (69/112)   严格 3.6% (4/112)
+  同一截断下 240 无关查询: 宽松 5.0%   严格 0.0%
+
+6e 次要口径：把 24 条**子代理委派提示词**也当查询（它们同样是 user 角色进上下文）:
+  宽松 0.0% (0/24)   严格 0.0% (0/24)
+  注意：这不是「人的话题信号」，列为次要口径只是说明「若自动召回不看 source，会连子代理提示词一起算」。
+
+6f 阈值敏感性（本机**在装**的构建与仓库 HEAD 标定值不同；用装机值重算真实侧触发率）:
+  装机阈值 weak=0.0363 strong=0.1476
+  真实侧 宽松 64.3%  严格 3.6%
+  无关侧 宽松 6.3%  严格 0.0%
+
+§8 判读（本工作区口径；数字均由上文算出）
+------------------------------------------------------------------------------
+1) 宽松门槛把真实侧抬到 61.6%（无关侧 5.0%，倍数 12.3x）——
+   倍数看着高，但无关侧自己就有 5.0% 的触发率，说明「过弱门槛」在**完全无关**的文本上也会发生，
+   弱门槛本身不是相关性判据。
+2) 严格门槛真实侧只剩 4 轮 (3.6%)，其中 3 轮是 1~3 个字符的会话性短消息
+   （"ok" / "b" / "做"）——
+   严格门槛**不是**相关性保证：单字查询也能拿 strong。
+3) 「首轮+文本变化时」在本机省不下东西：宽松门槛下每轮注入 69 次 vs 变化时注入 67 次
+   （变频率 98.1%，相邻两轮 top-3 几乎总会变）。真正的省法是加闸门：最短长度 >=12 码点 ⇒ 宽松降到 22.6%；
+   或只做「首轮一次」= 全机 5 次注入 / 112 轮。
+4) 事实核对：短消息(<=20 码点) 67 轮触发 60 轮；长消息(>=200 码点) 3 轮触发 0 轮。
+
+§9 只读守卫（运行后复核）
+------------------------------------------------------------------------------
+  sha256   be7162f0d2309cef7da19fd22af63ed2a8cefd70c6537897f30f1254cd5457a9
+  字节/条数 374349 / 204
+  mtimeMs  1791527316005.5518
+  结论: 未变（只读成立）
