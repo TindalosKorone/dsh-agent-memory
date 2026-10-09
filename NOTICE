@@ -1,109 +1,13 @@
 dsh-agent-memory
 Copyright (c) 2025 dsh-agent-memory contributors
 
-本作品（dsh-agent-memory）采用 Creative Commons
-Attribution-NonCommercial-ShareAlike 4.0 International（CC BY-NC-SA 4.0）许可。
-
-你被许可在下列条件下自由共享（复制、发行、展览、表演、放映、广播或通过信息网络传播）
-和演绎（修改、转换或以本作品为基础进行创作）本作品：
-
-  - 署名（Attribution）：你必须给出适当的署名，提供指向本许可的链接，并说明是否作出了
-    修改。你可以以任何合理方式进行署名，但不得以任何方式暗示许可人认可你或你的使用。
-  - 非商业性使用（NonCommercial）：你不得将本作品用于商业目的。
-  - 相同方式共享（ShareAlike）：如果你再混合、转换或者基于本作品进行创作，你必须基于
-    与原先许可协议相同或兼容的许可协议分发你的贡献作品。
-
-完整许可条款见本文件正文（即下方 Creative Commons 标准法律文本，未作任何修改）。
-许可摘要（仅供参考，不构成许可，亦非法律文本的替代）：
+本插件采用 CC BY-NC-SA 4.0（Creative Commons Attribution-NonCommercial-ShareAlike
+4.0 International）许可。完整许可条款见本仓 LICENSE 文件（Creative Commons 标准法律
+文本，未作任何增删改写）；许可摘要见
 https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh-Hans
-许可正文（本文件的事实来源）：
-https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode.txt
 
-本仓是从零独立实现的项目，未复制第三方项目的任何代码；设计思想与部分常量的来源见
-README.md 的「上游与署名」一节。
-
--------------------------------------------------------------------------------
-以下为标准 CC BY-NC-SA 4.0 法律文本（英文原文，未做任何增删改写）
--------------------------------------------------------------------------------
-
-
----
-
-dsh-agent-memory 署名与来源说明
-===============================
-
-一、独立实现声明
-----------------
-
-本仓（dsh-agent-memory）是**从零独立实现**的。源码、测试、脚本与取证日志均为本项目自行
-编写，**没有复制第三方项目的任何代码**（不含逐字复制、不含改写式复制、不含粘贴后改名）。
-项目内的数据结构、函数划分、常量取值与文档措辞都由本项目自行确定；其中若干设计思想、
-部分常量的口径，以及若干「已回退做法」的负结果，参考了下方列出的第三方项目。
-
-二、上游参考项目
-----------------
-
-lioensky/VCPToolBox
-  - 地址：https://github.com/lioensky/VCPToolBox
-  - 许可：Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International
-          （CC BY-NC-SA 4.0）
-  - 本项目的使用方式：**仅参考公开的设计思想、部分常量的口径与作者的负结果记录**，
-    未使用其任何源代码。
-
-三、我们实际借用了什么
-----------------------
-
-以下逐项列出本项目实际参考的内容，以及它在本项目中的落地位置：
-
-1. 残差金字塔 / 投影熵的分诊思想
-   - 借用点：用「候选标签向量相对已有基的残差能量」判断当前召回是否已经覆盖了查询的
-     语义方向，并据此决定要不要扩大内部检索预算。
-   - 本项目落地：src/pure.ts 的 residualPyramid()，以及 src/index.ts 的 I2 分诊段。
-   - 本项目的差异：在**标签 idf 词法空间**里做 Gram-Schmidt 正交化，novelty 取
-     `0.7 * 残差能量比 + 0.3 * 方向一致性`；全部金字塔状态为请求级局部量，无模块级缓存。
-
-2. 时间衰减与 RRF 的口径
-   - 借用点：以时间衰减作为排序的一个乘子，以及用 Reciprocal Rank Fusion 的倒数排名
-     形式融合多路排序，而不引入需要重新标定的加权和。
-   - 本项目落地：src/pure.ts 的 decay() 与 rrf()。
-
-3. 共现图的 log(1+λW) 压缩、出流预算与枢纽抑制
-   - 借用点：共现权重按对数压缩而非线性累加；每个节点的出流归一化到固定预算；
-     对高度数枢纽节点按下压指数抑制，避免少数枢纽标签支配整个传播。
-   - 本项目落地：src/pure.ts 的 logCompress() / tagGraphIndex() / propagateTags()，
-     常量见 GRAPH_LAMBDA=1、GRAPH_OUT_BUDGET=1、GRAPH_HUB_ETA=0.5。
-
-4. 它已回退的做法清单（负结果）帮助我们避免了三个坑
-   - **批内归一化**：本项目改为绝对标度（SCALE_A / SCALE_B 固定区间）+ BM25 原始相关度，
-     候选展示分绝不按批次做 min-max 归一化——否则同一份记忆的分数会随同批候选变化而漂移。
-   - **低覆盖整批否决**：标签覆盖率（cov）在本项目里**仅作诊断列**，不门控、不整批否决；
-     低置信只是如实报告（lowConfidence 字段），绝不返回空结果。
-   - **全局单例状态**：本项目禁止**影响请求结果**的模块级可变状态（代码里唯一的模块级可变
-     是 src/store.ts 用于原子写临时文件命名的序号 tmpSeq，它不参与任何召回 / 打分 / 注入
-     计算），所有跨调用计算状态改为请求级局部量
-     （金字塔基、图传播、打分统计都按调用重建），注入侧只保留以文件身份三元组
-     {path, size, mtimeMs} 为键的幂等只读缓存。
-
-四、本地参考资料
-----------------
-
-本项目开发期间在本机保存了上述上游项目的只读副本，用于比对许可与核对设计描述：
-
-  - 目录：/storage/emulated/0/deepseek/audit/vcp/
-  - 其中包含 MEMORY_PORT_REPORT.md（本项目自行撰写的对照报告）与上游 LICENSE 副本。
-
-**注意**：该目录下的上游 LICENSE 副本（14022 字节）经本项目核对，是一份**被截断并做过
-排版的派生文本**——它缺少开头的 Creative Commons 前言、缺少 `License Elements` 与
-`Share` 两条定义、缺少结尾的 Creative Commons 声明，且把官方原文的 `--` 改成了 en dash。
-因此本仓的 LICENSE **不采用那份本地副本**，而是直接取自 Creative Commons 官方发布的
-标准文本（来源与校验结论见 README.md 的「许可证」一节）。
-
-五、许可
+来源说明
 --------
 
-本作品采用 **CC BY-NC-SA 4.0**：署名 + 非商业性使用 + 相同方式共享。
-完整条款见本仓 LICENSE 文件（Creative Commons 标准法律文本，未作任何增删改写）。
-
-需要如实说明的一点：Creative Commons 官方**不建议将 CC 协议用于软件**（CC 协议不含
-专利授权条款，且「非商业性使用」在软件场景下含义不够确定）。本项目刻意选择 CC BY-NC-SA
-4.0，理由是与上游 VCPToolBox 保持同源许可，而非因为它是软件许可的常规选择。
+本插件参考了 lioensky/VCPToolBox（https://github.com/lioensky/VCPToolBox）的记忆系统
+设计；该项目同样采用 CC BY-NC-SA 4.0。

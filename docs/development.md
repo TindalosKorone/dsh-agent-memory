@@ -10,7 +10,7 @@
 node node_modules/typescript/bin/tsc -p .
 ```
 
-`lib/` 是 tsc 产物（`.gitignore` 已排除，不入库），但**测试与运行时都从 `lib/` 加载**，所以改完源码必须先构建。`npm run build` 等价于上面这条。
+`lib/` 是 tsc 产物，**随包入库**：官方安装装的是 git 依赖，pnpm 只会打包该仓**已提交**的内容（实测 pnpm 10.12.1 还会为 git 依赖跑一次内部 `npm install`，因此 `prepare` 路线也可行；但产物入库更确定 —— 安装时不构建、不需要 TypeScript、也不受 pnpm 构建审批策略影响）。`lib/` 不入库，装下来的就是一个没有编译产物、加载不了的包。测试与运行时都从 `lib/` 加载，所以改完源码必须先构建、**并把 `lib/` 一并提交**。`npm run build` 等价于上面这条。
 
 ## 2. 测试纪律
 
@@ -85,7 +85,7 @@ node scripts/import-gotchas.mjs --source gotchas.md --write  # 落盘（先备�
 1. **`node --test` 坏**。本机 `process.execPath` 指向安卓 linker64，导致测试运行器的子进程 spawn 失败。**绕过办法**：spawn node 时用 `process.argv0` 而不是 `process.execPath`；测试也改成逐文件直跑 `node test/x.test.mjs`。
 2. **`/storage/emulated/0`（FUSE）不能建软链**。所以插件的软链**必须建在 profile 侧**（`<profile>/node_modules/@dsh-agent/dsh-agent-memory -> 本仓`），不能在仓库内部建软链。这与 FUSE 不支持 symlink 有关，不是权限问题。
 3. **`/tmp` 不可写，但 `cd /tmp` 会成功**（本机实测：`/tmp` 权限是 `drwxrwx--x` —— 对 others 有 `x` 无 `w`）。所以 `cd /tmp && pwd` 会顺利打印 `/tmp`，**看起来可用**，而任何写入都 `Permission denied`。别用 `cd /tmp` 去探测可写性，要探测就直接写一个文件。临时文件应落在别处（测试用 `.tmp-test/` 建临时 `DSH_HOME`，每次跑测试都会重建；已在 `.gitignore` 里）。
-4. **`lib/` 不入库，测试前必须先 `tsc`**。见第 1 节。
+4. **`lib/` 是构建产物、但已入库**：改完 `src/` 必须 `tsc` 重建并提交，否则测试与官方安装下来的包跑的都是旧产物。见第 1 节。
 5. **真实记忆库不在仓里**。真实记忆在 `$DSH_HOME` 下：`<DSH_HOME>/agent-memory/memory.ndjson`。`DEFAULT_HOME` 的默认值是 `/data/user/0/com.dsharnessmobile.shell/files/home/.dsh`（可用 `DSH_HOME` 覆盖）。`.gitignore` 不包含它 —— 它**物理上就不在仓目录内**。
 6. **零运行时依赖**。`peerDependencies` 只有 cordis 与 dsh-tools；`devDependencies` 是 typescript、`@types/node`，外加把上述两个 peer 依赖按同版本再装一份（仅供本地构建 / 测试；运行时仍只吃宿主提供的 peer）。
 
@@ -94,9 +94,11 @@ node scripts/import-gotchas.mjs --source gotchas.md --write  # 落盘（先备�
 | 路径 | 内容 |
 | --- | --- |
 | `src/*.ts` | 6 个源文件（`index.ts` / `inject.ts` / `json.ts` / `protocol.ts` / `pure.ts` / `store.ts`） |
+| `lib/*.js` + `lib/types/*.d.ts` | tsc 构建产物（6 个 `.js` + 6 个 `.d.ts`），**随包入库** —— 官方安装不跑构建 |
 | `test/*.mjs` | 18 个测试文件（172 pass / 0 fail，2026-10-09 实测）；另有 `helpers.mjs` 与 `isolation-probe.mjs` 两个非测试文件 |
 | `scripts/*.mjs` | 5 个脚本（标定 / 导入 / 负样本 / 注入实测 / 松耦合探针） |
 | `redproof/` | 143 个被跟踪红证取证文件（136 个 `.txt` + 4 个探针 `.mjs` + `run-all.sh` + 2 个 `lineformat-*.json`） |
 | `docs/` | 4 个工程文档（设计 / 召回契约 / 开发 / 局限） |
 | `package.json` / `tsconfig.json` | 包与编译配置 |
+| `cordis.patch.yml` | 本包的 bundle patch（`package.json` 的 `dsh.bundle.patch` 指向它；官方安装后由它挂载插件，不需要手改 profile 的 patch） |
 | `LICENSE` / `NOTICE` / `README.md` | 许可 / 署名 / 门面文档 |

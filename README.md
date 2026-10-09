@@ -20,34 +20,27 @@
 - 两条注入贡献：尾部索引行（`systemPrompt.context`，`order` 200，≤240 字符）+ 稳定规则段（`systemPrompt.section`，`order` 3200）
 - 零运行时依赖；数据是人类可读的 NDJSON
 
-## 快速开始
+## 安装
 
-### 1. 构建
-
-```bash
-node node_modules/typescript/bin/tsc -p .
-```
-
-`lib/` 是 tsc 产物，不入库；它不存在时测试与运行时都加载不了。
-
-### 2. 软链进 profile 的 `@dsh-agent/`
+### 官方安装（推荐）
 
 ```bash
-mkdir -p <profile>/node_modules/@dsh-agent
-ln -s /storage/emulated/0/deepseek/dsh-agent-memory <profile>/node_modules/@dsh-agent/dsh-agent-memory
+dsh plugin --profile web add github:TindalosKorone/dsh-agent-memory
 ```
 
-### 3. 在 `cordis.patch.yml` 里加一条
+- `dsh plugin --profile <名> <参数>` 就是把参数**原样转发给 pnpm**，在 `$DSH_HOME/profiles/<名>/` 里执行；上面这条等价于在该 profile 目录里跑 `pnpm add github:TindalosKorone/dsh-agent-memory`。
+- 本包在 `package.json` 里声明了 `dsh.bundle.patch`（指向包内的 [cordis.patch.yml](cordis.patch.yml)）。装完 dsh 的 plugin-manager 会把本包登记进 profile 的 `dsh.profile.bundles`，那个文件里的 `insert` 行就是插件的挂载点 —— **不需要**手改 profile 的 `cordis.patch.yml`，也**不需要**软链。
+- **装下来即可加载**：编译产物 `lib/` 已随包入库，安装时不需要构建、不需要 TypeScript，也不受 pnpm 对依赖构建脚本的审批策略影响。
+- **必须重启 DSH**：引擎在**启动时**载入插件模块，不重启不生效。
 
-```yaml
-- insert:
-    - id: agent-memory
-      name: '@dsh-agent/dsh-agent-memory'
+### 本地开发 / 离线安装（不是推荐路径）
+
+```bash
+node node_modules/typescript/bin/tsc -p .                                        # 改完源码先重建 lib/
+dsh plugin --profile web add link:/storage/emulated/0/deepseek/dsh-agent-memory    # 以软链方式装进 profile
 ```
 
-### 4. 重启 DSH
-
-**这一步不能省** —— 引擎是在**启动时**载入插件模块的，不重启不生效。
+`link:` 装的是**指向本仓的软链**，所以改完源码重建 `lib/`、重启 DSH 即可（若改用 `file:`，装下去的是安装那一刻的拷贝，改完必须重跑这条命令）。老的手工做法（自己 `ln -s` 进 profile 再手改 profile 的 `cordis.patch.yml`）已无必要。
 
 ## 怎么用
 
@@ -63,10 +56,10 @@ ln -s /storage/emulated/0/deepseek/dsh-agent-memory <profile>/node_modules/@dsh-
 
 ## 故障排查
 
-- **工具没出现**：插件是 boot 时载入的 ⇒ 改完软链或 patch **必须重启 DSH**。
-- **插件卡在 PENDING、工具一直不来**：检查软链与 `cordis.patch.yml` 的 `- insert` 条目。`inject: ['tools']` 是必需依赖，缺 `tools` 会**静默**停在 PENDING，不报错也不可用。
+- **工具没出现**：插件是 boot 时载入的 ⇒ 装完或改完配置 **必须重启 DSH**。
+- **插件卡在 PENDING、工具一直不来**：先确认本包确实是 profile 的一层 —— 看 profile `package.json` 的 `dsh.profile.bundles` 里有没有 `@dsh-agent/dsh-agent-memory`（没有就说明这个包没被登记为 bundle）。`inject: ['tools']` 是必需依赖，缺 `tools` 会**静默**停在 PENDING，不报错也不可用。
 - **`node --test` 报 `expected absolute path`**：本机 `process.execPath` 指向安卓 linker64，测试运行器 spawn 失败。绕过办法：逐文件直跑 `node test/x.test.mjs`；脚本里 spawn node 用 `process.argv0`。
-- **`lib/` 没构建**：先 `tsc -p .`（见「快速开始」第 1 步）。
+- **`lib/` 没构建**：官方安装下来的包自带入库的 `lib/`，不需要构建；只有从源码或 `file:` 用本仓时才要先 `tsc -p .`（见「安装」）。
 - **注入那行为什么不变**：它只由**库内容**决定，库不变则逐字节相同（引擎只在快照文本变化时才产出消息）。库变了才会变；`injection.enabled: false` 则完全不注入。
 - **库在哪 / 怎么备份 / 上限**：`$DSH_HOME/agent-memory/memory.ndjson`，NDJSON 纯文本，直接 `cp` 就是备份。默认 2000 条 / 4 MiB，单条默认 ≤ maxBytes 的 10%。
 - 更多本机坑（`/storage/emulated/0` 不能建软链、`/tmp` 不可写但 `cd /tmp` 会成功）见 [docs/development.md](docs/development.md)。
@@ -75,11 +68,11 @@ ln -s /storage/emulated/0/deepseek/dsh-agent-memory <profile>/node_modules/@dsh-
 
 - 记忆库是**本地纯文本**文件，位置 `$DSH_HOME/agent-memory/memory.ndjson`；**不含任何凭据**。
 - 上限：默认 2000 条 / 4 MiB；单条默认 ≤ maxBytes 的 10%；写超限直接拒收（不落盘、不触发淘汰）。
-- 许可：**CC BY-NC-SA 4.0**（与上游 VCPToolBox 保持同源）。条款见 [LICENSE](LICENSE)。
+- 许可：本插件采用 [CC BY-NC-SA 4.0](LICENSE)。
 
 ## 上游与署名
 
-本仓是从零独立实现，未复制第三方项目的任何代码；设计来源、实际借用点与「负结果」清单见 [NOTICE](NOTICE)。
+本插件参考了 [lioensky/VCPToolBox](https://github.com/lioensky/VCPToolBox) 的记忆系统设计（该项目同样采用 CC BY-NC-SA 4.0）。
 
 ## 链接
 

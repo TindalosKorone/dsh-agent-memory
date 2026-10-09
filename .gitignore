@@ -1,5 +1,9 @@
-# 构建产物：由 `node node_modules/typescript/bin/tsc -p .` 生成，不入库
-lib/
+# 构建产物 lib/ **随包入库**（因此不在本文件里排除）。
+# 原因：官方安装 `dsh plugin --profile <名> add github:...` 装的是 git 依赖，pnpm 只打包该仓
+# **已提交**的内容；lib/ 不入库就会装出一个没有编译产物、加载不了的包。（实测 pnpm 10.12.1 会为
+# git 依赖跑一次内部 `npm install`，所以 `prepare` 路线也可行；但入库更确定 —— 安装时不构建、
+# 不需要 TypeScript，也不受 pnpm 构建审批策略影响。）
+# 改完 src/ 请重建（node node_modules/typescript/bin/tsc -p .）并把 lib/ 一并提交。
 
 # 依赖
 node_modules/

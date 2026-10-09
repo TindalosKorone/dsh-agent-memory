@@ -1,0 +1,12 @@
+# dsh-agent-memory 的 bundle patch（包内文件，不是 profile 的 cordis.patch.yml）。
+#
+# package.json 里声明了 dsh.bundle.patch 指向本文件。官方安装
+#   dsh plugin --profile <名> add github:TindalosKorone/dsh-agent-memory
+# 成功后，dsh 的 plugin-manager 会读这份声明，把本包登记进 profile 的
+# dsh.profile.bundles；于是下面这一行就是本插件的挂载点，**不需要**再手改
+# profile 的 cordis.patch.yml。
+#
+# 与官方 bundle 同一形状（对照 @deepseek-ai/dsh-base 的 cordis.patch.yml）。
+- insert:
+    - id: agent-memory
+      name: '@dsh-agent/dsh-agent-memory'

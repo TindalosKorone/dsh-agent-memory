@@ -44,24 +44,22 @@
 
 **本仓是按「本机开发过程的完整留痕」提交的，不做路径脱敏。**
 
-- **`redproof/` 与 `scripts/` 含本机绝对路径**。形如 `/data/user/0/com.dsharnessmobile.shell/files/home/.dsh/...`（应用私有目录）、`/data/data/com.dsharnessmobile.shell/files/usr/lib/node_modules/...`（引擎安装位置）、`/storage/emulated/0/deepseek/dsh-agent-memory/...`（本仓自身所在路径）、`/data/data/com.termux/files/usr/bin/bash`（`redproof/run-all.sh` 的 shebang）。
+- **`redproof/`、`scripts/`、`lib/` 与 `src/` 含本机绝对路径**。形如 `/data/user/0/com.dsharnessmobile.shell/files/home/.dsh/...`（应用私有目录）、`/data/data/com.dsharnessmobile.shell/files/usr/lib/node_modules/...`（引擎安装位置）、`/storage/emulated/0/deepseek/dsh-agent-memory/...`（本仓自身所在路径）、`/data/data/com.termux/files/usr/bin/bash`（`redproof/run-all.sh` 的 shebang）。
 - **为什么保留 `redproof/` 而不脱敏**：这些路径是红证**可复现性**的一部分 —— 取证日志记录的是「在本机哪条命令、哪个库状态上跑出这个结果」，把路径改成占位符会让「怎么复现这条红证」不可核对。它们是**本机特有的环境细节**，泄露的是**目录布局**而非凭据。
 - **没有发现任何密钥 / 令牌 / 凭据**。`token` 字样的命中全部是标定用的 `nonexistent-token` 负样本串。**也没有**设备型号或系统版本号。
 - 若你要把它公开，自行决定是保留这些路径，还是改写为占位符（改写会削弱红证的可复现性）。
 
 ### 被跟踪文件里含本机绝对路径的数量
 
-**口径**：把每个文件按下述三个模式取**并集**，命中即计数 —— `/data/user/0/`、`/data/data/`、`/storage/emulated/0/`。统计范围为仓库当前全部文件：`git ls-files` 的 180 个 + 本轮新增的 `docs/*.md` 4 个 = 184 个。以下为 **2026-10-09 实测值**：
+**口径**：把每个文件按下述三个模式取**并集**，命中即计数 —— `/data/user/0/`、`/data/data/`、`/storage/emulated/0/`。统计范围为仓库当前**全部被跟踪文件**（`git ls-files`）：**197 个**。以下为 **2026-10-09 实测值**（把 `lib/` 构建产物入库、新增包内 `cordis.patch.yml` 之后重测）：
 
-- 三模式并集：**56 个文件**。
-- 按目录：`redproof/` 49 个、`docs/` 2 个（`development.md` / `limitations.md`）、`src/store.ts` 1 个、`scripts/i4a-measure.mjs` 1 个、`test/inject.test.mjs` 1 个、`README.md` 1 个、`NOTICE` 1 个。
-- **只 grep `/data/` 会得到 10 个**（判据取自单模式粗筛，偏窄）：并集里 **46 个文件只含 `/storage/emulated/0/`、不含任何 `/data/` 子串**；两个模式都命中的只有 `docs/limitations.md`（本文件）一个。用单模式粗筛就会把 56 误判成 10 —— 这是必须用三模式并集的原因。
+- 三模式并集：**57 个文件**。
+- 按目录：`redproof/` 49 个、`lib/` 2 个（`lib/store.js` 与 `lib/types/store.d.ts`，都是 `src/store.ts` 里那条路径的产物）、`docs/` 2 个（`development.md` / `limitations.md`）、`src/store.ts` 1 个、`scripts/i4a-measure.mjs` 1 个、`test/inject.test.mjs` 1 个、`README.md` 1 个。
+- **只 grep `/data/` 会得到 12 个**（判据取自单模式粗筛，偏窄）：并集里 **45 个文件只含 `/storage/emulated/0/`、不含任何 `/data/` 子串**；两个模式都命中的只有 `docs/limitations.md`（本文件）一个。用单模式粗筛就会把 57 误判成 12 —— 这是必须用三模式并集的原因。
 
 ## 4. 许可文本
 
-本仓采用 **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International（CC BY-NC-SA 4.0）**，与上游 VCPToolBox 保持同源许可。
+本插件采用 **CC BY-NC-SA 4.0**（Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International），与上游 VCPToolBox 保持同源许可。
 
-- [LICENSE](../LICENSE) 文件内容：Creative Commons **标准法律文本**（CC BY-NC-SA 4.0 官方 `legalcode.txt`，来源 <https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode.txt>），**438 行 / 20850 字节，与官方原文逐字节一致**、**未作任何增删改写**；第一行就是官方标题 `Attribution-NonCommercial-ShareAlike 4.0 International`。
-- 本项目的**署名头（许可摘要 + 来源 + 借用清单）在 [NOTICE](../NOTICE) 里**，**不在** LICENSE 开头。
-- 许可条件三条（署名 / 非商业性使用 / 相同方式共享）逐条见 NOTICE。
-- **如实说明**：**Creative Commons 官方不建议将 CC 协议用于软件** —— CC 协议不含专利授权条款，且「非商业性使用」在软件场景下含义不够确定。本项目**刻意**选择 CC BY-NC-SA 4.0 的理由是**与上游保持同源**，而不是因为它是软件许可的常规选择；如果你需要一个软件许可，这不是推荐选择。
+- 完整条款见 [LICENSE](../LICENSE)（Creative Commons 标准法律文本，未作任何增删改写）；来源与署名见 [NOTICE](../NOTICE)。
+- **如实说明**：Creative Commons 官方**不建议将 CC 协议用于软件** —— CC 协议不含专利授权条款，且「非商业性使用」在软件场景下含义不够确定。本项目刻意选择 CC BY-NC-SA 4.0 的理由是**与上游同源**，而不是因为它是软件许可的常规选择。
