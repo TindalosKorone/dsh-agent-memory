@@ -109,7 +109,8 @@ id | kind | title | tags | graph | via | rel | cov | match | score
 - **召回**：`memory_recall` 的 `scope` 可选。**不传 ⇒ 不过滤**（与过去逐字一致）；**传了 ⇒ 只返回 `scope == 该值` 或 `scope == global` 的记录** —— `global` 永远包含，因为跨项目经验本来就通用。只读路径对参数做宽松净化（剥换行、`{{}}` 降级、截断到 64），保证表头不被坏参数破坏。
 - **打印契约不破**：打印行**仍是 10 列**（`RECALL_COLUMNS` 不动，`score` 仍在行尾）；过滤结果在**表头**回显 `;scope=<值>`（超长按剩余预算截断并标 `…`，放不下则整段省略），并在**结构化 rows** 里每行带 `scope` 字段（键序 = `RECALL_COLUMNS` + `scope`，由 `test/columns.test.mjs` 钉住）。
 - **结构化**：返回体带 `scope`（本次生效的过滤值，空串 = 未过滤）与 `scopeRecords`（过滤后参与召回的条数）；`total` 仍是**库容量**，不因过滤而变。
-- **不做「当前工作区」默认值**：运行时**拿得到**会话 cwd（`execute(args, exec)` 的 `exec.agent.id` → `sessions.get(id).header.cwd`，见 `src/index.ts` scope 处的源码行号注释），但用它当默认会**改变默认行为**、需要给插件加可选服务依赖，且「cwd → scope 名」只是自造约定 —— 所以只提供**纯显式** scope，默认值留待使用者拍板。
+- **约定怎么传达给模型**：这条约定（项目专属写 `project:<名>`、跨项目通用用默认 `global`）**通过稳定规则段**传达 —— I4a.3 的那条 `agent-memory-habit` 稳定段（每步都在的 system prompt 正文段）里逐字写了它，`test/inject.test.mjs` 的「I4a.4」用例钉住。放这里的理由：它是**行为约定**（什么时候写、写成什么），与「遇到排查类问题先 recall」同属规则、属于稳定前缀；尾部索引随库变动，`memory_recall` 描述有 300 字符硬上限（`test/description.test.mjs`），都不适合承载。
+- **不做「当前工作区」自动推断**：运行时**拿得到**会话 cwd（`execute(args, exec)` 的 `exec.agent.id` → `sessions.get(id).header.cwd`，见 `src/index.ts` scope 处的源码行号注释），但用它当默认会**改变默认行为**、需要给插件加可选服务依赖，且「cwd → scope 名」只是**自造约定** —— 所以插件只提供**纯显式** scope，不做工作区自动推断，约定本身走上面那条稳定规则；默认值一事留待使用者拍板。
 
 ## 8. 分诊与低置信
 

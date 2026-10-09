@@ -1,0 +1,15 @@
+稳定段文案字符数 = 106（改动前 56）
+稳定段文案 = 遇到排查·为什么·复现·"以前是否踩过"这类问题，先用 memory_recall 查记忆库（跨会话经验教训）；项目专属的结论写入时带上 scope: project:<名>，跨项目通用的用默认（global）。
+memory_recall 描述字符数 = 266（硬上限 300，改动前 266）
+memory_recall 描述 = 按查询召回记忆索引（L1），**绝不返回 body**（要正文请拿 id 调 memory_expand）。每条一行：id | kind | title | tags | graph | via | rel | cov | match | score。rel=BM25 原始相关度（match 由 rel、绝对阈值与内容量闸门判定）；score=disp(final)，仅用于排序展示。**limit 是硬显示上限**（返回行数恒为 min(limit, 可用候选数)）。完整口径见 docs/recall-contract.md。
+夹具A[最坏查询 240 字符] 表头长度=447
+夹具B[默认标度 / 短查询 alpha] 表头长度=437
+夹具B[默认标度 / 超长边界查询] 表头长度=447
+夹具B[22 位小数 scaleB / 短查询 alpha] 表头长度=440
+夹具B[22 位小数 scaleB / 超长边界查询] 表头长度=447
+夹具B[scaleA/scaleB = Number.MAX_VALUE / 短查询 alpha] 表头长度=446
+夹具B[scaleA/scaleB = Number.MAX_VALUE / 超长边界查询] 表头长度=448
+夹具B[负数极值 / 短查询 alpha] 表头长度=443
+夹具B[负数极值 / 超长边界查询] 表头长度=445
+表头最坏长度 = 448（场景：scaleA/scaleB = Number.MAX_VALUE / 超长边界查询；硬上界 HEADER_MAX_CHARS=448）
+结论：448 <= 448，未被本次改动影响

@@ -22,6 +22,9 @@
 //     段文本极短且含触发条件；
 // 10) **两条贡献共用同一个 enabled 开关**：关掉时尾部块与稳定段都不注册（不许半开）；
 // 11) 两条贡献各自 fail-open：任一侧注册抛都只意味着「少一块」，另一侧与 4 个工具照常。
+// 12) I4a.4：稳定段里**另写入 scope 约定**（项目专属 `project:<名>`、跨项目通用默认 `global`）——
+//     使用者拍板「不做自动默认，只写成约定」；插件**不**推断当前工作区，文案也不得作此承诺。
+//     红证：把那句约定从稳定段删掉 ⇒ 用例「I4a.4 稳定段：写入 scope 约定…」的三条正向断言变红。
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
@@ -575,6 +578,25 @@ test('I4a.3 稳定段：注册 agent-memory-habit（section），含触发条件
   assert.equal(contexts.size, 1, 'context 只注册本插件那一条')
   assert.ok(!contexts.has(INJECTION_SECTION_NAME), '稳定段不得跑进 contexts 表')
   assert.ok(!sections.has(INJECTION_CONTEXT_NAME), '尾部块不得跑进 sections 表')
+})
+
+test('I4a.4 稳定段：写入 scope 约定（项目专属 project:<名>，跨项目通用默认 global），且不承诺自动推断', () => {
+  const home = freshHome('i4a4-section-scope')
+  seed(home, smallLibrary())
+  const text = sectionText(appliedSections({ home }).get(INJECTION_SECTION_NAME))
+
+  // 逐字对常量（保证「段就是那条规则」）；改常量而不同步测试时这条仍会兜住。
+  assert.equal(text, INJECTION_HABIT_TEXT, '段文本必须逐字就是那条常量')
+  // 【红证 4】把稳定段文案里那句 scope 约定删掉 ⇒ 下面三条正向断言全红。
+  assert.ok(text.includes('scope'), `稳定段必须写明 scope 约定，实测 ${text}`)
+  assert.ok(text.includes('project:'), `约定必须点名 project:<名> 这种取值，实测 ${text}`)
+  assert.ok(text.includes('global'), `约定必须说明跨项目通用的用默认 global，实测 ${text}`)
+  // 「只写约定、不做自动推断」：文案不得对自动推断 / 当前工作区作出承诺（插件确实不做，见 §7b）。
+  assert.ok(!text.includes('自动'), `稳定段不得承诺自动推断，实测 ${text}`)
+  assert.ok(!text.includes('工作区'), `稳定段不得把「当前工作区」写进承诺，实测 ${text}`)
+  // 新增文案不得破坏既有的单行 / 可净化要求。
+  assert.ok(!text.includes('\n') && !text.includes('\r'), '仍然是单行')
+  assert.equal(sanitizeForPrompt(text), text, '新增文案不得引入需要净化的字符（净化对整段仍为恒等）')
 })
 
 test('I4a.3 稳定段是常量：与库内容无关（库变了段逐字节不变，尾部行才跟着变）', () => {

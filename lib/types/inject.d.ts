@@ -174,8 +174,18 @@ export declare const INJECTION_SECTION_ORDER = 3200;
  * 措辞与尾部块的 INJECTION_RULE 同源（同一类触发条件、同一个动作），但**不必逐字相同**：
  * 尾部那句是对库的说明的一部分，这句是对行为习惯的独立提醒。
  * 同样遵守：无 `{` `}`（引擎 interpolate() 会当变量引用）、无换行。
+ *
+ * I4a.4（本次增量）：段里补上 **scope 约定**（使用者已拍板：**不做自动默认，只写成约定**）。
+ *  - 约定内容：项目专属的结论，写入时带上 `scope: project:<名>`；跨项目通用的用默认（`global`）。
+ *  - 为什么写在**稳定段**：这是一条**行为约定**（什么时候写、写成什么），与「遇到排查类问题先 recall」
+ *    同属规则、每步都该在；尾部索引随库变动，工具描述有 300 字符硬上限（见 test/description.test.mjs），
+ *    都不适合承载它。
+ *  - 为什么**不**自动推断当前工作区（调研过、明确不做）：运行时**拿得到**会话 cwd
+ *    （`execute(args, exec)` 的 `exec.agent.id` → `sessions.get(id).header.cwd`），但拿它当默认会
+ *    **改变默认行为**、需要给插件加可选服务依赖，且「cwd → scope 名」只是**自造约定**；所以插件只提供
+ *    **纯显式** scope，约定本身靠这条稳定规则传达给模型（详见 docs/recall-contract.md §7b）。
  */
-export declare const INJECTION_HABIT_TEXT = "\u9047\u5230\u6392\u67E5\u00B7\u4E3A\u4EC0\u4E48\u00B7\u590D\u73B0\u00B7\"\u4EE5\u524D\u662F\u5426\u8E29\u8FC7\"\u8FD9\u7C7B\u95EE\u9898\uFF0C\u5148\u7528 memory_recall \u67E5\u8BB0\u5FC6\u5E93\uFF08\u8DE8\u4F1A\u8BDD\u7ECF\u9A8C\u6559\u8BAD\uFF09\u3002";
+export declare const INJECTION_HABIT_TEXT = "\u9047\u5230\u6392\u67E5\u00B7\u4E3A\u4EC0\u4E48\u00B7\u590D\u73B0\u00B7\"\u4EE5\u524D\u662F\u5426\u8E29\u8FC7\"\u8FD9\u7C7B\u95EE\u9898\uFF0C\u5148\u7528 memory_recall \u67E5\u8BB0\u5FC6\u5E93\uFF08\u8DE8\u4F1A\u8BDD\u7ECF\u9A8C\u6559\u8BAD\uFF09\uFF1B\u9879\u76EE\u4E13\u5C5E\u7684\u7ED3\u8BBA\u5199\u5165\u65F6\u5E26\u4E0A scope: project:<\u540D>\uFF0C\u8DE8\u9879\u76EE\u901A\u7528\u7684\u7528\u9ED8\u8BA4\uFF08global\uFF09\u3002";
 /** 极端超限时的硬截断标记（本身也算进上限）。 */
 export declare const HARD_MARK = "\uFF08\u622A\u65AD\uFF09";
 /** 一行注入文本的构建计划（truncated/omitted 用于如实报告，不是装饰）。 */
