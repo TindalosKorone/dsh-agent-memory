@@ -1,0 +1,31 @@
+# I3 五条红证汇总（改源码 -> 判红 -> 还原 -> 哈希逐字节复原）
+# 驱动脚本：.tmp-test/redproof.sh（不入库，.tmp-test 已 gitignore）
+#
+# 源码基线哈希（恢复后必须逐字节相同）：
+#   src/pure.ts   dd2b2c23
+#   src/index.ts  38bc71a0
+#   src/store.ts  fdf1f272
+#   src/inject.ts ae4abcff（与 I4a.1 基线一致：注入面一字未改）
+#   src/json.ts   bb207e7a（未改）
+#   src/protocol.ts ece2919c（与 I1 基线一致：未改）
+#
+# 红证 1（关掉传播：GRAPH_MAX_HOPS 2->0）
+#   判红断言：assert.ok(target !== undefined, '共享 beta 的记忆必须被召回：实际行 ...')
+#             + r.reachable >= 1；关断后 propagatedTags=[]、reachable=0、目标记忆消失
+#   结果：graph 用例 8 pass / 9 fail，红证 1 判红；恢复后 17 pass / 0 fail
+# 红证 2（去掉枢纽校正：isHub 恒 false）
+#   判红断言：assert.ok(r.hubSuppressed.includes('万能'), 'hubSuppressed 必须列出万能标签：[]')
+#             + 纯函数层 assert.equal(hub.hubFactor, (6/1)**-η)
+#   结果：15 pass / 2 fail（纯函数层枢纽用例 + 红证 2）；恢复后 17 pass / 0 fail
+# 红证 3（执行面无视 maxFieldNeighbors 上限：budget = 64，常量与 resolve 都不动）
+#   判红断言：assert.ok(nTags(rOne) <= 20, '每 hub 只走 1 条出边 ⇒ 后继标签最多 20 个：80')
+#             + 传播用例 'maxFieldNeighbors=4 ⇒ 只能扩散到 4 个后继'
+#   结果：15 pass / 2 fail；恢复后 17 pass / 0 fail
+#   （**注意**：如果直接把 GRAPH_MAX_FIELD_NEIGHBORS 常量改掉，断言会跟着常量一起漂移 ⇒ 假绿。
+#     这条红证必须改「行为」而不是「常量」。）
+# 红证 4（邻居遍历改成非确定序：同权边不再码元决胜）
+#   判红断言：assert.deepEqual(g1行, g2行, '同一批边以不同插入顺序构出的图必须一致（否则「确定序」是假判据）')
+#   结果：16 pass / 1 fail；恢复后 17 pass / 0 fail
+# 红证 5（把图/传播状态提到模块级复用）
+#   判红断言：assert.deepEqual(seq, alone, '第二次的图/传播字段必须与「单独只跑第二次」逐字段一致…')
+#   结果：14 pass / 3 fail；恢复后 17 pass / 0 fail

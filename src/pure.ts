@@ -1002,3 +1002,555 @@ export function residualPyramid(
     noQueryEnergy: false,
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// I3：有序双向标签共现图 + 有界脉冲传播（浪潮）
+//
+// 目标：让「与查询无任何词法重合、但与某条命中记录共享标签」的记忆也能被召回，
+// 同时**绝不让高频「万能标签」把候选边界污染掉**。
+//
+// 【纪律 1：禁止线性累加 —— 第三方已回退过「累计边权 + 枢纽吸积 + 循环回流」】
+//   - 边权一律先 log(1 + λW) 压缩（λ = GRAPH_LAMBDA），不做 ΣW 线性累加；
+//   - 每个节点的出边总权重归一化到固定预算 GRAPH_OUT_BUDGET（默认 1）——
+//     「一个节点最多只能把这么多能量分出去」，高频标签因此无法靠频次无限放大；
+//   - 枢纽（出现频次显著高于全库中位数的标签）额外乘一个抑制因子
+//     α = clip((s_in / median)^(−η))，η = GRAPH_HUB_ETA（默认 0.5）：越像万能标签越被压。
+//   - 综合效果：每个节点的出流总预算恒 <= GRAPH_OUT_BUDGET，且枢纽节点被压得更低
+//     ⇒ 既不会「枢纽吸积」，也不会有「循环回流放大」。
+//
+// 【纪律 2：图是「当前记忆库」的纯函数】
+//   每次调用从 records 现建，**没有任何模块级可变状态**。
+//   如果将来为了性能想缓存它，缓存键必须严格是 {path, size, mtimeMs}（幂等只读），
+//   与 I4a 注入缓存同类；**禁止**像 I2 残差金字塔那样把「请求级中间状态」提到模块级
+//   （见本文件顶部 I2 红线）：那是跨请求污染，这里说的是「同一份文件内容的纯函数结果」，
+//   两者不是一类东西，不要互相套用。
+//
+// 【纪律 3：传播必须有界且确定】
+//   maxHops（跳数上限）/ maxStates（状态数上限）/ maxFieldNeighbors（每节点最强出边条数）
+//   三条硬上限；邻居排序用确定的多级键（权重降序 → 标签码元升序），同输入必同输出。
+//   立即回流抑制 ρ：不许沿刚来的那条边原路返回（去环、防「循环回流」）。
+//
+// 【纪律 4：图奖励只奖不罚，且有硬上限】
+//   无任何图证据的记忆奖励**恰好为 0**；单条记忆的图奖励**绝不允许**超过
+//   GRAPH_BONUS_CAP（默认 0.018，第三方「辅助奖励硬上限」的量级）。
+//   图奖励只是**辅助**：它不能压过词法相关度，更不许整批否决或返回空。
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** 边权 / 频次的 log 压缩系数 λ（起点 1，**待真实语料标定**）。 */
+export const GRAPH_LAMBDA = 1
+/** 每个节点的出边总权重预算上限 m_out（起点 1，**待真实语料标定**）。 */
+export const GRAPH_OUT_BUDGET = 1
+/** 枢纽校正指数 η（起点 0.5，**待真实语料标定**）。 */
+export const GRAPH_HUB_ETA = 0.5
+/** 传播跳数上限（起点 2，**待真实语料标定**）。 */
+export const GRAPH_MAX_HOPS = 2
+/** 传播状态数上限（起点 64，**待真实语料标定**）。 */
+export const GRAPH_MAX_STATES = 64
+/** 每个节点最多沿多少条最强出边扩散（起点 4，**待真实语料标定**）。 */
+export const GRAPH_MAX_FIELD_NEIGHBORS = 4
+/** 每跳衰减 γ（起点 0.60，**待真实语料标定**）。 */
+export const GRAPH_DECAY = 0.6
+/** 立即回流抑制 ρ（起点 0.15）：不许沿刚来的那条边原路返回。 */
+export const GRAPH_BACKFLOW_RHO = 0.15
+/** 图奖励硬上限（起点 0.018，**待真实语料标定**）：第三方「辅助奖励硬上限」的量级。 */
+export const GRAPH_BONUS_CAP = 0.018
+/**
+ * 「标签激活 → 记忆图奖励」的折算系数 K（**待真实语料标定**）：
+ *
+ *   graph(记录) = min(GRAPH_BONUS_CAP, K × graphBonusRaw(记录))
+ *   graphBonusRaw(记录) = max_{t ∈ 记录标签, t 有激活} activation(t)
+ *
+ * 其中 activation(t) ∈ (0,1] 是本次传播得到的归一化标签激活（activationMin 以下不算证据）。
+ * 说明：**只用激活、不再乘「标签出边权」**。理由：出边权已经在传播里用过一次了
+ * （每跳 gain = 出边权 × 上游激活 × γ × (1−ρ)），再乘一次等于把同一个结构因子平方计入；
+ * 更要紧的是「终端标签」（只有入边、没有出边的收敛点）会让加权版恒为 0 —— 而它恰恰是
+ * 波浪走到终点时最该被标记的那类证据。传播本身已经同时体现「log 压缩 + 出流预算 + 枢纽抑制」
+ * 三个约束，激活值就是它们的合成结果，直接取用即可。
+ *
+ *   - 取 **max** 不取和：标签多的记录 / 万能标签不得白拿加成 —— 那正是本机制要防的污染路径；
+ *   - activation <= 1 ⇒ graphBonusRaw <= 1 ⇒ `min(bonusCap, K × ...)` 的硬上限恒成立；
+ *   - **没有任何图证据 ⇒ 恰好 0**（只奖不罚，绝不因此整批否决或返回空）。
+ *
+ * K 越小 ⇒ 硬上限越少被触发、图奖励越平缓（**K 是「标定旋钮」，先用留有余量的起点值**）。
+ */
+export const GRAPH_BONUS_SCALE = 0.25
+/** 标签激活的下限：低于它不算「有图证据」（也就不会给任何记忆加奖励）。 */
+export const GRAPH_ACTIVATION_MIN = 0.05
+/** 传播/图算术的零判定阈值。 */
+export const GRAPH_EPS = 1e-12
+
+/** I3 图与传播口径（全部有模块级默认常数，可经工具配置覆盖）。 */
+export interface GraphOptions {
+  /** log 压缩系数 λ。 */
+  lambda?: number
+  /** 每个节点的出流总预算 m_out。 */
+  outBudget?: number
+  /** 枢纽校正指数 η。 */
+  hubEta?: number
+  /** 传播跳数上限（0 = 关掉传播：所有图奖励恒为 0）。 */
+  maxHops?: number
+  /** 传播状态数上限（0 = 关掉传播）。 */
+  maxStates?: number
+  /** 每节点最强出边条数。 */
+  maxFieldNeighbors?: number
+  /** 每跳衰减 γ。 */
+  decay?: number
+  /** 立即回流抑制 ρ。 */
+  backflowRho?: number
+  /** 图奖励硬上限。 */
+  bonusCap?: number
+  /** 「标签激活 → 记忆奖励」折算系数 K。 */
+  bonusScale?: number
+  /** 标签激活下限。 */
+  activationMin?: number
+}
+
+/** 已解析（always 有值）的图口径。 */
+export interface ResolvedGraphOptions {
+  lambda: number
+  outBudget: number
+  hubEta: number
+  maxHops: number
+  maxStates: number
+  maxFieldNeighbors: number
+  decay: number
+  backflowRho: number
+  bonusCap: number
+  bonusScale: number
+  activationMin: number
+}
+
+/** 有界解析：非法值一律回落模块级默认；maxHops/maxStates 允许取 0（= 关掉传播）。 */
+export function resolveGraphOptions(opts?: GraphOptions): ResolvedGraphOptions {
+  const o = opts ?? {}
+  return {
+    lambda: finiteOr(o.lambda, GRAPH_LAMBDA) > 0 ? finiteOr(o.lambda, GRAPH_LAMBDA) : GRAPH_LAMBDA,
+    outBudget: finiteOr(o.outBudget, GRAPH_OUT_BUDGET) > 0 ? finiteOr(o.outBudget, GRAPH_OUT_BUDGET) : GRAPH_OUT_BUDGET,
+    hubEta: Math.max(0, finiteOr(o.hubEta, GRAPH_HUB_ETA)),
+    maxHops: clampInt(o.maxHops, GRAPH_MAX_HOPS, 0, 8),
+    maxStates: clampInt(o.maxStates, GRAPH_MAX_STATES, 0, 4096),
+    maxFieldNeighbors: clampInt(o.maxFieldNeighbors, GRAPH_MAX_FIELD_NEIGHBORS, 0, 64),
+    decay: clamp01(finiteOr(o.decay, GRAPH_DECAY)),
+    backflowRho: clamp01(finiteOr(o.backflowRho, GRAPH_BACKFLOW_RHO)),
+    bonusCap: Math.max(0, finiteOr(o.bonusCap, GRAPH_BONUS_CAP)),
+    bonusScale: Math.max(0, finiteOr(o.bonusScale, GRAPH_BONUS_SCALE)),
+    activationMin: Math.max(0, finiteOr(o.activationMin, GRAPH_ACTIVATION_MIN)),
+  }
+}
+
+/** 有向边 (from -> to) 的原始计数与 log 压缩权（方向**分开记**，不合成一个数）。 */
+export interface DirectedEdgeWeight {
+  from: string
+  to: string
+  /** 原始计数 W。 */
+  w: number
+  /** log(1 + λW) —— 压缩后的权。 */
+  compressed: number
+}
+
+/**
+ * 某个标签的出边（**双向对称视图**，用于扩散与预算）：
+ * 两个方向各自压缩后再相加，且 **两个方向的原始计数分别保留**（forward/backward），
+ * 读者可以分别取到方向信息，也可以只看对称聚合。
+ */
+export interface OutEdge extends DirectedEdgeWeight {
+  /** outRaw = 该标签在记录里紧跟着 to 出现的次数。 */
+  outRaw: number
+  /** inRaw = to 在记录里紧跟着该标签出现的次数。 */
+  inRaw: number
+  /** 最终权重（两次归一化 + 枢纽校正之后）；同一 from 的出边权重和 <= m_out。 */
+  weight: number
+}
+
+/** 图里一个标签节点。 */
+export interface GraphTagNode {
+  /** 归一化后的标签串（trim + 小写，与 store 落盘口径一致）。 */
+  tag: string
+  /** 出度（不同后继标签个数）。 */
+  outDeg: number
+  /** 入度（不同前驱标签个数）。 */
+  inDeg: number
+  /** 全库出现频次（出现该标签的记录数）。 */
+  inCount: number
+  /** 出流总权重（= Σ 出边最终 weight，恒 <= m_out）。 */
+  outFlow: number
+  /** 枢纽校正因子 α ∈ (0,1]；非枢纽恰好为 1；被压过（α<1）即计入 hubSuppressed。 */
+  hubFactor: number
+  /** 该标签的**对称**出边（已归一化 + 已枢纽校正），按 weight 降序 → 码元升序。 */
+  outEdges: OutEdge[]
+  /** 该标签的**前驱**标签（对称口径），按压缩权降序 → 码元升序。 */
+  inNeighbors: string[]
+}
+
+/** 标签共现索引（当前记忆库的纯函数结果）。 */
+export interface TagGraphIndex {
+  nodes: GraphTagNode[]
+  /** 标签 → 节点下标。 */
+  index: Map<string, number>
+  /** 有向边数（**两个方向分别计数**）。 */
+  directedEdges: number
+  /** 两个方向原始计数之和 > 0 的标签对个数（对称视图的边数）。 */
+  symmetricEdges: number
+  /** 入度中位数（枢纽判定的基准）。 */
+  medianIn: number
+  /** 被枢纽校正压过的标签（α < 1），按码元升序；对应「全部去重」口径。 */
+  hubSuppressed: string[]
+  /** 全库出现频次严格大于中位数、因而被判定为枢纽的标签数。 */
+  hubSuppressedCount: number
+  /** 所有出边 weight 之和（<= 节点数 × m_out）。 */
+  totalOutWeight: number
+}
+
+/** 有序对键：`长度:标签` 拼接，避免 'a|b' 与 'a|b|c' 之类的歧义。 */
+function pairKey(a: string, b: string): string {
+  return `${a.length}:${a}${b.length}:${b}`
+}
+
+/**
+ * 从记录集构建**有序双向**标签共现图（纯函数；每次现建，无模块级状态）。
+ *
+ * 边定义：对每条记录的规范化标签序列 t0..t_{k-1}，为每个 i 记一条有向边
+ * `(t_i -> t_{i+1})`（相邻对；自环跳过）。同一对标签的两个方向**分别计数**：
+ * `(A -> B)` 记 forward、`(B -> A)` 记 backward，绝不合成一个数。
+ *
+ * 权重（禁止线性累加）：
+ *   1. 对称压缩权 `c(u,v) = log(1 + λ·(forward + backward))`；
+ *   2. 每个节点的出边按 c 归一化到总预算 `m_out`：`p(u->v) = m_out · c / Σc`；
+ *      （按 c 归一化、再按 c 分配 ⇒ 低权出边被压到接近 0，但**不会整条消失**；
+ *        若出现「Σc 里有零权项」的退化输入，则对正权项按权重分配、零权项给 0。）
+ *   3. 枢纽校正：**枢纽判定 = 入度 >= 中位数 + 1**（「显著高于中位数」的可操作定义；
+ *      median = 0 时**没有任何枢纽**，避免空库/单标签库上误压），
+ *      `α(u) = clip((inDeg(u) / max(1, median))^(-η))`（非枢纽恒为 1），
+ *      `weight(u->v) = p(u->v) · α(u)`（先预算、后枢纽 ⇒ 预算恒成立，枢纽只在其内再分配）。
+ *      【为什么不用「入度 > 中位数」】：标签少的小库常常 median = 1，那时任何入度 2 的普通
+ *      标签都会被误判成枢纽并被压到 0.7 倍 —— 实测这会连带压低「普通节点」的传播
+ *      （calib4 夹具里 alpha 被误压，万能标签的激活反而更小）。加 1 的门槛把「比多数标签
+ *      都更常见」和「稍微常见一点」分开，只有真正的万能标签才落入抑制区间。
+ *
+ * memo 是**调用级**（构建过程中）的临时缓存，直接建在节点对象上；它不跨调用存活，
+ * 也不依赖任何模块级变量 —— 与 I2 禁止的「请求级状态提模块级」不是一回事。
+ */
+export function tagGraphIndex(records: ReadonlyArray<{ tags?: unknown } | null | undefined>, opts?: GraphOptions): TagGraphIndex {
+  const cfg = resolveGraphOptions(opts)
+
+  // ── 1. 计数（方向分开；顺序只在记录内体现，跨记录不合成）──────────────
+  const ordered = new Map<string, { from: string; to: string; w: number }>()
+  const inCountMap = new Map<string, number>()
+  const outCount = new Map<string, Set<string>>()
+  const inCount = new Map<string, Set<string>>()
+  for (const rec of records) {
+    if (rec === null || rec === undefined) continue
+    const tags = normalizedTags(rec.tags)
+    for (const t of tags) inCountMap.set(t, (inCountMap.get(t) ?? 0) + 1)
+    for (let i = 0; i + 1 < tags.length; i += 1) {
+      const from = tags[i]
+      const to = tags[i + 1]
+      if (from === undefined || to === undefined || from === to) continue
+      const key = pairKey(from, to)
+      const cur = ordered.get(key)
+      if (cur === undefined) ordered.set(key, { from, to, w: 1 })
+      else cur.w += 1
+      let os = outCount.get(from)
+      if (os === undefined) { os = new Set(); outCount.set(from, os) }
+      os.add(to)
+      let is = inCount.get(to)
+      if (is === undefined) { is = new Set(); inCount.set(to, is) }
+      is.add(from)
+    }
+  }
+
+  // ── 2. 对称压缩权（两个方向各自 log 压缩后相加；**两个方向的压缩权都写进表**，
+  //      这样从任一端出发都能取到同一条对称边的权）────────────────────────
+  const compressed = new Map<string, number>()
+  /** 每条有向边自己方向的出现次数（forward）。 */
+  const forwardCount = new Map<string, number>()
+  /** 每条有向边反方向的出现次数（backward）。 */
+  const backwardCount = new Map<string, number>()
+  /** 已处理过的有向边（两个方向都登记，避免同一条对称边被算两次）。 */
+  const symmetricSeen = new Set<string>()
+  /** 对称视图的边（无序标签对）集合，用来数 symmetricEdges。 */
+  const pairSeen = new Set<string>()
+  for (const e of ordered.values()) {
+    const k = pairKey(e.from, e.to)
+    if (symmetricSeen.has(k)) continue
+    // 反向那条边（to -> from）的原始计数：这才是 e 这条边的 backward 计数。
+    const rev = ordered.get(pairKey(e.to, e.from))?.w ?? 0
+    const fwd = e.w
+    const c = logCompress(fwd + rev, cfg.lambda)
+    symmetricSeen.add(k)
+    symmetricSeen.add(pairKey(e.to, e.from))
+    // 无序标签对只登记一次（symmetricEdges = 对称视图的边数）。
+    const lo = e.from < e.to ? e.from : e.to
+    const hi = e.from < e.to ? e.to : e.from
+    pairSeen.add(`${lo.length}:${lo}${hi.length}:${hi}`)
+    compressed.set(k, c)
+    compressed.set(pairKey(e.to, e.from), c)
+    // 两个方向的原始计数分开存（不合成一个数）：
+    // forwardCount = 该方向出现的次数，backwardCount = 反方向出现的次数。
+    forwardCount.set(k, fwd)
+    backwardCount.set(k, rev)
+    forwardCount.set(pairKey(e.to, e.from), rev)
+    backwardCount.set(pairKey(e.to, e.from), fwd)
+  }
+
+  // ── 3. 入度中位数（枢纽基准，上中位以避免浮点平均）──────────────────
+  const sortedIn = [...inCountMap.values()].sort((a, b) => a - b)
+  const medianIn = sortedIn.length === 0 ? 0 : (sortedIn[Math.floor((sortedIn.length - 1) / 2)] ?? 0)
+
+  // ── 4. 节点 + 出边（预算归一 → 枢纽校正）────────────────────────────
+  const nodes: GraphTagNode[] = []
+  const index = new Map<string, number>()
+  const hubSuppressed: string[] = []
+  let hubSuppressedCount = 0
+  let totalOutWeight = 0
+  let directedEdges = 0
+  const allTags = [...inCountMap.keys()].sort((a, b) => cmpId(a, b))
+  for (const tag of allTags) {
+    const raw: OutEdge[] = []
+    for (const [key, cw] of compressed) {
+      const e = ordered.get(key)
+      if (e === undefined || e.from !== tag) continue
+      // 两个方向的原始计数分别保留（forward = 本方向，backward = 反方向）。
+      raw.push({
+        from: tag,
+        to: e.to,
+        w: cw,
+        compressed: cw,
+        outRaw: forwardCount.get(key) ?? e.w,
+        inRaw: backwardCount.get(key) ?? 0,
+        weight: 0,
+      })
+      directedEdges += 1
+    }
+    raw.sort((a, b) => (b.compressed - a.compressed) || cmpId(a.to, b.to))
+
+    const sum = raw.reduce((acc, e) => acc + e.compressed, 0)
+    const scale = sum > 0 ? cfg.outBudget / sum : 0
+    // 枢纽判定：入度 >= 中位数 + 1（且 median > 0）；抑制因子用全局出现频次算
+    // （频次比入度更能反映「万能标签」的广覆盖，且天然 >= 入度）。
+    const deg = (inCount.get(tag) ?? new Set<string>()).size
+    const freq = inCountMap.get(tag) ?? 0
+    const isHub = medianIn > 0 && deg >= medianIn + 1
+    const hubFactor = isHub ? clamp01((freq / medianIn) ** -cfg.hubEta) : 1
+    let outFlow = 0
+    for (const e of raw) {
+      const w = (Number.isFinite(e.compressed) ? e.compressed : 0) * scale * hubFactor
+      e.weight = Number.isFinite(w) && w > 0 ? w : 0
+      outFlow += e.weight
+    }
+    if (hubFactor < 1) { hubSuppressed.push(tag); hubSuppressedCount += 1 }
+    totalOutWeight += outFlow
+    index.set(tag, nodes.length)
+    nodes.push({
+      tag,
+      outDeg: raw.length,
+      inDeg: (inCount.get(tag) ?? new Set<string>()).size,
+      inCount: inCountMap.get(tag) ?? 0,
+      outFlow,
+      hubFactor,
+      outEdges: raw,
+      inNeighbors: [...new Set((inCount.get(tag) ?? new Set<string>()))].sort((a, b) => cmpId(a, b)),
+    })
+  }
+
+  return {
+    nodes,
+    index,
+    directedEdges,
+    symmetricEdges: pairSeen.size,
+    medianIn,
+    hubSuppressed,
+    hubSuppressedCount,
+    totalOutWeight,
+  }
+}
+
+/** 便捷包装：只要「节点数 / 有向边数」（召回层报告用）。 */
+export function tagGraphSize(records: ReadonlyArray<{ tags?: unknown } | null | undefined>, opts?: GraphOptions): { nodes: number; edges: number } {
+  const g = tagGraphIndex(records, opts)
+  return { nodes: g.nodes.length, edges: g.directedEdges }
+}
+
+/** 一条候选记忆的图奖励（graph 字段）。 */
+export interface MemoryGraphReward {
+  id: string
+  /** 已应用硬上限的图奖励（[0, graphBonusCap]，4 位小数打印）。 */
+  bonus: number
+  /** 最强证据标签（激活 × 权最大者；码元升序决胜），无证据为 ''。 */
+  viaTag: string
+  /** 该标签的激活值。 */
+  activation: number
+}
+
+/** 传播结果（全部是本次调用的局部量）。 */
+export interface TagPropagation {
+  /** 所有到达状态的标签 → 激活值（降序）。 */
+  nodes: Array<{ tag: string; weight: number }>
+  /** 通过 activationMin 的标签（降序）。 */
+  propagated: Array<{ tag: string; weight: number }>
+  /** 新达到标签的跳数（1 = 直接邻居）。 */
+  hops: number
+  /** 实际展开的状态数（<= maxStates）。 */
+  statesUsed: number
+  /** 是否撞上状态数上限。 */
+  statesTruncated: boolean
+  /** 种子标签（本次直接命中的标签，码元升序）。 */
+  seeds: string[]
+}
+
+/**
+ * 有界脉冲传播（浪潮）：从本次直接命中的标签出发沿出边扩散。
+ *
+ * 规则（全部显式有上限，见 GraphOptions）：
+ *  - 种子激活 = 1；
+ *  - 每跳衰减 γ，立即回流抑制 ρ（不许沿刚来的那条边原路返回）；
+ *  - 每个节点最多取 maxFieldNeighbors 条最强出边（权重降序 → 目标标签码元升序）；
+ *  - maxHops 跳内结束；状态总数 <= maxStates；
+ *  - 一个标签被多次到达时取**最大**激活（重新入队），保证结果与到达顺序无关；
+ *  - 「状态」= 展开一个节点一次，总数 <= maxStates（这条在 for 条件里硬保证）。
+ *
+ * 确定性：邻居排序用确定的多级键；优先队列的比较器是全序；同输入必同输出。
+ */
+export function propagateTags(
+  seeds: Iterable<string>,
+  graph: TagGraphIndex,
+  opts?: GraphOptions,
+): TagPropagation {
+  // ★ 请求级隔离：以下全部是本次调用的局部量（没有模块级缓存、没有跨请求复用）。
+  const cfg = resolveGraphOptions(opts)
+  const seedList = [...new Set(seeds)].filter((s) => typeof s === 'string' && s !== '').sort((a, b) => cmpId(a, b))
+  const nodesMap = new Map<string, { tag: string; weight: number; hop: number }>()
+  const propagated: Array<{ tag: string; weight: number }> = []
+  // 空种子 / maxHops=0 / maxStates=0 ⇒ 不传播（图奖励恒为 0，是显式的关断点）。
+  if (seedList.length === 0 || cfg.maxHops <= 0 || cfg.maxStates <= 0) {
+    return { nodes: propagated, propagated, hops: 0, statesUsed: 0, statesTruncated: false, seeds: seedList }
+  }
+
+  const queue: Array<{ tag: string; weight: number; hop: number }> = []
+  const prev = new Map<string, string>()
+  /** 优先队列插队：全序比较器 ⇒ 与插入顺序无关。 */
+  const push = (item: { tag: string; weight: number; hop: number }): void => {
+    let lo = 0
+    let hi = queue.length
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1
+      const at = queue[mid]
+      if (at === undefined) break
+      const better = item.weight > at.weight
+        || (item.weight === at.weight && (item.hop < at.hop || (item.hop === at.hop && cmpId(item.tag, at.tag) < 0)))
+      if (better) hi = mid
+      else lo = mid + 1
+    }
+    queue.splice(lo, 0, item)
+  }
+
+  for (const s of seedList) {
+    if (nodesMap.has(s)) continue
+    nodesMap.set(s, { tag: s, weight: 1, hop: 0 })
+    push({ tag: s, weight: 1, hop: 0 })
+  }
+
+  let statesUsed = 0
+  let statesTruncated = false
+  let maxHopReached = 0
+  // 状态数与 re-activation 次数都受 maxStates 约束 ⇒ 工作量有界（不会 O(n²) 爆炸）。
+  const maxAttempts = cfg.maxStates * 4
+  for (let attempt = 0; attempt < maxAttempts && statesUsed < cfg.maxStates && queue.length > 0; attempt += 1) {
+    const cur = queue.shift()
+    if (cur === undefined) break
+    statesUsed += 1
+    const ni = graph.index.get(cur.tag)
+    const node = (ni === undefined ? undefined : graph.nodes[ni]) as GraphTagNode | undefined
+    if (node === undefined || cur.hop >= cfg.maxHops) continue
+    const from = prev.get(cur.tag)
+    const budget = cfg.maxFieldNeighbors
+    let taken = 0
+    for (const e of node.outEdges) {
+      if (taken >= budget) break
+      if (e.weight <= 0) continue
+      if (from !== undefined && e.to === from) continue // 立即回流抑制 ρ
+      taken += 1
+      const gain = e.weight * cur.weight * cfg.decay * (1 - cfg.backflowRho)
+      if (!Number.isFinite(gain) || gain <= 0) continue
+      const hop = cur.hop + 1
+      if (hop > maxHopReached) maxHopReached = hop
+      const existing = nodesMap.get(e.to)
+      if (existing !== undefined) {
+        if (hop < existing.hop || gain > existing.weight) {
+          if (statesUsed >= cfg.maxStates) { statesTruncated = true; break }
+          existing.weight = gain
+          existing.hop = hop
+          prev.set(e.to, cur.tag)
+          push({ tag: e.to, weight: gain, hop })
+        }
+        continue
+      }
+      // 新状态必须占用一个名额：名额用完就**如实标记截断**（绝不悄悄多走一步）。
+      if (statesUsed >= cfg.maxStates) { statesTruncated = true; break }
+      nodesMap.set(e.to, { tag: e.to, weight: gain, hop })
+      prev.set(e.to, cur.tag)
+      push({ tag: e.to, weight: gain, hop })
+    }
+  }
+
+  for (const item of nodesMap.values()) {
+    if (!(item.weight >= cfg.activationMin)) continue
+    propagated.push({ tag: item.tag, weight: item.weight })
+  }
+  propagated.sort((a, b) => (b.weight - a.weight) || cmpId(a.tag, b.tag))
+  // 还有未展开的节点，或状态名额已用尽 ⇒ 传播被上限如实截断。
+  // （循环条件在「名额用尽」时会直接退出，不经过循环体内的赋值点，所以这里必须补判一次。）
+  if (queue.length > 0 || statesUsed >= cfg.maxStates) statesTruncated = true
+  return { nodes: propagated, propagated, hops: maxHopReached, statesUsed, statesTruncated, seeds: seedList }
+}
+
+/**
+ * 「标签激活 → 每条记忆的图奖励」折算（**本机制的公式，必须写清**）：
+ *
+ *   对记录 r：graph(r) = min(bonusCap, K × max_{t ∈ tags(r), t 有激活} activation(t))
+ *
+ *   - activation(t) ∈ (0,1] 是传播值（activationMin 以下的标签不参与，等价于「无证据」）；
+ *   - 取 **max** 不取和：标签个数多 / 万能标签不得白拿加成（求和会让标签多的记录恒占便宜）；
+ *   - activation <= 1 ⇒ graphBonusRaw <= 1 ⇒ graph(r) <= bonusCap 恒成立；
+ *   - 无任何图证据 ⇒ **恰好 0**（只奖不罚，绝不因此整批否决或返回空）。
+ *
+ * 返回数组与 candidates 一一对应（同分时按标签码元升序决定 viaTag，保证确定性）。
+ */
+export function memoryGraphRewards(
+  candidates: ReadonlyArray<{ id: string; tags?: readonly string[] }>,
+  propagated: ReadonlyArray<{ tag: string; weight: number }>,
+  graph: TagGraphIndex,
+  opts?: GraphOptions,
+): MemoryGraphReward[] {
+  const cfg = resolveGraphOptions(opts)
+  const activation = new Map<string, number>()
+  for (const p of propagated) {
+    if (typeof p.tag !== 'string' || p.tag === '') continue
+    if (!Number.isFinite(p.weight) || p.weight <= 0) continue
+    // 激活下限也在这里再筛一次：reward 层不假设调用方已经按 activationMin 过滤过
+    // （纯函数层各自守自己的契约；否则 activationMin 只在传播里生效，这里是静默漏筛）。
+    if (p.weight < cfg.activationMin) continue
+    activation.set(p.tag, p.weight)
+  }
+  const out: MemoryGraphReward[] = []
+  for (const cand of candidates) {
+    let best = 0
+    let bestTag = ''
+    let bestActivation = 0
+    for (const rawTag of cand.tags ?? []) {
+      const tag = typeof rawTag === 'string' ? rawTag.trim().toLowerCase() : ''
+      if (tag === '') continue
+      const act = activation.get(tag)
+      if (act === undefined) continue
+      const value = act * cfg.bonusScale
+      if (value > best || (value === best && value > 0 && cmpId(tag, bestTag) < 0)) {
+        best = value
+        bestTag = tag
+        bestActivation = act
+      }
+    }
+    const capped = best > cfg.bonusCap ? cfg.bonusCap : best
+    out.push({ id: cand.id, bonus: capped > 0 ? capped : 0, viaTag: capped > 0 ? bestTag : '', activation: bestActivation })
+  }
+  return out
+}

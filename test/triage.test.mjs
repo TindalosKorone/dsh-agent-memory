@@ -431,6 +431,13 @@ test('红证 3（判红点：把金字塔状态提到模块级并在两次调用
     env: { ...process.env, DSH_HOME: home }, encoding: 'utf8',
   })
   const alone = JSON.parse(aloneRaw)
+  // 探针字段集自检：本用例比对的是**这 13 个键**；探针若被改成别的口径（多/少键都会让
+  // deepEqual 失败），这条断言先给出可读的原因，免得后人对着"字段不一致"猜半天。
+  // （I3 的图字段走第三个参数 'graph' 的扩展字段集，不混进本用例。）
+  assert.deepEqual(Object.keys(alone).sort(), [
+    'basisSize', 'covMax', 'expanded', 'explainedRatio', 'kBase', 'kUsed', 'layers',
+    'logicalDepth', 'lowConfidence', 'novelty', 'residualRatio', 'rowIds', 'shown',
+  ].sort(), 'isolation-probe 的默认字段集必须恰好是这 13 个（多一个键都会让本用例假红）')
 
   // ② 同进程：先跑第一次（标签空间里的另一组方向），注入一次事件循环让出，再跑第二次
   const first = await recall.execute({ query: 'aa ab ac', limit: 10 })

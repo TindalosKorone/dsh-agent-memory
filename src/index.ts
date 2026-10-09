@@ -25,7 +25,7 @@ import {
   RecordTooLargeError, StoreChangedExternallyError,
   type MemoryConfig,
 } from './store.js'
-import { cmpId, decay, diversify, absoluteDisp, lexicalScore, matchLevel, rrf, corpusStats, tagCoverage, resolveScoreOptions, resolveTriageOptions, residualPyramid, type MatchLevel } from './pure.js'
+import { cmpId, decay, diversify, absoluteDisp, lexicalScore, matchLevel, rrf, corpusStats, tagCoverage, resolveScoreOptions, resolveTriageOptions, residualPyramid, resolveGraphOptions, tagGraphIndex, propagateTags, memoryGraphRewards, tokenize, type MatchLevel } from './pure.js'
 import {
   INJECTION_CONTEXT_NAME, INJECTION_CONTEXT_ORDER, buildInjectionIndex, createInjectionCache,
   resolveInjectionOptions,
@@ -79,7 +79,8 @@ export interface ExpandedRecord {
  *  - `rel`   = BM25 **原始相关度**（绝对标度，不随批次归一化），`match` 就是拿它与阈值比出来的
  *              ⇒ 读者可用打印的 rel 自行验算 match（I1.3 自证要求）；
  *  - `score` = `disp(final)` 映射到 0..1 的**展示分**（仅用于排序展示，与 rel 不同标度）。
- * 列序固定为 `rel | cov | match | score`，见 formatL1。
+ * I3 追加两列诊断：`graph`（图奖励，已应用硬上限）与 `via`（来源：direct / tag:<标签>）。
+ * 列序固定为 `graph | via | rel | cov | match | score`，见 formatL1。
  */
 export interface L1ScoreView {
   /** 含多样性惩罚的最终展示分 disp(final)；列表按它降序 ⇒ 打印天然单调不增。 */
@@ -90,6 +91,10 @@ export interface L1ScoreView {
   cov: number
   /** 绝对判定：raw 与 WEAK_THRESHOLD / STRONG_THRESHOLD 比较。 */
   match: MatchLevel
+  /** I3 图奖励（已应用硬上限 GRAPH_BONUS_CAP；无图证据恰好为 0）。 */
+  graph: number
+  /** I3 来源标记：`direct`（词法直接命中）或 `tag:<标签>`（由标签图传播到达）。 */
+  via: string
 }
 
 /** 召回的结构化行（与 lines 一一对应，便于消费方不用解析字符串）。 */
@@ -101,19 +106,29 @@ export interface L1Row {
   rel: number
   cov: number
   match: MatchLevel
+  graph: number
+  via: string
   score: number
 }
 
 /**
- * 每条 L1 行：`id | kind | title | tags | rel | cov | match | score`。**不含 body**。
+ * 每条 L1 行：`id | kind | title | tags | graph | via | rel | cov | match | score`。**不含 body**。
  *
- * 约定：
- *  - **score 恒为最后一个字段**（4 位小数），既有「行尾是分数」的格式契约继续成立；
- *  - 表头（单一表头行）必须如实说明这四列的含义与绝对标度常数；
- *  - score = disp(rel × (1 − β·maxSim)) 展示分；rel = **BM25 原始相关度**（match 依据它）；cov = 覆盖率；match = 绝对判定。
+ * 约定（列序是三步试出来的，别随手挪）：
+ *  - 既有 8 列的名称/含义/相对位置**一个字不改**（rel 仍是 BM25 原始相关度、cov 仍是覆盖率、
+ *    match 仍是绝对判定、score 仍是展示分），且 **score 仍在行尾**；
+ *  - I3 的两列 `graph | via` 插在 tags 与 rel 之间，理由：
+ *    ① 行尾仍是 score ⇒ 「行尾是分数」的既有契约与既有读者按 `-1` 取分数的用法逐字不变；
+ *    ② rel/cov/match 的行尾相对下标（-4/-3/-2）也逐字不变（它们仍在最后四列里）；
+ *    ③ 前三列（id/kind/title/tags）不动 ⇒ 行首解析不变。
+ *    如果把新列插在 match 与 score 之间或追加在尾部，①②必坏其一（要么行尾不再是分数，
+ *    要么既有列的整体下标位移，既有读者会静默读错列）。
+ *  - 表头（单一表头行）必须如实说明这些列的含义与绝对标度常数；
+ *  - final = rel + graph（再乘多样性惩罚）；rel = **BM25 原始相关度**（match 只依据它）。
  */
 export function formatL1(rec: MemoryRecord, view: L1ScoreView): string {
   return `${rec.id} | ${rec.kind} | ${rec.title} | ${rec.tags.join(',')} | `
+    + `${view.graph.toFixed(4)} | ${view.via} | `
     + `${view.rel.toFixed(4)} | ${view.cov.toFixed(4)} | ${view.match} | ${view.score.toFixed(4)}`
 }
 
@@ -357,6 +372,39 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
           noveltyThreshold: { type: 'number', required: true },
           activationThreshold: { type: 'number', required: true },
           covMax: { type: 'number', required: true },
+          /**
+           * I3：标签共现图与有界脉冲传播的如实回显（全部是本请求的局部结论）。
+           * graphNodes/graphEdges 是当前库的图规模（两个方向分别计数的有向边数）；
+           * propagatedTags 是本次传播到达并通过激活下限的标签（按激活降序，全量，由 maxStates/maxHops 兜住规模）；
+           * maxHops/maxStates/maxFieldNeighbors 是三条**显式上限**；graphBonusCap 是图奖励硬上限；
+           * hubSuppressed 是被枢纽校正压过的标签（码元升序）；reachable 是图**新增可达**的记忆条数。
+           */
+          graphNodes: { type: 'integer', required: true },
+          graphEdges: { type: 'integer', required: true },
+          propagatedTags: {
+            type: 'array',
+            required: true,
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                tag: { type: 'string', required: true },
+                activation: { type: 'number', required: true },
+              },
+            },
+          },
+          maxHops: { type: 'integer', required: true },
+          maxStates: { type: 'integer', required: true },
+          maxFieldNeighbors: { type: 'integer', required: true },
+          graphBonusCap: { type: 'number', required: true },
+          hubSuppressed: { type: 'array', items: { type: 'string' }, required: true },
+          reachable: { type: 'integer', required: true },
+          /** I3 诊断（可复算传播边界）：种子数、共同展开的状态数、最深跳数、是否撞上 maxStates、有图证据的记忆数。 */
+          graphSeedCount: { type: 'integer', required: true },
+          graphStatesUsed: { type: 'integer', required: true },
+          graphHops: { type: 'integer', required: true },
+          graphStatesTruncated: { type: 'boolean', required: true },
+          graphEvidence: { type: 'integer', required: true },
           lines: { type: 'array', items: { type: 'string' }, required: true },
           rows: {
             type: 'array',
@@ -372,6 +420,8 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
                 rel: { type: 'number', required: true },
                 cov: { type: 'number', required: true },
                 match: { type: 'string', required: true },
+                graph: { type: 'number', required: true },
+                via: { type: 'string', required: true },
                 score: { type: 'number', required: true },
               },
             },
@@ -415,7 +465,20 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
 
       // 候选：排序层用原始相关度 rel 与融合秩 rank；展示层再用绝对映射 disp（两层解耦）。
       // 只奖不罚：无任何词法证据的候选 rel 就是 0，不做统一扣分、也不整批否决。
-      const candidates = fused.map((e, idx) => {
+      //
+      // ── I3：图奖励（标签共现图 + 有界脉冲传播）────────────────────────────
+      // 口径全部是模块级默认常数（可经 cfg.graph 覆盖），**没有任何批次相关量**。
+      // 图是「当前记忆库的纯函数」：每次调用从 records 现建（无模块级可变状态）。
+      // 请求级隔离：传播/激活/奖励全是本次调用的局部量（与 I2 红线同类）。
+      const graphCfg = resolveGraphOptions(cfg.graph)
+      const tagGraph = tagGraphIndex(records, graphCfg)
+      const graphSize = { nodes: tagGraph.nodes.length, edges: tagGraph.directedEdges }
+      // 种子 = 本次直接命中的标签（严格定义：查询词元里、在全库标签出现过的那些标签）。
+      const queryTokens = new Set(tokenize(query))
+      const seedTags = [...new Set([...stats.tagDf.keys()].filter((t) => queryTokens.has(t)))].sort(cmpId)
+      const prop = propagateTags(seedTags, tagGraph, graphCfg)
+
+      const baseCandidates = fused.map((e, idx) => {
         const rec = byId.get(e.id)
         const tags = Array.isArray(rec?.tags) ? (rec?.tags ?? []) : []
         return {
@@ -426,9 +489,44 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
           cov: tagCoverage(query, tags, stats),
         }
       })
+      // 图奖励按「融合候选 + 图新增可达记忆」一起算：后者必须补进候选池，
+      // 否则「与查询无词法重合、但与命中记录共享标签」的记忆永远进不了候选集。
+      const inPool = new Set(baseCandidates.map((c) => c.id))
+      const graphExtras: Array<{ id: string; score: number; tags: string[]; rank: number; cov: number }> = []
+      for (const rec of records) {
+        if (inPool.has(rec.id)) continue
+        const tags = Array.isArray(rec.tags) ? rec.tags : []
+        graphExtras.push({
+          id: rec.id,
+          score: relById.get(rec.id) ?? 0,
+          tags,
+          rank: fused.length + graphExtras.length,
+          cov: tagCoverage(query, tags, stats),
+        })
+      }
+      const rewardList = memoryGraphRewards([...baseCandidates, ...graphExtras], prop.propagated, tagGraph, graphCfg)
+      const rewardById = new Map(rewardList.map((x) => [x.id, x]))
+      const isLexicalHit = (id: string): boolean => (relById.get(id) ?? 0) > 0
+      const reachable = rewardList.filter((x) => x.bonus > 0 && !isLexicalHit(x.id)).length
+
+      // 候选：final = rel + graph（图奖励是**辅助**，硬上限 GRAPH_BONUS_CAP ⇒ 压不过词法相关度）。
+      const candidates = baseCandidates.map((c) => {
+        const g = rewardById.get(c.id)
+        return { ...c, score: c.score + (g?.bonus ?? 0), graph: g?.bonus ?? 0, viaTag: g?.viaTag ?? '' }
+      })
+      // 图新增的可达记忆：只把**真有图证据**的补进候选池（无证据的一条都不补，绝不灌水）。
+      // 它们进入候选池 ⇒ 受同一套排序、多样性与 limit 硬上限约束（不额外承诺显示）。
+      for (const extra of graphExtras) {
+        const g = rewardById.get(extra.id)
+        if (g === undefined || g.bonus <= 0) continue
+        candidates.push({ ...extra, score: extra.score + g.bonus, graph: g.bonus, viaTag: g.viaTag })
+      }
 
       // 候选 <= 5 时跳过多样性（小候选集拿不到多样性收益，纯添乱）。
-      const beta = candidates.length <= DIVERSITY_MIN_CANDIDATES ? 0 : scoreCfg.beta
+      // 判据用**词法融合候选数** fused.length（I1.2 的口径原样保留）：图新增候选是**辅助**补充，
+      // 不能让「一个本来只命中 3 条的查询」因为图补进几条就突然开起多样性重排 —— 那会改变
+      // 既有排序语义。图有证据时它的影响体现在 final 上的 graph 项，不需要动 beta 口径。
+      const beta = fused.length <= DIVERSITY_MIN_CANDIDATES ? 0 : scoreCfg.beta
 
       // ── I2 分诊：残差金字塔（Gram-Schmidt）→ 是否扩检索 ────────────────────
       // 分诊口径：模块级默认常数（可经 cfg.triage 覆盖），**没有任何批次相关量**。
@@ -455,6 +553,10 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
       // 给多样性一个更大的候选池），**绝不**改变返回行数：旧实现把 limit 直接换成 kUsed 交给
       // diversify ⇒ limit=3 也能吐 6 行（实测 rows=6），调用方无法依赖 limit，契约被泄漏破坏。
       // 内部先按 kUsed 选（保持「扩检索=更大候选池」的语义），再按硬上限截断显示。
+      // 内部先按 kUsed 选（保持「扩检索=更大候选池」的语义），再按硬上限截断显示。
+      // I3：可用候选数 = 词法融合候选 ∪ 图新增可达记忆（后者是本次新补进候选池的），
+      // 仍是 min(limit, 可用候选数) 的严格硬上限 —— 图候选只可能**占用**可用名额，
+      // 绝不会让行数超过 limit。
       const shownCap = Math.min(limit, candidates.length)
       const picked = diversify(candidates, { beta, limit: kUsed }).slice(0, shownCap)
 
@@ -469,16 +571,20 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
       for (const item of picked) {
         const rec = byId.get(item.id)
         if (rec === undefined) continue
-        const raw = item.score
-        // I1.3 自证修正：`rel` 直接打印**判定所用的同一个量**（BM25 原始分 raw），
-        // 因为 `match` 就是 matchLevel(raw, weak, strong)。上一版把 rel 映射成 disp 再打印，
-        // 阈值却仍作用于 raw ⇒ 读者拿打印值复现不出 match（自证断裂，实测 rel=0.3440 却判 weak）。
-        // `score` 保留为映射到 0..1 的展示分 disp(final)，与 rel 不同标度，表头已如实说明。
+        // I1.3 自证修正：`rel` 直接打印**判定所用的同一个量**（BM25 原始分），
+        // 因为 `match` 就是 matchLevel(rel, weak, strong)，与图奖励**无关**。
+        // 图奖励只进 final = rel + graph（再乘多样性惩罚），绝不改 rel 或 match。
+        const rel = relById.get(item.id) ?? 0
+        const graph = Number.isFinite(item.graph) && (item.graph ?? 0) > 0 ? (item.graph ?? 0) : 0
+        // via：有词法证据就是 direct；否则标出最强来源标签（图传播到达）。
+        const via = rel > 0 ? 'direct' : (graph > 0 && item.viaTag !== '' ? `tag:${item.viaTag}` : 'direct')
         const view: L1ScoreView = {
           score: absoluteDisp(item.final, scoreCfg.scaleA, scoreCfg.scaleB),
-          rel: raw,
+          rel,
           cov: item.cov,
-          match: matchLevel(raw, scoreCfg.weak, scoreCfg.strong),
+          match: matchLevel(rel, scoreCfg.weak, scoreCfg.strong),
+          graph,
+          via,
         }
         lines.push(formatL1(rec, view))
         rows.push({
@@ -489,6 +595,8 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
           rel: view.rel,
           cov: view.cov,
           match: view.match,
+          graph: view.graph,
+          via: view.via,
           score: view.score,
         })
       }
@@ -506,11 +614,20 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
         : `I2 分诊（词法空间残差金字塔）：novelty=${triage.novelty.toFixed(4)} ${expanded ? '>=' : '<'} 阈值 ${triageCfg.noveltyThreshold} ⇒ expanded=${expanded}；`
           + `kBase=${kBase} -> kUsed=${kUsed}（分诊判定${expanded ? '扩检索' : '不扩检索'}：kUsed 是内部候选池预算，显示行数仍受硬上限 limit=${limit} 约束）；`
           + `explainedRatio=${triage.explainedRatio.toFixed(4)} + residualRatio=${triage.residualRatio.toFixed(4)} = 1；`
+      // I3 表头用的如实回显量（全部是本请求的局部结论）。
+      const hubSuppressedCount = tagGraph.hubSuppressed.length
+      const hubSuppressedList = tagGraph.hubSuppressed.length <= 4
+        ? tagGraph.hubSuppressed.join(',')
+        : `${tagGraph.hubSuppressed.slice(0, 4).join(',')}…`
+      const reachableWithGraph = rewardList.filter((x) => x.bonus > 0).length
+
       const header = `记忆召回（L1 索引，不含正文）：query=${JSON.stringify(query)} | 库内 ${records.length} 条 | `
         + `融合候选 ${fused.length} 条 | 本次显示 ${lines.length} 条（limit=${limit} 是硬显示上限：`
         + '返回行数恒为 min(limit,可用候选数)，扩检索只放大内部候选池、不增加返回行数）| '
-        + '列序：id | kind | title | tags | rel(惩罚前相关度) | cov(标签覆盖率,仅诊断) | match(绝对判定) | score(含多样性惩罚的最终分,按此降序) | '
-        + 'rel=BM25 原始相关度（绝对标度，不随批次归一化）——阈值直接作用于它，可据此自行验算 match；'
+        + '列序：id | kind | title | tags | '
+        + `graph(图奖励,辅助,已应用硬上限) | via(来源:direct 或 tag:<标签>) | `
+        + 'rel(惩罚前相关度) | cov(标签覆盖率,仅诊断) | match(绝对判定) | score(展示分 disp(final)，行尾，按此降序) | '
+        + 'rel=BM25 原始相关度（绝对标度，不随批次归一化）——阈值直接作用于它，可据此自行验算 match（图奖励不改 rel、不改 match）；'
         + `score=disp(final)=clip((final-${scoreCfg.scaleA})/(${scoreCfg.scaleB}-${scoreCfg.scaleA})) 映射到 0..1 的展示分（与 rel 不同标度，仅用于排序展示）；`
         + `阈值 match：rel>=${scoreCfg.weak} 为 weak、>=${scoreCfg.strong} 为 strong，无证据为 none（不扣分）；`
         + `多样性 beta=${beta}${beta === 0 ? '（候选<=5，已跳过）' : ''} | `
@@ -519,6 +636,15 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
         + (lowConfidence
           ? `低置信：cov_max=${covMax.toFixed(4)} < ${triageCfg.activationThreshold}（仅如实报告：不否决任何候选、不返回空）`
           : `非低置信：cov_max=${covMax.toFixed(4)} >= ${triageCfg.activationThreshold}`)
+        + ` | I3 图：final=rel+graph（graph 是辅助奖励，硬上限 ${graphCfg.bonusCap} ⇒ 压不过词法相关度；无图证据恒为 0，只奖不罚）；`
+        + `有序双向边 log(1+${graphCfg.lambda}W) 压缩，出流预算 ${graphCfg.outBudget}/节点，枢纽校正 (频次/中位数${tagGraph.medianIn})^-${graphCfg.hubEta}；`
+        + `图 ${graphSize.nodes} 节点/${graphSize.edges} 有向边；枢纽被压 ${hubSuppressedCount} 个`
+        + `${hubSuppressedCount > 0 ? `（${hubSuppressedList}）` : ''}；`
+        + `传播种子 ${seedTags.length}、到达标签 ${prop.propagated.length}、展开状态 ${prop.statesUsed}、最深 ${prop.hops} 跳，`
+        + `上限 maxHops=${graphCfg.maxHops}/maxStates=${graphCfg.maxStates}/maxFieldNeighbors=${graphCfg.maxFieldNeighbors}`
+        + `${prop.statesTruncated ? '（撞上 maxStates，已如实截断）' : ''}，`
+        + `gamma=${graphCfg.decay}/rho=${graphCfg.backflowRho}（不许沿刚来的那条边原路返回）；`
+        + `有图证据记忆 ${reachableWithGraph} 条（图新增可达 reachable=${reachable} 条）`
       const fitted = fitLines(header, lines, RECALL_MAX_CHARS)
       const text = records.length === 0
         ? `${header}\n(记忆库为空：请先用 memory_remember 写入)`
@@ -555,6 +681,26 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
         noveltyThreshold: triageCfg.noveltyThreshold,
         activationThreshold: triageCfg.activationThreshold,
         covMax,
+        // I3 图与传播字段（全部是本次调用的局部结论；schema 已同步声明）。
+        // graphNodes/graphEdges 是「当前库」的图规模；propagatedTags 是本次传播的标签激活；
+        // hubSuppressed 是被枢纽校正压过的标签（码元升序）；reachable 是图**新增可达**的记忆条数。
+        graphNodes: graphSize.nodes,
+        graphEdges: graphSize.edges,
+        // 如实回显**全部**到达标签（上限本来就由 maxStates/maxHops 兜住，不会无界）；
+        // 表头为了长度只列前几个，结构化字段给全量，免得读者按被截断的名单复算不出来。
+        propagatedTags: prop.propagated.map((p) => ({ tag: p.tag, activation: p.weight })),
+        maxHops: graphCfg.maxHops,
+        maxStates: graphCfg.maxStates,
+        maxFieldNeighbors: graphCfg.maxFieldNeighbors,
+        graphBonusCap: graphCfg.bonusCap,
+        hubSuppressed: [...tagGraph.hubSuppressed],
+        reachable,
+        /** I3 诊断：本次直接命中的标签种子数、传播状态数与最深跳数、是否撞上 maxStates。 */
+        graphSeedCount: seedTags.length,
+        graphStatesUsed: prop.statesUsed,
+        graphHops: prop.hops,
+        graphStatesTruncated: prop.statesTruncated,
+        graphEvidence: reachableWithGraph,
         lines: fitted.lines,
         // rows 与真正打印出来的 lines 一一对应（截断时同步裁剪，不给出没打印的行）。
         rows: rows.slice(0, fitted.lines.length),

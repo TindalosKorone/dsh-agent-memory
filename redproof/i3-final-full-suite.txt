@@ -1,0 +1,16 @@
+# I3 最终全量：12 个测试文件逐一直跑（本机 node --test 坏，逐个 node test/x.test.mjs）
+# 时间：见提交
+protocol         pass 23  fail 0
+cap              pass 4   fail 0
+pure             pass 7   fail 0
+scoring          pass 11  fail 0
+recall           pass 7   fail 0
+triage           pass 15  fail 0
+lossless         pass 4   fail 0
+storage          pass 13  fail 0
+prune            pass 3   fail 0
+inject           pass 20  fail 0
+loose-inject     pass 4   fail 0
+graph（新增）     pass 17  fail 0
+合计             pass 128 fail 0
+（I3 之前基线：11 个文件 111 例全绿；I3 新增 graph 17 例，既有 111 例逐个逐例不变。）

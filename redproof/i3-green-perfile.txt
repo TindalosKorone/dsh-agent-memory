@@ -1,0 +1,12 @@
+protocol         ℹ pass 23 ℹ fail 0 
+cap              ℹ pass 4 ℹ fail 0 
+pure             ℹ pass 7 ℹ fail 0 
+scoring          ℹ pass 11 ℹ fail 0 
+recall           ℹ pass 7 ℹ fail 0 
+triage           ℹ pass 15 ℹ fail 0 
+lossless         ℹ pass 4 ℹ fail 0 
+storage          ℹ pass 13 ℹ fail 0 
+prune            ℹ pass 3 ℹ fail 0 
+inject           ℹ pass 20 ℹ fail 0 
+loose-inject     ℹ pass 4 ℹ fail 0 
+graph            ℹ pass 17 ℹ fail 0 
