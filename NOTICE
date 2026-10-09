@@ -1,3 +1,34 @@
+dsh-agent-memory
+Copyright (c) 2025 dsh-agent-memory contributors
+
+本作品（dsh-agent-memory）采用 Creative Commons
+Attribution-NonCommercial-ShareAlike 4.0 International（CC BY-NC-SA 4.0）许可。
+
+你被许可在下列条件下自由共享（复制、发行、展览、表演、放映、广播或通过信息网络传播）
+和演绎（修改、转换或以本作品为基础进行创作）本作品：
+
+  - 署名（Attribution）：你必须给出适当的署名，提供指向本许可的链接，并说明是否作出了
+    修改。你可以以任何合理方式进行署名，但不得以任何方式暗示许可人认可你或你的使用。
+  - 非商业性使用（NonCommercial）：你不得将本作品用于商业目的。
+  - 相同方式共享（ShareAlike）：如果你再混合、转换或者基于本作品进行创作，你必须基于
+    与原先许可协议相同或兼容的许可协议分发你的贡献作品。
+
+完整许可条款见本文件正文（即下方 Creative Commons 标准法律文本，未作任何修改）。
+许可摘要（仅供参考，不构成许可，亦非法律文本的替代）：
+https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh-Hans
+许可正文（本文件的事实来源）：
+https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode.txt
+
+本仓是从零独立实现的项目，未复制第三方项目的任何代码；设计思想与部分常量的来源见
+README.md 的「上游与署名」一节。
+
+-------------------------------------------------------------------------------
+以下为标准 CC BY-NC-SA 4.0 法律文本（英文原文，未做任何增删改写）
+-------------------------------------------------------------------------------
+
+
+---
+
 dsh-agent-memory 署名与来源说明
 ===============================
 
