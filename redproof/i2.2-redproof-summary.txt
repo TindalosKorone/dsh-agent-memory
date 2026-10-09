@@ -1,0 +1,25 @@
+# I2.2 两条红证汇总（改脚本 -> 判红 -> 还原 -> 哈希逐字节复原）
+# 证据文件：i2.2-red1-nondet-{disable,restored}.txt / i2.2-red2-fakeA-{disable,restored}.txt
+#
+# 脚本基线哈希（恢复后必须逐字节相同）：
+#   scripts/negative-samples.mjs  377750bb2a0a60433270b159a1c02957dbba9f626297439d9511cc194cb6df74
+#   scripts/calibrate.mjs         c7586a54308229761d6cc25cc4cc48dea873271e0e05b85ddd4e2886caa68dee
+#
+# 红证 1（关掉确定性：连接词改成 CONNECTORS[Math.floor(Math.random()*6)]）
+#   判红断言：
+#     test/calibrate.test.mjs  assert.deepEqual(a, b, '两次调用必须逐字节一致（无随机数/无时间）')
+#     test/calibrate.test.mjs  assert.equal(second.out, first.out, '两次运行必须逐字节一致…')
+#   判红实测：断言原文报「两次调用必须逐字节一致（无随机数/无时间）」；
+#             4 个用例判红（生成器确定性 / --dump 顺序 / 脚本两次运行一致 / 只读指纹比对）。
+#   结果：6 pass -> 3 pass / 3 fail；还原后 6 pass / 0 fail，哈希复原为 377750bb...
+#
+# 红证 2（假绿形态：A 块（只取前 12 个）不真算 12 个样本，直接拿全部 240 个的值冒充）
+#   判红断言：
+#     test/calibrate.test.mjs  assert.equal(pick(blockA, 'SCALE_A'), rows[0].p50,
+#                                            'A 的 SCALE_A 必须等于 A 行 p50(负样本)')
+#   判红实测：AssertionError「A 的 SCALE_A 必须等于 A 行 p50(负样本)：0 !== 0.0017」
+#             —— 敏感性表仍打印 12 个样本的真实分位数，两套建议却不再各自独立，被自洽断言抓住。
+#   结果：6 pass -> 5 pass / 1 fail；还原后 6 pass / 0 fail，哈希复原为 c7586a54...
+#
+# 说明：本增量的红证只针对**脚本侧**（不动 src/*.ts）；I4a.2 的两条源码红证见
+# i4a2-redproof-summary.txt。两条脚本红证都不需要 tsc（scripts/*.mjs 不参与编译）。

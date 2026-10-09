@@ -4,7 +4,8 @@
  *
  * 它读**真实记忆库**（`${DSH_HOME ?? 默认}/agent-memory/memory.ndjson`），用
  *   正样本查询 = 每条记录自己的标题 / 前 3 个标签（命中已知记录）
- *   负样本查询 = 一组与库无关的查询（含中文与英文），每个取「该查询在库内的最高分」
+ *   负样本查询 = 一组与库无关的查询（中英混排的**冻结跨域词表**组合而成，见 scripts/negative-samples.mjs），
+ *                每个取「该查询在库内的最高分」
  * 分别算分位数，然后打印建议的绝对标度与判定阈值：
  *   SCALE_A = p50(负样本)          —— 噪声地板（低于它展示分为 0）
  *   SCALE_B = p95(正样本)          —— 真命中的高分位（映射到 1.0000）
@@ -15,20 +16,35 @@
  * 只有让「无关查询」整体落在 A 附近、让「真命中」接近 B，展示分才有绝对含义
  * （I1.2 第三方审计：任何批内归一化都会让无关查询的 Top1 变成 1.0000）。
  *
+ * I2.2（本增量）负样本扩容与敏感性对照：
+ *  - 旧版只有 12 个手写负样本，而 SCALE_A（p50 负样本）与 WEAK（p95 负样本）**完全**建立在这 12 个上，
+ *    分位数在 12 个样本上不可信。现在负样本扩到 ≥200 个，构词来自冻结的跨域词表（与库内主题无关、
+ *    不取库内容、无随机数 ⇒ 同一份库两次运行逐字节一致）。
+ *  - 报告里**并列**打印两套建议：「只取前 12 个」（= 旧脚本口径，12 个就是旧脚本那 12 个）与
+ *    「全部 ≥200 个」，让读者直接看到小样本估计有多飘。
+ *
  * 用法：
- *   node scripts/calibrate.mjs                 # 用 DSH_HOME（未设则回落默认 home）
- *   node scripts/calibrate.mjs --home /path     # 显式指定 home
+ *   node scripts/calibrate.mjs                    # 用 DSH_HOME（未设则回落默认 home）
+ *   node scripts/calibrate.mjs --home /path       # 显式指定 home
+ *   node scripts/calibrate.mjs --dump-negatives   # 额外逐条打印全部负样本查询与其最高分
  *
  * 退出码：0 = 正常（含「库为空」这种可读提示）；1 = 前置条件不满足（lib 未构建 / 文件不可读）。
  */
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { NEGATIVE_HEAD, buildNegativeQueries } from './negative-samples.mjs'
 
 const ARGV = process.argv.slice(2)
 const homeFlagIdx = ARGV.indexOf('--home')
 const HOME = homeFlagIdx >= 0 && ARGV[homeFlagIdx + 1] !== undefined
   ? ARGV[homeFlagIdx + 1]
   : (typeof process.env.DSH_HOME === 'string' && process.env.DSH_HOME.trim() !== '' ? process.env.DSH_HOME.trim() : undefined)
+const DUMP_NEGATIVES = ARGV.includes('--dump-negatives')
+
+/** 敏感性对照的头部样本量：固定 12 = 旧脚本的样本量（NEGATIVE_HEAD 的长度）。 */
+const SENSITIVITY_HEAD = NEGATIVE_HEAD.length
+/** 全域「噪音泄漏最重」的明细条数（只打印，不影响任何统计）。 */
+const LEAK_TOP = 10
 
 // ── 读库 ────────────────────────────────────────────────────────────────────
 
@@ -56,7 +72,7 @@ if (!existsSync(file)) {
   console.log('\n[提示] 该文件不存在：当前没有可标定的记忆库。')
   console.log('- 这不算错误：先用 memory_remember 写入一些记忆，再重跑本脚本。')
   printCurrentDefaults()
-  printSuggestion(undefined)
+  printSuggestion(undefined, '建议')
   process.exit(0)
 }
 
@@ -82,7 +98,7 @@ if (records.length === 0) {
   console.log('\n[提示] 记忆库为空：没有任何可用的正样本查询，无法标定。')
   console.log('- 这不算错误：先写入若干条记忆（memory_remember）再重跑本脚本。')
   printCurrentDefaults()
-  printSuggestion(undefined)
+  printSuggestion(undefined, '建议')
   process.exit(0)
 }
 
@@ -102,6 +118,7 @@ function percentile(sorted, q) {
 }
 
 const fmt = (v) => (v === undefined ? 'n/a' : v.toFixed(4))
+const asc = (a, b) => a - b
 
 // 正样本：标题 + 前 3 个标签各作一次查询，取「这条记录自己」的 BM25 原始分
 const positives = []
@@ -115,17 +132,9 @@ for (const rec of records) {
   }
 }
 
-// 负样本：与库无关的查询，每个取「该查询在库内的最高分」（= 误伤的危险水位）
-const negatives = []
-const negativeQueries = [
-  '今天天气怎么样',
-  '今晚吃什么比较好',
-  'quantum chromodynamics lecture notes',
-  'how to bake sourdough bread',
-  'unrelated filler words only',
-  'zzqq xxvv nonexistent-token',
-]
-for (let i = 0; i < 6; i += 1) negativeQueries.push(`zz${i}q-nonexistent-token-${i}`)
+// 负样本：与库无关的查询（头部 12 个 = 旧脚本原样保留，其余由冻结跨域词表确定性组合），
+// 每个取「该查询在库内的最高分」（= 误伤的危险水位）。
+const negativeQueries = buildNegativeQueries()
 const negativeDetail = []
 for (const query of negativeQueries) {
   let max = 0
@@ -133,35 +142,62 @@ for (const query of negativeQueries) {
     const score = pure.bm25Relevance(query, rec, stats)
     if (Number.isFinite(score) && score > max) max = score
   }
-  negatives.push(max)
   negativeDetail.push({ query, max })
 }
 
-positives.sort((a, b) => a - b)
-negatives.sort((a, b) => a - b)
+positives.sort(asc)
+const negatives = negativeDetail.map((d) => d.max).sort(asc)
+/** 敏感性对照 A：前 12 个查询（= 旧脚本口径）的分数，独立排序。 */
+const headNegatives = negativeDetail.slice(0, SENSITIVITY_HEAD).map((d) => d.max).sort(asc)
 
 console.log('\n样本：')
 console.log(`- 正样本 ${positives.length} 个（每条记录的标题 + 前 3 个标签各一次查询，对自身打分）`)
 console.log(`  p10=${fmt(percentile(positives, 0.1))} p50=${fmt(percentile(positives, 0.5))} `
   + `p90=${fmt(percentile(positives, 0.9))} p95=${fmt(percentile(positives, 0.95))} max=${fmt(positives[positives.length - 1])}`)
-console.log(`- 负样本 ${negatives.length} 个（每个无关查询取库内最高分）`)
+console.log(`- 负样本 ${negatives.length} 个（每个无关查询取库内最高分；中英混排，来自冻结跨域词表，与库内容无关）`)
 console.log(`  p10=${fmt(percentile(negatives, 0.1))} p50=${fmt(percentile(negatives, 0.5))} `
-  + `p90=${fmt(percentile(negatives, 0.9))} p95=${fmt(percentile(negatives, 0.95))} max=${fmt(negatives[negatives.length - 1])}`)
-console.log('- 负样本明细（该查询在库内的最高分）：')
-for (const d of negativeDetail) console.log(`    ${fmt(d.max)}  <=  ${JSON.stringify(d.query)}`)
+  + `p90=${fmt(percentile(negatives, 0.9))} p95=${fmt(percentile(negatives, 0.95))} `
+  + `p99=${fmt(percentile(negatives, 0.99))} max=${fmt(negatives[negatives.length - 1])}`)
+console.log(`- 负样本子集 A（前 ${SENSITIVITY_HEAD} 个 = 旧脚本口径）${headNegatives.length} 个`)
+console.log(`  p10=${fmt(percentile(headNegatives, 0.1))} p50=${fmt(percentile(headNegatives, 0.5))} `
+  + `p90=${fmt(percentile(headNegatives, 0.9))} p95=${fmt(percentile(headNegatives, 0.95))} max=${fmt(headNegatives[headNegatives.length - 1])}`)
+console.log(`- 负样本构词：${negativeQueries.length} 个查询 = ${SENSITIVITY_HEAD} 个固定头部`
+  + ` + ${negativeQueries.length - SENSITIVITY_HEAD} 个跨域词表组合（确定性；两次运行逐字节一致）`)
 
-const p50neg = percentile(negatives, 0.5)
-const p95neg = percentile(negatives, 0.95)
-const p95pos = percentile(positives, 0.95)
-const p10pos = percentile(positives, 0.1)
+// 敏感性对照：同一批查询只换样本量 ⇒ SCALE_A / WEAK 会飘多少
+const p50Head = percentile(headNegatives, 0.5)
+const p95Head = percentile(headNegatives, 0.95)
+const p50All = percentile(negatives, 0.5)
+const p95All = percentile(negatives, 0.95)
+console.log('\n敏感性对照（同一批查询，只换样本量；漂移只出现在负样本侧 ⇒ SCALE_A / WEAK）：')
+console.log(`  样本量 ${SENSITIVITY_HEAD} 个：p50=${fmt(p50Head)}  p95=${fmt(p95Head)}  max=${fmt(headNegatives[headNegatives.length - 1])}`)
+console.log(`  样本量 ${negatives.length} 个：p50=${fmt(p50All)}  p95=${fmt(p95All)}  max=${fmt(negatives[negatives.length - 1])}`)
+console.log(`  差值：p50 ${fmt(p50Head)} -> ${fmt(p50All)}（SCALE_A），p95 ${fmt(p95Head)} -> ${fmt(p95All)}（WEAK）`)
+
+console.log(`- 负样本明细 A（前 ${SENSITIVITY_HEAD} 个，与旧脚本逐条可比）：`)
+for (const d of negativeDetail.slice(0, SENSITIVITY_HEAD)) console.log(`    ${fmt(d.max)}  <=  ${JSON.stringify(d.query)}`)
+const leaks = [...negativeDetail].sort((a, b) => (b.max - a.max) || (a.query < b.query ? -1 : a.query > b.query ? 1 : 0)).slice(0, LEAK_TOP)
+console.log(`- 全域噪音泄漏最重的前 ${leaks.length} 个（库内最高分降序 → 查询码元升序决胜）：`)
+for (const d of leaks) console.log(`    ${fmt(d.max)}  <=  ${JSON.stringify(d.query)}`)
+if (DUMP_NEGATIVES) {
+  console.log(`- 全部 ${negativeDetail.length} 个负样本明细（--dump-negatives；顺序 = 生成顺序，确定性）：`)
+  for (const d of negativeDetail) console.log(`    ${fmt(d.max)}  <=  ${JSON.stringify(d.query)}`)
+}
 
 printCurrentDefaults()
+// 两套建议并列：A = 只取前 12 个（旧口径），B = 全部负样本（本脚本采用）
 printSuggestion({
-  scaleA: p50neg,
-  scaleB: p95pos,
-  weak: p95neg,
-  strong: p10pos,
-})
+  scaleA: p50Head,
+  scaleB: percentile(positives, 0.95),
+  weak: p95Head,
+  strong: percentile(positives, 0.1),
+}, `敏感性对照 A：只取前 ${SENSITIVITY_HEAD} 个负样本（= 旧脚本口径，样本量太小，仅作对照）`)
+printSuggestion({
+  scaleA: p50All,
+  scaleB: percentile(positives, 0.95),
+  weak: p95All,
+  strong: percentile(positives, 0.1),
+}, `建议 B（本脚本采用：全部 ${negatives.length} 个负样本）`)
 
 function printCurrentDefaults() {
   console.log('\n当前口径（src/pure.ts 的模块级默认常数）：')
@@ -169,12 +205,13 @@ function printCurrentDefaults() {
   console.log(`- SCALE_B = ${pure.SCALE_B}`)
   console.log(`- WEAK_THRESHOLD = ${pure.WEAK_THRESHOLD}`)
   console.log(`- STRONG_THRESHOLD = ${pure.STRONG_THRESHOLD}`)
-  console.log(`- （分诊阈值不由本脚本标定：NOVELTY_THRESHOLD=${pure.DEFAULT_NOVELTY_THRESHOLD}、`
-    + `ACTIVATION_THRESHOLD=${pure.DEFAULT_ACTIVATION_THRESHOLD} 是门控行为量，不是分数标度）`)
+  console.log('- 边界说明：**分诊阈值（novelty）与图系数不由本脚本标定** —— '
+    + `NOVELTY_THRESHOLD=${pure.DEFAULT_NOVELTY_THRESHOLD}、ACTIVATION_THRESHOLD=${pure.DEFAULT_ACTIVATION_THRESHOLD} `
+    + '是门控行为量不是分数标度，I3 的 lambda/outBudget/hubEta/decay 等图系数同理；本脚本只给 BM25 标度与判定阈值。')
 }
 
-function printSuggestion(s, note) {
-  console.log('\n建议（本脚本只打印，不会改写任何配置或源码）：')
+function printSuggestion(s, title) {
+  console.log(`\n${title}（本脚本只打印，不会改写任何配置或源码）：`)
   if (s === undefined) {
     console.log('- 样本不足，无法给出建议：请先让库里至少有若干条记忆，或稍后重跑。')
     return

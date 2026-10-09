@@ -1,0 +1,37 @@
+✔ I2.2 负样本生成器：≥200 个、零入参（不读库）、两次调用逐字节一致、词表闭包 (4.126198ms)
+✖ I2.2 标定报告：负样本 ≥200、分位数齐全、敏感性对照与两套建议并列且互相自洽 (227.612343ms)
+✔ I2.2 --dump-negatives：逐条打印全部负样本，顺序与生成器一致 (193.96125ms)
+✔ I2.2 确定性：同一份库两次运行 stdout 逐字节一致 (383.294114ms)
+✔ I2.2 只读：跑完之后库文件字节不变、DSH_HOME 里不多任何文件 (237.412864ms)
+✔ I2.2 空库：可读提示 + 退出码 0（且不抛） (339.977656ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 5
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1406.920833
+
+✖ failing tests:
+
+test at test/calibrate.test.mjs:122:1
+✖ I2.2 标定报告：负样本 ≥200、分位数齐全、敏感性对照与两套建议并列且互相自洽 (227.612343ms)
+  AssertionError [ERR_ASSERTION]: A 的 SCALE_A 必须等于 A 行 p50(负样本)
+  
+  0 !== 0.0017
+  
+      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/calibrate.test.mjs:151:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 0.0017,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
