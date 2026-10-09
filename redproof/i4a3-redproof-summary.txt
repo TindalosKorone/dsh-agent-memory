@@ -1,0 +1,57 @@
+# I4a.3 三条红证汇总（打补丁 -> 判红 -> 复原 -> 哈希逐字节校验）
+#
+# 为什么做这个增量：真机观察到注入的那行只是**陈述事实**（「记忆 200 条…细则用 memory_recall」），
+# 不触发行为 —— 上线以来模型一次都不是被它提醒去召回的（每次召回都发生在测插件时）。
+# 改法：把「有这个东西」改成「这种情况该用它」（条件规则），并把同一条规则另注册为**稳定段**。
+#
+# 驱动方式（可重放）：
+#   1) 备份绿态源码（.tmp-test/redproof-bak/，gitignore 覆盖）
+#   2) node .tmp-test/redproof-bak/patch.mjs <file> <mode>   # 一处精确字符串替换，命中次数必须恰好 1
+#   3) node node_modules/typescript/bin/tsc -p .
+#   4) node test/inject.test.mjs                              # 本机 `node --test` 坏，只能逐文件直跑
+#   5) cp 备份回 src/ + 重跑 tsc + sha256sum 校验逐字节复原
+# 证据文件：i4a3-red{1,2,3}-*-{disable,restored}.txt（-restored 里含复原后的全绿输出 + 四个哈希）
+#
+# 绿态哈希（三条红证复原后都必须逐字节相同；见 i4a3-hashes.txt）：
+#   src/inject.ts   33b817534b8430b741e9dfcc1b5217ea9b2c03276b8440464fa753ea685b651d
+#   src/index.ts    21a5698fed72a361d28ee80d2b2b2a9b871afd605d034766e7aa8d946af4e2b1
+#   lib/inject.js   83c1706cbadd4858b198986868213bc3f54452874e6c5506c4867de35d516427
+#   lib/index.js    85bbafee173a5ed939cc40b31280fc376c3925c0d51207bc3a5ab55c364ee758
+#
+# ── 红证 1：尾部那行必须含「触发条件」 ────────────────────────────────────
+#   关什么：src/inject.ts 的 planInjectionLine 里 base/rule 两行改回**旧陈述句**
+#           （base = `记忆 N 条（上限 M）`，rule = `｜细则用 memory_recall`）
+#   断言原文（test/inject.test.mjs）：
+#     assert.ok(text.includes('先 memory_recall 查库'), `必须含行动规则「触发条件 ⇒ 动作」，实测 ${text}`)
+#     assert.equal(text, SMALL_EXPECT)   // 逐字夹具（新条件规则全文）
+#   判红实测：AssertionError: 必须含行动规则「触发条件 ⇒ 动作」，
+#           实测 记忆 7 条（上限 2000）｜细则用 memory_recall｜标签锚点：失败关闭 / render / 协议
+#           inject 用例 15 pass / 12 fail（含 I4a.3 条件规则两例）
+#   复原：27 pass / 0 fail，四个哈希与绿态逐字节相同
+#
+# ── 红证 2：稳定段必须注册且含规则 ────────────────────────────────────────
+#   关什么：src/index.ts 里整段删掉 `promptHost.systemPrompt.section({…})` 注册
+#   断言原文（test/inject.test.mjs）：
+#     assert.ok(contribution, `必须注册名为 ${INJECTION_SECTION_NAME} 的 section 贡献`)
+#     assert.ok(text.includes('先用 memory_recall 查记忆库'), …)   // 段文本含触发条件
+#     （真引擎侧另有 assembly.sections.filter(name === 'agent-memory-habit') 必须恰好 1 条）
+#   判红实测：AssertionError: 必须注册名为 agent-memory-habit 的 section 贡献
+#           inject 用例 23 pass / 4 fail（稳定段注册、段常量、开关、真引擎 sections 四处）
+#   复原：四个哈希与绿态逐字节相同
+#
+# ── 红证 3：关掉开关 ⇒ 尾部块与稳定段都不注册 ─────────────────────────────
+#   关什么：src/index.ts 在 gated 注册之前插入一条**无视 enabled** 的 section 注册
+#           （等价于把段挪到 `if (enabled)` 判断之外 —— 段无视开关）
+#   断言原文（test/inject.test.mjs）：
+#     assert.equal(appliedSections(cfg).size, 0, '关掉时稳定段同样不得注册')
+#     （同一用例内还有 appliedContexts(cfg).size === 0 的阴性对照；
+#       阳性对照：打开开关时两条都必须是 1 —— 防止「永远是 0」的假绿）
+#   判红实测：AssertionError: 关掉时稳定段同样不得注册 / 1 !== 0
+#           inject 用例 26 pass / 1 fail（只红这一条，命中精确）
+#   复原：四个哈希与绿态逐字节相同
+#
+# 注意（防假绿）：
+#  - 三条红证都只改**行为**，不改夹具/断言；-restored 里的全绿是在**同一份改过的夹具**上跑出来的。
+#  - 红证 3 的阳性对照（开开关时 sections.size === 1）保证「关掉时为 0」不是因为它永远是 0。
+#  - 夹具更新（旧文案 -> 新文案）是**契约变更**而非放松：I4a.3 新增 7 例，
+#    原有 165 例全部保留并可判红（见 i4a3-final-full-suite.txt）。

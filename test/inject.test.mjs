@@ -1,9 +1,10 @@
-// 用例 10：I4a 稳定记忆索引注入（systemPrompt 尾部动态块 / context 贡献）。
+// 用例 10：I4a / I4a.3 记忆注入（systemPrompt 尾部动态块 + 稳定段）。
 //
 // 契约（与任务规格一一对应，全部可判红）：
 //  1) 注册面：name 固定、order 是**显式数字且大于 120**、text 是函数（引擎每次 assemble 现算）；
 //  2) 开关：injection.enabled=false ⇒ **不注册**（contexts 里没有）且不输出任何字符；
-//  3) 内容：**一行**、与查询无关、低频变化（条数 + 词频锚点 + 工具指路），不含 `{` `}`（引擎插值会抛）；
+//  3) 内容：**一行**、与查询无关、低频变化（条数 + 这是什么 + 什么时候该用 + 锚点），
+//     不含 `{` `}`（引擎插值会抛）；
 //  4) 硬上限：任何输入下注入文本长度 <= maxChars，超限必须带如实省略标记；
 //  5) 稳定性：库不变 ⇒ 逐字节相同（含不同 assemble 参数、不同缓存实例）；库变了才变；
 //  6) fail-open：读库/解析/注册任何异常都**不抛**，注入空串或最小占位；
@@ -12,6 +13,15 @@
 // I4a.1：注入面从「必需依赖」改为条件注册 `ctx.inject(['systemPrompt'], scope => ...)`。
 // 本文件覆盖「有 systemPrompt」这一半（注册面/内容/上限/稳定性/fail-open）；「缺 systemPrompt 时
 // 工具面仍可用」的红绿证在 test/loose-inject.test.mjs（用裸 cordis 才能判出必需依赖的 PENDING 门禁）。
+//
+// I4a.3（本次改动，见第 12 节）：
+//  8) 尾部那行的**语法**从陈述句改成**条件规则**：必须含触发条件（这类问题 ⇒ 先 memory_recall 查库），
+//     而不是「库里有这么个东西」的陈述；「上限 M」这类无关信息不得回堆；
+//  9) 同一条规则**另注册为稳定段**（`section`，不是 `context`）：name=agent-memory-habit、
+//     order 是**显式数字**（getSectionOrder 对外部名字返回 undefined，不能照抄 persona 的写法）、
+//     段文本极短且含触发条件；
+// 10) **两条贡献共用同一个 enabled 开关**：关掉时尾部块与稳定段都不注册（不许半开）；
+// 11) 两条贡献各自 fail-open：任一侧注册抛都只意味着「少一块」，另一侧与 4 个工具照常。
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
@@ -20,12 +30,13 @@ import { apply } from '../lib/index.js'
 import * as pluginModule from '../lib/index.js'
 import {
   ANCHOR_MAX_DF_RATIO, DEFAULT_INJECTION_MAX_CHARS, DEFAULT_INJECTION_TOP_TAGS, HARD_MARK,
-  INJECTION_CONTEXT_NAME, INJECTION_CONTEXT_ORDER,
+  INJECTION_CONTEXT_NAME, INJECTION_CONTEXT_ORDER, INJECTION_HABIT_TEXT, INJECTION_SECTION_NAME,
+  INJECTION_SECTION_ORDER,
   buildInjectionIndex, createInjectionCache, planInjectionLine, resolveInjectionOptions,
   sanitizeForPrompt, stableAnchors,
 } from '../lib/inject.js'
 import { resolveMaxRecords, serialize } from '../lib/store.js'
-import { appliedContexts, freshHome, makeCtx, memFile, record, tools } from './helpers.mjs'
+import { appliedContexts, appliedSections, freshHome, makeCtx, memFile, record, tools } from './helpers.mjs'
 
 const DAY = 86_400_000
 const T0 = 1_700_000_000_000
@@ -59,7 +70,18 @@ function smallLibrary() {
   ]
 }
 
-const SMALL_EXPECT = '记忆 7 条（上限 2000）｜标签锚点：失败关闭 / render / 协议｜细则用 memory_recall'
+/**
+ * 【I4a.3 文案契约】尾部那行（逐字固定夹具）。
+ * 结构 = 条数 + 这是什么（跨会话经验教训）+ **条件规则**（这种情况 ⇒ 先 memory_recall 查库）+ 锚点。
+ * 与改动前的旧句 `记忆 7 条（上限 2000）｜标签锚点：…｜细则用 memory_recall` 相比：
+ * 去掉了「上限」与陈述式的「细则用…」，换成了带触发条件的行动规则。
+ */
+const SMALL_EXPECT = '记忆 7 条（跨会话经验教训）｜排查·为什么·复现·以前是否踩过 这类问题，先 memory_recall 查库｜标签锚点：失败关闭 / render / 协议'
+
+/** 取 section 贡献的文本（注册时是字符串；若将来改成函数形式也照样取得到）。 */
+function sectionText(contribution) {
+  return typeof contribution.text === 'function' ? contribution.text({}) : contribution.text
+}
 
 /**
  * 2000 条 + 每条 12 个 ~27 字符长标签 ⇒ 默认预算下就超限（用 topTags=64 让超限更明确）。
@@ -193,7 +215,7 @@ test('I4a：口径解析有默认值、越界夹到天花板、非法类型回�
 test('I4a：空库 ⇒ 注册成功、给最小占位（记忆 0 条），不抛、不注入垃圾', () => {
   const home = freshHome('i4a-empty')
   const { text } = registeredText({ home })
-  assert.equal(text, '记忆 0 条（上限 2000）｜细则用 memory_recall')
+  assert.equal(text, '记忆 0 条（跨会话经验教训）｜排查·为什么·复现·以前是否踩过 这类问题，先 memory_recall 查库')
   assert.ok(text.length <= DEFAULT_INJECTION_MAX_CHARS)
   const r = buildInjectionIndex({ home })
   assert.equal(r.diag.code, 'empty-store')
@@ -202,6 +224,8 @@ test('I4a：空库 ⇒ 注册成功、给最小占位（记忆 0 条），不抛
   assert.equal(r.diag.truncated, false)
   // 空库也绝不出现「标签锚点：」后面跟空串这种半句
   assert.ok(!text.includes('标签锚点'))
+  // I4a.3：**条件规则段不受「没有锚点」影响** —— 规则是承重墙，绝不能因为压预算/无锚点就消失
+  assert.ok(text.includes('先 memory_recall 查库'), '空库那行同样必须带触发条件')
 })
 
 // ── 7. 硬上限：2000 条 + 长标签 ⇒ 截断且带省略标记 ────────────────────────
@@ -403,13 +427,14 @@ const ENGINE_BASE = '/data/data/com.dsharnessmobile.shell/files/usr/lib/node_mod
 const ENGINE_SP = `${ENGINE_BASE}/dsh-system-prompt/lib/index.js`
 const ENGINE_CORDIS = `${ENGINE_BASE}/cordis/lib/index.js`
 
-test('I4a：真引擎 SystemPrompt.context 注册 + assemble：落在 contexts 里、快照含本行、5 次逐字节相同', async () => {
+test('I4a / I4a.3：真引擎注册 + assemble：context 落在 contexts、段落在 sections、5 次逐字节相同', async () => {
   if (!existsSync(ENGINE_SP) || !existsSync(ENGINE_CORDIS)) {
     // 换环境时如实降级：本机（引擎在）走真路径，别处至少验证桩路径的形状
     const home = freshHome('i4a-engine-absent')
     seed(home, smallLibrary())
     const { text } = registeredText({ home })
     assert.equal(text, SMALL_EXPECT)
+    assert.equal(sectionText(appliedSections({ home }).get(INJECTION_SECTION_NAME)), INJECTION_HABIT_TEXT)
     return
   }
   const { Context } = await import(ENGINE_CORDIS)
@@ -441,24 +466,166 @@ test('I4a：真引擎 SystemPrompt.context 注册 + assemble：落在 contexts �
   assert.deepEqual([...pluginModule.inject], ['tools'])
 
   const snapshots = []
+  const promptTails = []
   for (let i = 0; i < 5; i += 1) {
     const assembly = await service.assemble({})
     const mine = assembly.contexts.filter((c) => c.name === INJECTION_CONTEXT_NAME)
     assert.equal(mine.length, 1, '我们的 context 必须恰好贡献一次')
     assert.equal(mine[0].text, SMALL_EXPECT)
+    // I4a.3：真引擎的 sections 里必须有稳定段，且文本含触发条件
+    const mySections = assembly.sections.filter((s) => s.name === INJECTION_SECTION_NAME)
+    assert.equal(mySections.length, 1, `真引擎 sections 里必须恰好有一条 ${INJECTION_SECTION_NAME}`)
+    assert.equal(mySections[0].text, INJECTION_HABIT_TEXT, '段文本必须逐字就是那条规则')
+    assert.ok(mySections[0].text.includes('先用 memory_recall 查记忆库'), `段必须含触发条件，实测 ${mySections[0].text}`)
     snapshots.push(sp.renderContextSnapshot(assembly))
+    // 段进的是 prompt 正文：用真引擎自己的 joinContextSections 之外的渲染面（renderPrompt）复核它确实在正文里
+    promptTails.push(sp.renderPrompt(assembly).includes(INJECTION_HABIT_TEXT))
     await new Promise((r) => setTimeout(r, 1))
   }
   assert.equal(new Set(snapshots).size, 1, '库不变时快照必须逐字节相同')
   assert.ok(snapshots[0].includes(SMALL_EXPECT), '快照里必须含我们那一行')
   assert.ok(snapshots[0].startsWith('Current runtime context.'), '快照头是引擎统一加的（我们不拥有它）')
+  assert.deepEqual([...new Set(promptTails)], [true], '稳定段必须出现在真引擎渲染出的 prompt 正文里')
   await root.dispose?.()
 })
 
-test('I4a：库的硬上限（maxRecords）与注入行里的「上限」一致（不各说各话）', () => {
+// ── 12. I4a.3：条件规则（尾部块）+ 稳定段（section）───────────────────────
+//
+// 背景：真机观察到旧那行是**陈述句**（「库里有 200 条…细则用 memory_recall」），不触发行为——
+// 上线以来模型一次都不是被它提醒去召回的。所以本次把它改成**条件规则**（这种情况 ⇒ 做这个），
+// 并把同一条规则另注册成**稳定段**（规则属于稳定前缀，索引属于易变尾部，两者用不同机制承载）。
+
+test('I4a.3 条件规则：尾部那行含明确的触发条件与行动（不是「有这个东西」的陈述）', () => {
+  const home = freshHome('i4a3-rule')
+  seed(home, smallLibrary())
+  const { text } = registeredText({ home })
+
+  // 【红证 1】先断言**含行动规则**（触发条件 ⇒ 动作）——这是本次改动的要害，
+  // 放在最前面：改回旧的陈述句（`…｜细则用 memory_recall`）时，**这一条自己就是红的**
+  // （不会像「整行逐字相等」那样先兜住失败，让人误以为要害断言没被测到）。
+  assert.ok(text.includes('先 memory_recall 查库'), `必须含行动规则「触发条件 ⇒ 动作」，实测 ${text}`)
+  assert.ok(text.includes('这类问题'), '必须含触发条件的类别限定（什么时候该用）')
+  assert.ok(text.includes('（跨会话经验教训）'), '必须说明这是什么')
+  // 再逐字断言整行
+  assert.equal(text, SMALL_EXPECT)
+
+  // 结构顺序固定：条数 → 这是什么 → 什么时候该用 → 锚点（顺序即语义）
+  const iCount = text.indexOf('记忆 7 条')
+  const iWhat = text.indexOf('（跨会话经验教训）')
+  const iRule = text.indexOf('这类问题，先 memory_recall 查库')
+  const iAnchor = text.indexOf('标签锚点')
+  assert.ok(
+    iCount === 0 && iWhat > iCount && iRule > iWhat && iAnchor > iRule,
+    `四段顺序必须是 条数→这是什么→什么时候该用→锚点，实测 ${text}`,
+  )
+
+  // 「上限 M」这类与「这是什么 / 什么时候该用」无关的容量参数不得回堆
+  assert.ok(!text.includes('上限'), `注入行不得再回显上限，实测 ${text}`)
+  assert.ok(text.length <= DEFAULT_INJECTION_MAX_CHARS, `长度 ${text.length} 必须 <= ${DEFAULT_INJECTION_MAX_CHARS}`)
+})
+
+test('I4a.3 条件规则：压缩阶梯只丢锚点、绝不丢条件规则（预算再紧也保得住触发条件）', () => {
+  const anchors = ['aaaaaaaaaaaaaaaaaaaa', 'bbbbbbbbbbbbbbbbbbbb', 'cccccccccccccccccccc']
+  // 从紧到松扫一遍：只要那行非空，就**必须**含条件规则（除非已退化到硬截断标记）
+  for (const maxChars of [30, 40, 50, 56, 57, 60, 80, 120, 240]) {
+    const t = planInjectionLine(9, 2000, anchors, maxChars).text
+    if (t === '' || t.endsWith(HARD_MARK)) continue
+    assert.ok(t.includes('先 memory_recall 查库'), `maxChars=${maxChars} 时那行丢了触发条件：${JSON.stringify(t)}`)
+  }
+  // 最小行（无锚点）就是「条数 + 这是什么 + 条件规则」，这一点逐字固定。
+  // 该行 56 字符、三个 20 字符锚点的完整行 128 字符 ⇒ 预算 60 时锚点全丢、最小行仍在。
+  const tight = planInjectionLine(9, 2000, anchors, 60)
+  assert.equal(tight.text.includes('标签锚点'), false, `预算 60 装不下锚点 ⇒ 退到不含锚点的最小行，实测 ${tight.text}`)
+  assert.equal(tight.text, '记忆 9 条（跨会话经验教训）｜排查·为什么·复现·以前是否踩过 这类问题，先 memory_recall 查库')
+  assert.equal(tight.truncated, true, '丢了锚点就必须如实标为截断')
+  assert.ok(tight.text.includes('先 memory_recall 查库'), '最小行里条件规则必须还在')
+})
+
+test('I4a.3 稳定段：注册 agent-memory-habit（section），含触发条件，order 是显式数字且落在空档', () => {
+  const home = freshHome('i4a3-section')
+  seed(home, smallLibrary())
+  const sections = appliedSections({ home })
+
+  // 【红证 2】去掉 index.ts 里的 section 注册 ⇒ 这条必红。
+  const contribution = sections.get(INJECTION_SECTION_NAME)
+  assert.ok(contribution, `必须注册名为 ${INJECTION_SECTION_NAME} 的 section 贡献`)
+  assert.equal(INJECTION_SECTION_NAME, 'agent-memory-habit')
+  const text = sectionText(contribution)
+  assert.equal(text, INJECTION_HABIT_TEXT, '段文本必须就是那一条逐字固定的规则')
+  assert.ok(text.includes('先用 memory_recall 查记忆库'), `段文本必须含触发条件 + 行动，实测 ${text}`)
+  assert.ok(text.includes('这类问题'), '段文本必须含触发条件的类别限定')
+  assert.ok(!text.includes('\n') && !text.includes('\r'), '段文本必须是一行')
+  assert.ok(!text.includes('{') && !text.includes('}'), '不得含花括号：引擎 interpolate() 遇到 {{name}} 会抛')
+  assert.equal(sanitizeForPrompt(text), text, '段文本本来就不该含需要净化的字符（净化对它应为恒等）')
+
+  // order：**必须自己传显式数字**（getSectionOrder 对外部名字返回 undefined）。
+  assert.equal(INJECTION_SECTION_ORDER, 3200)
+  assert.equal(contribution.order, INJECTION_SECTION_ORDER)
+  assert.ok(Number.isFinite(contribution.order), 'order 必须是有限数字（引擎非有限即抛 TypeError）')
+  assert.ok(contribution.order > 3100, '必须排在 MCP_SERVERS(3100) 之后（工具说明带的末尾）')
+  assert.ok(contribution.order < 5000, '必须排在 TOOLS_SDK(5000) 之前（落在引擎空档里，不挤占既有槽位）')
+
+  // section 与 context 是两张不同的注册表、两条不同贡献（规则 vs 索引，别混）
+  const contexts = appliedContexts({ home })
+  assert.equal(sections.size, 1, 'section 只注册本插件这一条')
+  assert.equal(contexts.size, 1, 'context 只注册本插件那一条')
+  assert.ok(!contexts.has(INJECTION_SECTION_NAME), '稳定段不得跑进 contexts 表')
+  assert.ok(!sections.has(INJECTION_CONTEXT_NAME), '尾部块不得跑进 sections 表')
+})
+
+test('I4a.3 稳定段是常量：与库内容无关（库变了段逐字节不变，尾部行才跟着变）', () => {
+  const home = freshHome('i4a3-section-const')
+  seed(home, smallLibrary())
+  const before = sectionText(appliedSections({ home }).get(INJECTION_SECTION_NAME))
+  const lineBefore = buildInjectionIndex({ home }).text
+  seed(home, [...smallLibrary(), record('mem_d', T0 + 3 * DAY, { tags: ['失败关闭'] })])
+  const after = sectionText(appliedSections({ home }).get(INJECTION_SECTION_NAME))
+  const lineAfter = buildInjectionIndex({ home }).text
+  assert.equal(after, before, '规则属于稳定前缀：库怎么变都不该动它')
+  assert.notEqual(lineAfter, lineBefore, '索引属于易变尾部：库变了就该跟着变（阴性对照，证明上面那条不是假绿）')
+})
+
+test('I4a.3 开关：enabled=false ⇒ 尾部块与稳定段**都不注册**（共用同一个开关，不许半开）', () => {
+  const home = freshHome('i4a3-off')
+  seed(home, smallLibrary())
+  const cfg = { home, injection: { enabled: false } }
+  // 【红证 3】把 section 注册挪到 enabled 判断之外 ⇒ 第二条断言变红。
+  assert.equal(appliedContexts(cfg).size, 0, '关掉时尾部块不得注册')
+  assert.equal(appliedSections(cfg).size, 0, '关掉时稳定段同样不得注册')
+  // 阴性对照：同一条桩、同一个库，开关打开时两条都必须在（否则上面的 0 是假绿）
+  const on = { home }
+  assert.equal(appliedContexts(on).size, 1)
+  assert.equal(appliedSections(on).size, 1)
+})
+
+test('I4a.3 fail-open：section 注册抛 ⇒ apply 不抛，尾部块与 4 个工具照常', () => {
+  const home = freshHome('i4a3-failsec')
+  seed(home, smallLibrary())
+  const { ctx, defs, contexts, sections } = makeCtx()
+  ctx.systemPrompt.section = () => { throw new Error('段注册面炸了') }
+  assert.doesNotThrow(() => apply(ctx, { home }))
+  assert.deepEqual([...defs.keys()].sort(), ['memory_expand', 'memory_prune', 'memory_recall', 'memory_remember'])
+  assert.equal(sections.size, 0, '段没注册上就是没有')
+  assert.equal(contexts.size, 1, '段注册失败不得把同一回调里的尾部块一起拖下水')
+  assert.equal(contexts.get(INJECTION_CONTEXT_NAME).text(), SMALL_EXPECT)
+})
+
+test('I4a.3 fail-open：宿主连 section 面都没有（旧宿主桩）⇒ 不抛、尾部块照常注册', () => {
+  const home = freshHome('i4a3-nosection')
+  seed(home, smallLibrary())
+  const { ctx, contexts } = makeCtx()
+  delete ctx.systemPrompt.section
+  assert.doesNotThrow(() => apply(ctx, { home }))
+  assert.equal(contexts.get(INJECTION_CONTEXT_NAME).text(), SMALL_EXPECT)
+})
+
+test('I4a.3：库的硬上限（maxRecords）不再进注入行，且换上限不改变那一行', () => {
   const home = freshHome('i4a-limit')
   seed(home, smallLibrary())
   const r = buildInjectionIndex({ home, maxRecords: 7 })
-  assert.equal(resolveMaxRecords({ home, maxRecords: 7 }), 7)
-  assert.ok(r.text.includes('（上限 7）'), `注入行必须回显实际上限，实测 ${r.text}`)
+  assert.equal(resolveMaxRecords({ home, maxRecords: 7 }), 7, '容量口径本身照旧可解析')
+  assert.equal(r.text, SMALL_EXPECT)
+  assert.ok(!r.text.includes('上限'), `注入行不得回显上限（那是库的容量参数，不属于「这是什么/什么时候该用」），实测 ${r.text}`)
+  // 旧实现里这行会跟着 maxRecords 变 ⇒ 这条断言在旧实现上是红的（契约变更的留痕）
+  assert.equal(buildInjectionIndex({ home, maxRecords: 1234 }).text, r.text, '上限不参与那一行的内容')
 })

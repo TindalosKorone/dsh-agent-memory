@@ -2,9 +2,10 @@
  * dsh-agent-memory — 面向 agent 的记忆层（I1 地基 + I2 分诊 + I4a 稳定索引注入）。
  *
  * 设计取舍：
- *  - **只做工具面 + 一行稳定索引**：工具面仍是 4 个（remember / recall / expand / prune）；
- *    I4a 额外往 systemPrompt 的**尾部动态块**（runtime context，落点是本轮消息列表尾部的一条 user 消息）
- *    注入**一行**与查询无关、低频变化的记忆索引（条数 + 词频锚点 + 工具指路），见 src/inject.ts；
+ *  - **只做工具面 + 一条条件规则 + 一行稳定索引**：工具面仍是 4 个（remember / recall / expand / prune）；
+ *    I4a 往 systemPrompt 的**尾部动态块**（runtime context，落点是本轮消息列表尾部的一条 user 消息）
+ *    注入**一行**与查询无关、低频变化的记忆索引（条数 + 这是什么 + 什么时候该用 + 锚点）；
+ *    I4a.3 把同一条「条件规则」另外注册成 prompt 的**稳定段**（section，见下）；两条贡献见 src/inject.ts；
  *  - **窄**：分层披露 L1 索引与 L2 正文，recall 绝不返回 body（省 token，也逼模型显式 expand）；
  *  - **失败关闭**：写入协议任一不满足即拒收且**不落盘**，并给出可照抄的修复指引；
  *  - **注入失败则开放（fail-open）**：读库/解析/注册任何异常都只降级成空串，**绝不抛**——
@@ -27,7 +28,8 @@ import {
 } from './store.js'
 import { cmpId, decay, diversify, absoluteDisp, lexicalScore, matchLevel, rrf, corpusStats, tagCoverage, resolveScoreOptions, resolveTriageOptions, residualPyramid, resolveGraphOptions, tagGraphIndex, propagateTags, memoryGraphRewards, tokenize, type MatchLevel } from './pure.js'
 import {
-  INJECTION_CONTEXT_NAME, INJECTION_CONTEXT_ORDER, buildInjectionIndex, createInjectionCache,
+  INJECTION_CONTEXT_NAME, INJECTION_CONTEXT_ORDER, INJECTION_HABIT_TEXT, INJECTION_SECTION_NAME,
+  INJECTION_SECTION_ORDER, buildInjectionIndex, createInjectionCache, sanitizeForPrompt,
   resolveInjectionOptions,
 } from './inject.js'
 
@@ -1003,11 +1005,15 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
     }),
   }))
 
-  // ── I4a：稳定记忆索引注入（systemPrompt 尾部动态块，**条件注册**）──────────
-  // 用 **context()**（不是 section()）：section 贡献的是 prompt 正文段，而 context 是
-  // 「有序动态上下文」——引擎把它渲染成 `Current runtime context...` 快照，交给
-  // RuntimeContextProjection.project() 变成**本轮消息列表尾部的一条 user 消息**，
-  // 且文本与上一份相同就一条消息都不发（store 里的 project() 去重）。这正是我们要的「尾部块」。
+  // ── I4a / I4a.3：记忆注入（**条件注册**）────────────────────────────────
+  // 两条贡献，两种机制（详见 src/inject.ts 头部注释）：
+  //  ① section（稳定段）`agent-memory-habit`：**条件规则**，属于稳定前缀，每步都该在；
+  //  ② context（易变尾部块）`agent-memory`：库的索引，库变了才该变。
+  // 用 **context()** 承载索引：context 是「有序动态上下文」——引擎把它渲染成
+  // `Current runtime context...` 快照，交给 RuntimeContextProjection.project() 变成
+  // **本轮消息列表尾部的一条 user 消息**，且文本与上一份相同就一条消息都不发（project() 去重）。
+  // 这正是索引该待的地方（尾部、低频、可去重）；而规则不该跟着库的每次变动一起抖，
+  // 所以规则走 section（正文段），**不要**把它塞进 context。
   //
   // **松耦合**（I4a.1）：`ctx.inject(['systemPrompt'], (scope) => {...})` 是引擎官方惯例
   // （先例：dsh-sandbox-policy/lib/index.js:121、dsh-user-approval/lib/index.js:79、
@@ -1019,21 +1025,41 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
   // （cordis/src/reflect.ts:144），所以必须用回调给的 scope。
   //
   // 关掉时**连 inject 都不发起**（比旧的「不注册」更彻底：不建子 fiber、零额外开销，
-  // 注册本来就是按 scope 增删的，不注册 ⇒ contexts 里根本没有这一项 ⇒ 零字符）。
+  // 注册本来就是按 scope 增删的，不注册 ⇒ contexts/sections 里根本没有这两项 ⇒ 零字符）。
+  // **两条贡献共用同一个 enabled 开关**：关掉就两条都不注册（不允许只关一条的半开状态）。
   //
-  // fail-open 三层（与改动前一一对应，没有减少任何一层）：
+  // fail-open 四层（比改动前多一层，原有三层一一对应、一层未减）：
   //  1) buildInjectionIndex() 内部整体 try/catch，catch 里不再抛（读库/解析失败 ⇒ 空串 + diag）；
-  //  2) 注册箭头内再包一层 try/catch —— 即使将来 1) 被改出异常，也绝不让引擎的 assemble() 炸；
-  //  3) 最外层 try/catch 兜住 `ctx.inject` 本身：拿不到注入能力只意味着「少一块注入」。
+  //  2) context 注册箭头内再包一层 try/catch —— 即使将来 1) 被改出异常，也绝不让引擎的 assemble() 炸；
+  //  3) section 注册单独包一层 try/catch —— 段注册失败只意味着**少一段**（尾部块与工具面照旧），
+  //     绝不让它把同一次回调里的其它注册或整步 assemble() 拖下水；
+  //  4) 最外层 try/catch 兜住 `ctx.inject` 本身：拿不到注入能力只意味着「少一块注入」。
   // 只读缓存实例仍挂在 apply 闭包里（模块级零可变状态，键严格是 {path,size,mtimeMs}）。
   const injectionCache = createInjectionCache()
   try {
     if (resolveInjectionOptions(cfg.injection).enabled) {
       ctx.inject(['systemPrompt'], (scope) => {
-        try {
-          const promptHost = scope as unknown as {
-            systemPrompt: { context: (contribution: unknown) => unknown }
+        const promptHost = scope as unknown as {
+          systemPrompt: {
+            context: (contribution: unknown) => unknown
+            section: (contribution: unknown) => unknown
           }
+        }
+        // ① 稳定段：条件规则（I4a.3）。order 必须是**显式数字**：getSectionOrder() 对外部名字
+        // 返回 undefined，而 section() 对非有限 order 直接抛（见 INJECTION_SECTION_ORDER 注释）。
+        // 文本过 sanitizeForPrompt() 是防御性的（常量里本没有 `{` `}`，净化对它应为恒等），
+        // 保持与尾部块同一套「进 prompt 的文本一律净化」的口径。
+        try {
+          promptHost.systemPrompt.section({
+            name: INJECTION_SECTION_NAME,
+            order: INJECTION_SECTION_ORDER,
+            text: sanitizeForPrompt(INJECTION_HABIT_TEXT),
+          })
+        } catch {
+          /* 段注册失败不抛：只少一段规则提示，尾部块与工具面照常 */
+        }
+        // ② 易变尾部块：库的索引（I4a）。I4a.3 的文案改动只发生在 inject.ts 里，这里形状不变。
+        try {
           promptHost.systemPrompt.context({
             name: INJECTION_CONTEXT_NAME,
             order: INJECTION_CONTEXT_ORDER,

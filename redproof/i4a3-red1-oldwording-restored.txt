@@ -1,0 +1,45 @@
+# 复原（从 .tmp-test/redproof-bak 逐字节拷回 src/inject.ts + src/index.ts 后重建 lib/）
+# 命令：node node_modules/typescript/bin/tsc -p . && node test/inject.test.mjs && sha256sum src/inject.ts src/index.ts lib/inject.js lib/index.js
+
+TSC_EXIT=0
+✔ I4a：注册面是 context() 的 {name, order, text}，order 是显式数字且大于 120（尾部） (22.460156ms)
+✔ I4a：注入文本是单行、无 { }、与请求无关（换参数/换缓存实例同字节） (36.891459ms)
+✔ I4a：injection.enabled=false ⇒ 一个 context 都不注册、文本为空串（零字符） (16.214688ms)
+✔ I4a.1：工具面照旧 4 个；注入面是条件注册，不再进 inject 必需依赖 (21.558542ms)
+✔ I4a：口径解析有默认值、越界夹到天花板、非法类型回落（解析本身不抛） (0.83875ms)
+✔ I4a：空库 ⇒ 注册成功、给最小占位（记忆 0 条），不抛、不注入垃圾 (6.608177ms)
+✔ I4a：2000 条 + 长标签 ⇒ 注入文本长度 <= maxChars 且带如实省略标记 (262.314739ms)
+✔ I4a：手工改库塞进 300 字符超长标签 ⇒ 仍 <= maxChars（阶梯最后一级硬截断） (10.526823ms)
+✔ I4a：maxChars 极小/为 0 时也绝不超限（装不下标记就给空串） (0.527552ms)
+✔ I4a：锚点排序是确定口径（频次降序 → 码元升序），净化后相同的标签合并计数 (0.60349ms)
+✔ I4a：库不变时连续多次 assemble（多次取文本）逐字节完全相同 (21.144531ms)
+✔ I4a：库内容变了（条数/锚点变）⇒ 文本才跟着变（不是冻结在 boot 时刻） (36.78823ms)
+✔ I4a：缓存键严格是 {path,size,mtimeMs}：命中同值、文件改动后失效重读 (32.301146ms)
+✔ I4a fail-open：读库抛异常 ⇒ 注入空串、绝不抛（注册也成功） (44.980886ms)
+✔ I4a fail-open：stat 抛 / exists 抛 / 目录路径 ⇒ 都不抛且仍给出结论 (29.616146ms)
+✔ I4a fail-open：NDJSON 坏行/空行/非对象行 ⇒ 跳过坏行、不抛、计数只算好行 (19.204062ms)
+✔ I4a fail-open：systemPrompt.context 注册时抛 ⇒ apply 不抛、4 个工具照常注册 (20.187083ms)
+✔ I4a.1 fail-open：宿主连 ctx.inject 都没有 ⇒ 不抛、4 个工具照常注册（只有注入面缺席） (45.721718ms)
+✔ I4a / I4a.3：真引擎注册 + assemble：context 落在 contexts、段落在 sections、5 次逐字节相同 (123.776094ms)
+✔ I4a.3 条件规则：尾部那行含明确的触发条件与行动（不是「有这个东西」的陈述） (15.934427ms)
+✔ I4a.3 条件规则：压缩阶梯只丢锚点、绝不丢条件规则（预算再紧也保得住触发条件） (0.515781ms)
+✔ I4a.3 稳定段：注册 agent-memory-habit（section），含触发条件，order 是显式数字且落在空档 (38.259375ms)
+✔ I4a.3 稳定段是常量：与库内容无关（库变了段逐字节不变，尾部行才跟着变） (26.418386ms)
+✔ I4a.3 开关：enabled=false ⇒ 尾部块与稳定段**都不注册**（共用同一个开关，不许半开） (22.25651ms)
+✔ I4a.3 fail-open：section 注册抛 ⇒ apply 不抛，尾部块与 4 个工具照常 (30.188958ms)
+✔ I4a.3 fail-open：宿主连 section 面都没有（旧宿主桩）⇒ 不抛、尾部块照常注册 (19.046094ms)
+✔ I4a.3：库的硬上限（maxRecords）不再进注入行，且换上限不改变那一行 (14.209895ms)
+ℹ tests 27
+ℹ suites 0
+ℹ pass 27
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 935.834166
+TEST_EXIT=0
+
+33b817534b8430b741e9dfcc1b5217ea9b2c03276b8440464fa753ea685b651d  src/inject.ts
+21a5698fed72a361d28ee80d2b2b2a9b871afd605d034766e7aa8d946af4e2b1  src/index.ts
+83c1706cbadd4858b198986868213bc3f54452874e6c5506c4867de35d516427  lib/inject.js
+85bbafee173a5ed939cc40b31280fc376c3925c0d51207bc3a5ab55c364ee758  lib/index.js

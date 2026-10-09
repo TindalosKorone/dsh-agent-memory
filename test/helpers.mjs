@@ -37,11 +37,12 @@ export function diskText(home) {
   return existsSync(p) ? readFileSync(p, 'utf8') : ''
 }
 
-/** 桩 ctx：收集注册的工具定义、effect 清理函数、以及 I4a 的 systemPrompt.context 贡献。 */
+/** 桩 ctx：收集工具定义、effect 清理函数、以及 I4a/I4a.3 的 systemPrompt 贡献（context + section）。 */
 export function makeCtx() {
   const defs = new Map()
   const effects = []
   const contexts = new Map()
+  const sections = new Map()
   const ctx = {
     tools: { register: (d) => { defs.set(d.name, d); return { dispose: () => defs.delete(d.name) } } },
     effect: (cb) => { effects.push(cb()) },
@@ -53,6 +54,18 @@ export function makeCtx() {
         contexts.set(contribution.name, contribution)
         return { dispose: () => contexts.delete(contribution.name) }
       },
+      // I4a.3：section 与 context 是**两张不同的注册表**（真引擎里分别是 layers.sections / layers.contexts）。
+      // 校验口径照抄真实现：order 必须有限（否则 TypeError），name 非空。
+      section: (contribution) => {
+        if (!Number.isFinite(contribution?.order)) throw new TypeError('prompt section order must be a finite number')
+        if (typeof contribution?.name !== 'string' || contribution.name === '') throw new TypeError('prompt section name must be a non-empty string')
+        sections.set(contribution.name, contribution)
+        return { dispose: () => sections.delete(contribution.name) }
+      },
+      // 与真引擎一致：**未列名返回 undefined**（dsh-system-prompt/lib/index.js:249-251）。
+      // 桩刻意如实返回 undefined 而不是编一个默认值：插件若偷懒用它当 order，
+      // section() 就会因「order 非有限」抛错 ⇒ 段注册不上 ⇒ 判红。这样「必须传显式数字」是自然判红的。
+      getSectionOrder: () => undefined,
     },
     // 桩 ctx.inject：与 cordis 同语义 —— **任一**必需服务缺席 ⇒ 回调永不执行（fiber 停在 PENDING），
     // 齐全则把 scope（挂上这些服务的子 ctx）交给回调。插件已改成用这条路径条件注册注入面。
@@ -67,7 +80,7 @@ export function makeCtx() {
       return { dispose: () => {} }
     },
   }
-  return { ctx, defs, effects, contexts }
+  return { ctx, defs, effects, contexts, sections }
 }
 
 /** apply 之后拿到 4 个工具定义（可传 MemoryConfig，把 FsOps 接缝注入进来做并发度观测/故障注入）。 */
@@ -82,6 +95,13 @@ export function appliedContexts(config = {}) {
   const { ctx, contexts } = makeCtx()
   apply(ctx, config)
   return contexts
+}
+
+/** apply 之后拿到 I4a.3 注册的 systemPrompt **section**（稳定段）贡献（键 = section 名）。 */
+export function appliedSections(config = {}) {
+  const { ctx, sections } = makeCtx()
+  apply(ctx, config)
+  return sections
 }
 
 /** 递归找出所有 undefined 值的路径（宿主按无损 JSON 整值校验，undefined 会整值拒收）。 */

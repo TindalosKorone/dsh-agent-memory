@@ -52,7 +52,7 @@ function coverAllLibrary(total = 120, cover = 115) {
   return out
 }
 
-const COVER_ALL_LINE = '记忆 120 条（上限 2000）｜标签锚点：判据 / 快照 / 测试｜细则用 memory_recall'
+const COVER_ALL_LINE = '记忆 120 条（跨会话经验教训）｜排查·为什么·复现·以前是否踩过 这类问题，先 memory_recall 查库｜标签锚点：判据 / 快照 / 测试'
 
 // ── 1. 资格过滤：覆盖全库的标签不得成为锚点 ─────────────────────────────
 test('I4a.2 资格过滤：覆盖率 95.8% 的标签被剔除，合格集合里 df 最高的三个才是锚点', () => {
@@ -126,7 +126,7 @@ test('I4a.2 合格锚点不足 N 个 ⇒ 如实少给，绝不补位、绝不回
   assert.deepEqual(r.diag.anchors, ['窄甲', '窄乙'], '只有 2 个合格 ⇒ 如实少给')
   assert.deepEqual(r.diag.distinctTags, 3)
   assert.deepEqual(r.diag.qualifiedTags, 2)
-  assert.equal(r.text, '记忆 20 条（上限 2000）｜标签锚点：窄甲 / 窄乙｜细则用 memory_recall')
+  assert.equal(r.text, '记忆 20 条（跨会话经验教训）｜排查·为什么·复现·以前是否踩过 这类问题，先 memory_recall 查库｜标签锚点：窄甲 / 窄乙')
   assert.ok(!r.text.includes('宽标签'))
 })
 
@@ -140,7 +140,7 @@ test('I4a.2 一个合格锚点都没有 ⇒ 那行如实写「无可区分锚点
   assert.deepEqual(r.diag.anchors, [])
   assert.deepEqual(r.diag.qualifiedTags, 0)
   assert.equal(r.diag.distinctTags, 1)
-  assert.equal(r.text, `记忆 5 条（上限 2000）${ANCHOR_NONE_MARK}｜细则用 memory_recall`)
+  assert.equal(r.text, `记忆 5 条（跨会话经验教训）｜排查·为什么·复现·以前是否踩过 这类问题，先 memory_recall 查库${ANCHOR_NONE_MARK}`)
   assert.ok(r.text.includes('无可区分锚点'), `必须如实说明降级，实测 ${r.text}`)
   assert.ok(!r.text.includes('坑位'), '降级行绝不能拿覆盖全库的标签当锚点')
   assert.ok(r.text.length <= DEFAULT_INJECTION_MAX_CHARS)
@@ -151,7 +151,7 @@ test('I4a.2 一个合格锚点都没有 ⇒ 那行如实写「无可区分锚点
   // 「库里根本没有标签」与「有标签但都超频」是两回事：前者不写这一段。
   seed(home, [record('mem_untagged', T0, { tags: [] })])
   const bare = buildInjectionIndex({ home })
-  assert.equal(bare.text, '记忆 1 条（上限 2000）｜细则用 memory_recall')
+  assert.equal(bare.text, '记忆 1 条（跨会话经验教训）｜排查·为什么·复现·以前是否踩过 这类问题，先 memory_recall 查库')
   assert.equal(bare.diag.distinctTags, 0)
   assert.ok(!bare.text.includes('无可区分锚点'))
 })
@@ -203,12 +203,17 @@ test('I4a.2 长度上限：带锚点行与「无可区分锚点」降级行在�
       planInjectionLine(5, 2000, [], maxChars, false).text,
     ]) assert.ok(text.length <= maxChars, `纯函数输出 ${JSON.stringify(text)} 必须 <= ${maxChars}`)
   }
-  // 降级行塞不下「无可区分锚点」时：丢掉这一段，但 truncated 必须为 true（确实丢了一句如实说明）
-  const minimal = `${'记忆 5 条（上限 2000）'}｜细则用 memory_recall`
-  assert.equal(minimal.length, 33)
-  const tightNoMark = planInjectionLine(5, 2000, [], 36, true)
+  // 降级行塞不下「无可区分锚点」时：丢掉这一段，但 truncated 必须为 true（确实丢了一句如实说明）。
+  // 【I4a.3】最小行现在含条件规则（56 字符），所以边界不再写死数字，而是由两条完整行的长度差推导：
+  // 预算 = 「带标记的降级行长度 - 1」⇒ 正好装得下最小行、装不下「无可区分锚点」。
+  const minimal = planInjectionLine(5, 2000, [], 999, false).text
+  assert.equal(minimal, '记忆 5 条（跨会话经验教训）｜排查·为什么·复现·以前是否踩过 这类问题，先 memory_recall 查库')
+  const withMark = planInjectionLine(5, 2000, [], 999, true).text
+  assert.ok(withMark.endsWith(ANCHOR_NONE_MARK), `装得下时必须带如实说明，实测 ${withMark}`)
+  const tightNoMark = planInjectionLine(5, 2000, [], withMark.length - 1, true)
   assert.equal(tightNoMark.text, minimal, '上限装得下最小行但装不下「无可区分锚点」⇒ 丢掉那一段')
   assert.equal(tightNoMark.truncated, true, '丢掉如实说明也必须标为截断（不许假装完整）')
+  assert.ok(tightNoMark.text.includes('先 memory_recall 查库'), '丢掉锚点说明也绝不能丢掉条件规则')
   // 连硬截断标记之前的 base 都塞不下 ⇒ 只给 base 的头部 + 标记（不带任何假信息）
   const tiny = planInjectionLine(30, 2000, [], 12, true)
   assert.equal(tiny.text.length, 12)
@@ -259,6 +264,6 @@ test('I4a.2 端到端：apply 注册的 agent-memory 那行与 buildInjectionInd
   seed(home2, [record('mem_d1', T0, { tags: ['坑位'] }), record('mem_d2', T0 + DAY, { tags: ['坑位'] })])
   const degraded = appliedContexts({ home: home2 }).get(INJECTION_CONTEXT_NAME)
   const line = degraded.text()
-  assert.equal(line, `记忆 2 条（上限 2000）${ANCHOR_NONE_MARK}｜细则用 memory_recall`)
+  assert.equal(line, `记忆 2 条（跨会话经验教训）｜排查·为什么·复现·以前是否踩过 这类问题，先 memory_recall 查库${ANCHOR_NONE_MARK}`)
   assert.equal(line, buildInjectionIndex({ home: home2 }).text)
 })

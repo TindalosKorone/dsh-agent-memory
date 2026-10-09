@@ -236,8 +236,13 @@ test('I4a.1 反向断言：有 systemPrompt 时注入确实注册（context 存�
   )
   assert.ok(mine[0].text.length > 0, '文本必须非空（功能没被改坏）')
   assert.ok(mine[0].text.length <= DEFAULT_INJECTION_MAX_CHARS, `文本长度 ${mine[0].text.length} 必须 <= 240`)
-  assert.ok(mine[0].text.includes('memory_recall'), '指路尾巴照旧')
-  assert.equal(mine[0].text, '记忆 10 条（上限 2000）｜标签锚点：松耦合｜细则用 memory_recall')
+  assert.ok(mine[0].text.includes('memory_recall'), '查询工具指路照旧在（只是换了句式）')
+  assert.ok(mine[0].text.includes('先 memory_recall 查库'), 'I4a.3：真引擎路径上那行同样必须是条件规则')
+  assert.equal(mine[0].text, '记忆 10 条（跨会话经验教训）｜排查·为什么·复现·以前是否踩过 这类问题，先 memory_recall 查库｜标签锚点：松耦合')
+  // I4a.3：稳定段也必须经真引擎注册成功（section 与 context 是两张表）
+  const mySections = assembly.sections.filter((s) => s.name === 'agent-memory-habit')
+  assert.equal(mySections.length, 1, '真引擎 assemble 的 sections 里必须有 agent-memory-habit')
+  assert.ok(mySections[0].text.includes('先用 memory_recall 查记忆库'), `段文本必须含触发条件，实测 ${mySections[0].text}`)
 })
 
 // ── 4. 迟到依赖：加载顺序不再决定注入生死 ─────────────────────────────────

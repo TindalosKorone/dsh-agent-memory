@@ -1,5 +1,22 @@
 /**
- * I4a：把一行「稳定记忆索引」注入系统提示词的**尾部动态块**（engine 的 runtime context）。
+ * I4a / I4a.3：记忆层的两条注入贡献 —— 同一条「条件规则」用两种机制承载。
+ *
+ * I4a.3（本次改动）改的是**注入文案的语法**：陈述句 → 条件规则。
+ *  - 真机观察：旧那行是纯陈述（`记忆 N 条（上限 M）｜标签锚点：…｜细则用 memory_recall`），
+ *    它只说明「库里有这么个东西」，**不触发行为** —— 上线以来模型一次都不是被它提醒去召回的
+ *    （每次召回都发生在测插件的时候）。结论：把「有这个东西」改成「这种情况该用它」。
+ *  - 改法：显式写出**触发条件**（排查·为什么·复现·以前是否踩过 ⇒ 先 memory_recall 查库）。
+ *  - **诚实定位：这条规则是「提示」，不是保证。** 它提高「被想起来」的概率，
+ *    **不强制**模型一定调用 memory_recall；模型仍可能忽略它。红证只能证明「文案里确实写了
+ *    触发条件」，证明不了「模型一定会照做」——这个区别不要含糊过去。
+ *
+ * 落点：**两种机制，别混用**
+ *  - **稳定前缀**（`section`，prompt 正文段，每步都在）＝ 承载「这条规则本身」：
+ *    INJECTION_SECTION_NAME / INJECTION_SECTION_ORDER / INJECTION_HABIT_TEXT（见其注释）。
+ *  - **易变尾部**（`context`，有序动态上下文，库变了才该变）＝ 承载「库的索引」：
+ *    本文件主体（条数 + 这是什么 + 什么时候该用 + 锚点）。
+ *  规则低频稳定、索引随库变动，两者更新频率与语义都不同，所以用两种机制各自承载；
+ *  不要为了少一次注册把它们塞进同一处（那会让规则跟着库的每次变化一起抖）。
  *
  * 一、机制（已核实的源码事实，不是猜的）
  *  - 注册入口是 `ctx.systemPrompt.context({ name, order, text })`（dsh-system-prompt/lib/index.js:266-268）。
@@ -21,7 +38,8 @@
  *    也就是说：库不变 ⇒ 文本逐字节相同 ⇒ 后续每一步零新增消息、零 prompt 变化（缓存友好）。
  *    一旦把「最近写入的标题」「时间戳」这类每次都在变的实时列表塞进来，就会**每一步都追加一条消息**，
  *    既污染上下文历史，也把前缀缓存打断。
- *  - 所以这里只放：条数 + 全局**有区分力的**标签锚点 + 工具指路。
+ *  - 所以这里只放四样东西（I4a.3 的结构）：**条数 + 这是什么 + 什么时候该用 + 锚点**。
+ *    全部只由「库内容」决定，与查询/时间/agent 无关。
  *
  * 二点五、I4a.2：锚点为什么必须先做「出现率资格过滤」（本文件的重点修正）
  *  - 现象（真机可见）：导入 185 条坑位语料后，那一行从 `失败关闭 / 假绿 / 区分力` 退化成
@@ -108,8 +126,68 @@ export const ANCHOR_SEP = ' / '
  * 两种情形是两回事：前者是「标签区分不了」，后者是「根本没有标签」。
  */
 export const ANCHOR_NONE_MARK = '｜无可区分锚点'
-/** 尾段：指路到查询工具（记忆正文永远不进 prompt，省 token）。 */
-export const INJECTION_TAIL = '｜细则用 memory_recall'
+
+/**
+ * I4a.3「这是什么」：一句话说明这个库装的是什么（跨会话经验教训）。
+ * 与「什么时候该用」是两件事，别合并：前者回答「这是什么」，后者回答「什么时候该用它」。
+ */
+export const INJECTION_WHAT = '（跨会话经验教训）'
+
+/**
+ * I4a.3「什么时候该用」＝ **条件规则**（尾部块的规则段）。
+ *
+ * 写作要求（本次改动立的契约，可判红）：
+ *  - 必须含**触发条件**：由「类别词 + 动作」组成，而不是「有这个工具」这种陈述；
+ *  - 触发条件之后紧跟**行动**（先 memory_recall 查库）——规则是「这种情况 ⇒ 做这个」；
+ *  - 与查询无关、库不变时逐字节稳定（纯常量，无时间/随机/查询输入）。
+ *
+ * 反面教材（改动前的旧句，`INJECTION_TAIL = '｜细则用 memory_recall'`）：
+ * 那是**陈述句**，只说明「细则可以怎么查」，没说「遇到什么该查」——
+ * 真机观测到它上线以来一次都没触发过召回。
+ */
+export const INJECTION_RULE = '排查·为什么·复现·以前是否踩过 这类问题，先 memory_recall 查库'
+
+/**
+ * I4a.3 稳定段的名字（`section` 贡献）。与尾部块的 context 名字分开：
+ * 引擎侧同名 section 会在同一 scope 内抛错（NamedEntries 守卫），固定名 + fail-open 是必需的；
+ * 而 context 与 section 是**两张不同的注册表**，名字本可以撞，但这里刻意取不同名，便于目视区分。
+ */
+export const INJECTION_SECTION_NAME = 'agent-memory-habit'
+
+/**
+ * I4a.3 稳定段的**显式顺序号**。
+ *
+ * 为什么必须显式传：`getSectionOrder(name)` 只对引擎自有的 SECTION_ORDERS 列名返回数字，
+ * 对本插件这种外部名字**返回 undefined**（dsh-system-prompt/lib/index.js:249-251
+ * `getSectionOrder(name) { return SECTION_ORDERS[name] }`），而 `section()` 对非有限 order
+ * **直接抛 TypeError**（同文件 240-243）。所以照抄 persona 的 `getSectionOrder("...")` 写法是不行的。
+ *
+ * 为什么取 3200（而不是别的数）：
+ *  - SECTION_ORDERS 的布局是分带的：引擎政策段（HARNESS_IDENTITY -1000 / persona 前缀 0 /
+ *    PLAN_POLICY 500 / TEAM_POLICY 600 / PTC_ONLY 800 / FILE_REFERENCE 900）→ **工具说明带
+ *    （TOOL_BASH 1000 … TOOL_COMPUTER_USE 3000 / MCP_SERVERS 3100）** → SDK 与交付带
+ *    （TOOLS_SDK 5000 / DELIVERABLE_FILE_REFERENCES 9000 / STRUCTURED_OUTPUT 9900）→
+ *    宿主环境与 persona 尾巴（HARNESS_SOURCE 10000 / WEB_SURFACE 10100 / persona 后缀 10200）。
+ *  - 这条稳定段是一条**工具使用习惯**（「遇到这类问题先查记忆库」），紧贴工具说明带读最自然。
+ *  - **3200 落在工具说明带之后、TOOLS_SDK(5000) 之前的空档**：该区间引擎没有任何自有槽位，
+ *    而 section 只按 `order - order || name` 排序（同文件 97-98 comparePromptSections），
+ *    所以这个数字**不会让任何引擎自有 section 的相对顺序发生变化**（不挤占、不顶掉任何槽位）。
+ *  - 刻意避开语义敏感的槽位：0 附近是 persona 前缀与身份，9900+ 是结构化输出与 persona 后缀，
+ *    把外部段插进去会干扰引擎的既定语义；空档里加一段则是纯增量。
+ */
+export const INJECTION_SECTION_ORDER = 3200
+
+/**
+ * I4a.3 稳定段的**逐字文本**（一行，极短）。
+ *
+ * 为什么极短：它进的是**每一步的系统提示词正文**（稳定前缀），是按「每步都付」计费的常驻成本；
+ * 细则（条数、锚点、查询语法）在尾部块与工具面里，这里只负责「把行为习惯钉住」。
+ * 措辞与尾部块的 INJECTION_RULE 同源（同一类触发条件、同一个动作），但**不必逐字相同**：
+ * 尾部那句是对库的说明的一部分，这句是对行为习惯的独立提醒。
+ * 同样遵守：无 `{` `}`（引擎 interpolate() 会当变量引用）、无换行。
+ */
+export const INJECTION_HABIT_TEXT = '遇到排查·为什么·复现·"以前是否踩过"这类问题，先用 memory_recall 查记忆库（跨会话经验教训）。'
+
 /** 极端超限时的硬截断标记（本身也算进上限）。 */
 export const HARD_MARK = '（截断）'
 
@@ -316,15 +394,24 @@ function stampKey(path: string, stamp: StoreStamp | undefined): string {
 
 /**
  * 一行注入文本的构建阶梯（每一步都保证 ≤ maxChars；优先信息量，最后才硬截断）：
- *  1. 完整行（条数 + 上限 + 全部锚点 + 指路），装得下 ⇒ truncated=false；
+ *  1. 完整行（条数 + 这是什么 + **条件规则** + 全部锚点），装得下 ⇒ truncated=false；
  *  2/3. 逐个丢弃尾部锚点并**如实标注**省略了几个（标记本身也算进上限）；
- *  4. 只留「条数 + 上限 + 指路」的最小行（仍如实标注省略了几个锚点，装得下就带上）；
+ *  4. 只留「条数 + 这是什么 + 条件规则」的最小行（仍如实标注省略了几个锚点，装得下就带上）；
  *  5. 连最小行都装不下（maxChars 极小）⇒ 硬截断并带 `（截断）` 标记；
  *  6. 连标记都装不下 ⇒ 空串（**绝不超限**，也绝不硬塞半句假信息）。
  *
+ * I4a.3 的结构固定为「条数 + 这是什么 + 什么时候该用 + 锚点」四段，顺序即语义：
+ * 先说是多少、装的是什么，再说**什么情况该来查**（条件规则），最后才给锚点。
+ * 压缩阶梯**只丢锚点**（尾巴），绝不丢条件规则段 —— 规则的缺省只能是「整行都没有」，
+ * 不能是「有索引但没有触发条件」（那正是被本次改动判为失效的旧形态）。
+ *
+ * @param maxRecords - **保留形参、新文案不再回显**。上限是「库自身的容量参数」，
+ *   既不属于「这是什么」也不属于「什么时候该用」；每步都占 prompt 预算不划算
+ *   （容量由 prune 工具面与 recall 的输出承担）。保留形参是为了不动调用面
+ *   （纯函数测试与 scripts 按位置传参），删掉会牵连一批无关改动。
  * @param noDiscriminatingAnchors - 库里有标签、但一个都没通过资格过滤（I4a.2）：
  *   这时那行写「无可区分锚点」而不是假装没有标签；**绝不回落到全库最高频标签**。
- *   库内一条标签都没有（空库/无标签）时传 false ⇒ 沿用旧的最小行（不写这一段）。
+ *   库内一条标签都没有（空库/无标签）时传 false ⇒ 沿用最小行（不写这一段）。
  */
 export function planInjectionLine(
   count: number,
@@ -333,21 +420,23 @@ export function planInjectionLine(
   maxChars: number,
   noDiscriminatingAnchors = false,
 ): LinePlan {
-  const base = `记忆 ${count} 条（上限 ${maxRecords}）`
+  void maxRecords // 见 @param：I4a.3 起不再回显上限（保留形参仅为调用面兼容）
+  const base = `记忆 ${count} 条${INJECTION_WHAT}` // 条数 + 这是什么
+  const rule = `｜${INJECTION_RULE}` // 什么时候该用（条件规则，压缩时绝不丢）
   const label = '｜标签锚点：'
   const full = anchors.length > 0
-    ? `${base}${label}${anchors.join(ANCHOR_SEP)}${INJECTION_TAIL}`
-    : (noDiscriminatingAnchors ? `${base}${ANCHOR_NONE_MARK}${INJECTION_TAIL}` : `${base}${INJECTION_TAIL}`)
+    ? `${base}${rule}${label}${anchors.join(ANCHOR_SEP)}`
+    : (noDiscriminatingAnchors ? `${base}${rule}${ANCHOR_NONE_MARK}` : `${base}${rule}`)
   if (full.length <= maxChars) return { text: full, truncated: false, omitted: 0 }
 
   for (let keep = anchors.length - 1; keep >= 1; keep -= 1) {
     const omitted = anchors.length - keep
-    const cand = `${base}${label}${anchors.slice(0, keep).join(ANCHOR_SEP)}（已省略 ${omitted} 个锚点）${INJECTION_TAIL}`
+    const cand = `${base}${rule}${label}${anchors.slice(0, keep).join(ANCHOR_SEP)}（已省略 ${omitted} 个锚点）`
     if (cand.length <= maxChars) return { text: cand, truncated: true, omitted }
   }
 
-  const minimal = `${base}${INJECTION_TAIL}`
-  const marked = `${base}${label}（已省略 ${anchors.length} 个锚点）${INJECTION_TAIL}`
+  const minimal = `${base}${rule}`
+  const marked = `${base}${rule}${label}（已省略 ${anchors.length} 个锚点）`
   if (anchors.length > 0 && marked.length <= maxChars) return { text: marked, truncated: true, omitted: anchors.length }
   // 连「无可区分锚点」这段都塞不下 ⇒ 丢掉它，truncated 仍需为 true（我们确实丢了一句如实说明）。
   const minimalTruncated = anchors.length > 0 || noDiscriminatingAnchors
