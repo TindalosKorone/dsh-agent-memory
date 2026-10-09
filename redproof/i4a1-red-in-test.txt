@@ -1,0 +1,12 @@
+✔ I4a.1 松耦合：没有 systemPrompt 的裸 cordis 环境 ⇒ 插件 apply、4 个工具全在、注入安静降级 (84.211979ms)
+✔ I4a.1 红证：inject 改回 [tools, systemPrompt] 的同一份构建副本 ⇒ 插件不 apply、工具数 0 (240.778282ms)
+✔ I4a.1 反向断言：有 systemPrompt 时注入确实注册（context 存在、文本非空、<= 240） (74.737344ms)
+✔ I4a.1 迟到依赖：systemPrompt 后到（插件先加载）也能注册（不靠加载顺序） (94.802188ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 511.415208

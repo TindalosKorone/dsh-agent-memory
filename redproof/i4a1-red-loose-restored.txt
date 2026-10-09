@@ -1,0 +1,29 @@
+=== I4a.1 红证探针（mode=real）===
+cordis: 已加载 | FiberState: PENDING=0 LOADING=1 ACTIVE=2 FAILED=3 DISPOSED=4 UNLOADING=5
+插件模块: /storage/emulated/0/deepseek/dsh-agent-memory/lib/index.js
+声明的 inject: ["tools"]
+源码里 inject 那一行: export const inject = ['tools'];
+探针库: /storage/emulated/0/deepseek/dsh-agent-memory/.tmp-test/i4a1-probe/home （2 条，/storage/emulated/0/deepseek/dsh-agent-memory/.tmp-test/i4a1-probe/home/agent-memory/memory.ndjson）
+
+=== A. 环境：有 tools、没有 systemPrompt（这就是「缺一块」的环境）===
+  tools 服务就位: true | systemPrompt 服务: false
+  加载时是否抛错: 否
+  插件 fiber 状态: 2（0=PENDING 2=ACTIVE 3=FAILED）
+  注册的工具数: 4 | memory_expand, memory_prune, memory_recall, memory_remember
+  fiber: name="probe-tools" state=2 inject=[]
+  fiber: name="@dsh-agent/dsh-agent-memory" state=2 inject=["tools"]
+  fiber: name="" state=0 inject=["systemPrompt"]
+  等待 systemPrompt 的注入子 fiber: 1 个，状态 [0]（0=PENDING ⇒ 回调没跑 ⇒ 一个 context 都没注册）
+  契约判定「工具面活着」: true
+
+=== B. 环境：systemPrompt 也在（真 dsh-system-prompt 服务）===
+  systemPrompt 服务就位: true | 插件 fiber 状态: 2 | 工具数: 4
+  注入 context 命中数: 1 | name: agent-memory
+  注入行: "记忆 2 条（上限 2000）｜标签锚点：松耦合 / 注入｜细则用 memory_recall" （字符数 47，上限 240）
+  注入行 sha256[0:8]: a681a476
+  contexts 顺序（order=10 对照在前、200 在后）: probe:low -> agent-memory
+
+=== 结论 ===
+A 环境（缺 systemPrompt）: 工具面 活；注入面安静降级（子 fiber 停在 PENDING）
+预期（松耦合）: 工具面活 ⇒ 本文件是「恢复后绿」的那一份。
+红/绿判定: 绿（符合预期）

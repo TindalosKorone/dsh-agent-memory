@@ -9,6 +9,9 @@
  *  - **失败关闭**：写入协议任一不满足即拒收且**不落盘**，并给出可照抄的修复指引；
  *  - **注入失败则开放（fail-open）**：读库/解析/注册任何异常都只降级成空串，**绝不抛**——
  *    一个抛异常的注入会毁掉每一步（引擎 assemble() 会跟着抛）；
+ *  - **注入松耦合（I4a.1）**：`inject` 只声明 `tools`；`systemPrompt` 走
+ *    `ctx.inject(['systemPrompt'], (scope) => ...)` 条件注册 ⇒ 缺 systemPrompt 时
+ *    「只少一块注入」，而不是整个插件（含 4 个工具）都不 apply；
  *  - **不无限增长**：maxRecords / maxBytes 硬上限 + 按 recency*(1+hits) 淘汰；
  *  - **输出无损 JSON**：返回值过 prune()；`render` 写在 `output` 内部（同级写等于没给）。
  */
@@ -31,21 +34,21 @@ import {
 export const name = '@dsh-agent/dsh-agent-memory'
 
 /**
- * 必需服务：`tools`（4 个工具的注册面）+ `systemPrompt`（I4a 的尾部动态块注册面）。
+ * 必需服务：**只有 `tools`**（4 个工具的注册面）。工具面是底线。
  *
- * 为什么两个都要声明的**事实依据**：cordis 的 `inject` 是**必需依赖**，
- * fiber 只有在每个名字都解析到实现后才从 INACTIVE 迁出并执行 apply()
- * （cordis/lib/index.js:1317-1330 `_refresh()`）⇒ 缺 `systemPrompt` 时**整个插件（含 4 个工具）
- * 都不会 apply**，而不是「只少注入」（这是代价，必须知道）。
- * 之所以仍敢这么声明：`systemPrompt` 由引擎核心 dsh-base / dsh-app-boot 硬依赖并常驻
- * （dsh-base/package.json 里就有 `@deepseek-ai/dsh-system-prompt`），dsh-persona 也是同样写法。
- *
- * 更保守的替代写法（不采用，但记录在案）：保持 `inject = ['tools']`，改用
- * `ctx.inject(['systemPrompt'], (scope) => scope.systemPrompt.context({...}))` ——
- * 这是 dsh-sandbox-policy / dsh-user-approval / dsh-subagent 的官方惯例，
- * 好处是 systemPrompt 缺失时工具面照样活着。I4a 按本次任务规格采用静态 inject。
+ * I4a.1（本次改动）：注入面从「硬依赖」改成「松耦合」。
+ *  - 旧写法是 `inject = ['tools', 'systemPrompt']`。cordis 的 `inject` 是**必需依赖**：
+ *    fiber 只有在每个名字都解析到实现后才从 PENDING 迁出并执行 apply()
+ *    （cordis/lib/index.js:1317-1330 `_refresh()`）⇒ 只要 `systemPrompt` 缺席，
+ *    **整个插件（包含 4 个本来能用的工具）都不会 apply**。一个**可选**的注入能力
+ *    就这样把**工具面的可用性**一起拖下水 —— 这是本次要修的问题。
+ *  - 这不是假想风险：我们刚被同类问题咬过 —— `ctx.shell.run` 在引擎 0.1.7 里改名，
+ *    结果依赖它的那条通道**从装上那天起就是死的**（依赖面漂移是静默的：没有报错，
+ *    只是能力永远不生效，直到有人专门去查）。
+ *  - 现在 `systemPrompt` 改走官方惯例的条件注册 `ctx.inject(['systemPrompt'], (scope) => {...})`：
+ *    缺席时回调永不执行，插件照常 apply、4 个工具照常可用，代价仅仅是「少一块注入」。
  */
-export const inject = ['tools', 'systemPrompt']
+export const inject = ['tools']
 
 /** recall 的 L1 输出总长硬上限（字符）。 */
 export const RECALL_MAX_CHARS = 2000
@@ -765,41 +768,56 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
     }),
   }))
 
-  // ── I4a：稳定记忆索引注入（systemPrompt 尾部动态块）────────────────────────
+  // ── I4a：稳定记忆索引注入（systemPrompt 尾部动态块，**条件注册**）──────────
   // 用 **context()**（不是 section()）：section 贡献的是 prompt 正文段，而 context 是
   // 「有序动态上下文」——引擎把它渲染成 `Current runtime context...` 快照，交给
   // RuntimeContextProjection.project() 变成**本轮消息列表尾部的一条 user 消息**，
   // 且文本与上一份相同就一条消息都不发（store 里的 project() 去重）。这正是我们要的「尾部块」。
   //
-  // 关掉时**连注册都不做**（不是「注册了但返回空串」）：引擎的注册是按 scope 增删的，
-  // 不注册 ⇒ contexts 里根本没有这一项 ⇒ 零额外开销、也不可能输出任何字符。
+  // **松耦合**（I4a.1）：`ctx.inject(['systemPrompt'], (scope) => {...})` 是引擎官方惯例
+  // （先例：dsh-sandbox-policy/lib/index.js:121、dsh-user-approval/lib/index.js:79、
+  // dsh-subagent/lib/index.js:2848 —— 回调参数是 scope（挂载了依赖的子 ctx），
+  // 注册内容挂在 scope 上，生命周期与清理交给 fiber，回调本身不返回东西）。
+  // 只有 systemPrompt 解析到实现时才执行回调 ⇒ 缺席时**工具面完全不受影响**。
+  // 注意这里**不能**再沿用旧的 `ctx.systemPrompt` 读法：cordis 的 ctx 是 reflect 代理，
+  // 没在 inject 里声明的服务名读一次就抛 `cannot get property "..." without inject`
+  // （cordis/src/reflect.ts:144），所以必须用回调给的 scope。
   //
-  // fail-open 三层：
-  //  1) 只读缓存实例挂在 apply 闭包里（模块级零可变状态，键严格是 {path,size,mtimeMs}）；
-  //  2) buildInjectionIndex() 内部整体 try/catch，catch 里不再抛；
-  //  3) 这里的箭头函数再包一层 try/catch —— 即使将来 2) 被改出异常，也绝不让引擎的 assemble() 炸。
-  // 注册本身也 try/catch：注册失败只意味着「没有注入」，4 个工具照常可用。
+  // 关掉时**连 inject 都不发起**（比旧的「不注册」更彻底：不建子 fiber、零额外开销，
+  // 注册本来就是按 scope 增删的，不注册 ⇒ contexts 里根本没有这一项 ⇒ 零字符）。
+  //
+  // fail-open 三层（与改动前一一对应，没有减少任何一层）：
+  //  1) buildInjectionIndex() 内部整体 try/catch，catch 里不再抛（读库/解析失败 ⇒ 空串 + diag）；
+  //  2) 注册箭头内再包一层 try/catch —— 即使将来 1) 被改出异常，也绝不让引擎的 assemble() 炸；
+  //  3) 最外层 try/catch 兜住 `ctx.inject` 本身：拿不到注入能力只意味着「少一块注入」。
+  // 只读缓存实例仍挂在 apply 闭包里（模块级零可变状态，键严格是 {path,size,mtimeMs}）。
   const injectionCache = createInjectionCache()
   try {
-    const promptHost = ctx as unknown as {
-      systemPrompt?: { context?: (contribution: unknown) => unknown }
-    }
-    if (promptHost.systemPrompt !== undefined && resolveInjectionOptions(cfg.injection).enabled) {
-      promptHost.systemPrompt.context?.({
-        name: INJECTION_CONTEXT_NAME,
-        order: INJECTION_CONTEXT_ORDER,
-        // text 用函数形式：引擎在每次 assemble() 现算（`entry.text(context)`），
-        // 于是库变了下一轮就跟着变；库不变时因缓存与确定性排序而逐字节相同。
-        text: () => {
-          try {
-            return buildInjectionIndex(cfg, injectionCache).text
-          } catch {
-            return ''
+    if (resolveInjectionOptions(cfg.injection).enabled) {
+      ctx.inject(['systemPrompt'], (scope) => {
+        try {
+          const promptHost = scope as unknown as {
+            systemPrompt: { context: (contribution: unknown) => unknown }
           }
-        },
+          promptHost.systemPrompt.context({
+            name: INJECTION_CONTEXT_NAME,
+            order: INJECTION_CONTEXT_ORDER,
+            // text 用函数形式：引擎在每次 assemble() 现算（`entry.text(context)`），
+            // 于是库变了下一轮就跟着变；库不变时因缓存与确定性排序而逐字节相同。
+            text: () => {
+              try {
+                return buildInjectionIndex(cfg, injectionCache).text
+              } catch {
+                return ''
+              }
+            },
+          })
+        } catch {
+          /* 注册失败不抛：宁可没有注入，也不能让 assemble 抛（工具面照常） */
+        }
       })
     }
   } catch {
-    /* 注册失败不抛：宁可没有注入，也不能让插件加载失败或让 assemble 抛 */
+    /* 连 inject 都没发起成功（宿主桩/引擎缺 inject 面）也不抛：工具面优先 */
   }
 }

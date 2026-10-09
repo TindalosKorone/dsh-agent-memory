@@ -1,0 +1,17 @@
+I4a.1 全量测试（逐文件直跑 node test/x.test.mjs；构建产物由 tsc 生成，tsc exit=0）
+基线: 106 pass / 0 fail（10 个 .test.mjs）；本次: 107（inject +1: ctx.inject 缺席 fail-open）+ 4（新文件 loose-inject.test.mjs）= 111
+
+protocol       exit=0  ℹ tests 23  ℹ pass 23  ℹ fail 0
+cap            exit=0  ℹ tests 4  ℹ pass 4  ℹ fail 0
+pure           exit=0  ℹ tests 7  ℹ pass 7  ℹ fail 0
+scoring        exit=0  ℹ tests 11  ℹ pass 11  ℹ fail 0
+recall         exit=0  ℹ tests 7  ℹ pass 7  ℹ fail 0
+triage         exit=0  ℹ tests 15  ℹ pass 15  ℹ fail 0
+lossless       exit=0  ℹ tests 4  ℹ pass 4  ℹ fail 0
+storage        exit=0  ℹ tests 13  ℹ pass 13  ℹ fail 0
+prune          exit=0  ℹ tests 3  ℹ pass 3  ℹ fail 0
+inject         exit=0  ℹ tests 20  ℹ pass 20  ℹ fail 0
+loose-inject   exit=0  ℹ tests 4  ℹ pass 4  ℹ fail 0
+
+汇总: pass=111 fail=0
+契约变更（点名）: test/lossless.test.mjs 的 inject 断言 ['tools','systemPrompt'] -> ['tools']（该用例仍绿）

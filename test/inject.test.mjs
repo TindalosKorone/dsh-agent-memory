@@ -8,11 +8,16 @@
 //  5) 稳定性：库不变 ⇒ 逐字节相同（含不同 assemble 参数、不同缓存实例）；库变了才变；
 //  6) fail-open：读库/解析/注册任何异常都**不抛**，注入空串或最小占位；
 //  7) 缓存：只读、幂等，键严格是 {path, size, mtimeMs}（与库自身的外部改动守卫同口径）。
+//
+// I4a.1：注入面从「必需依赖」改为条件注册 `ctx.inject(['systemPrompt'], scope => ...)`。
+// 本文件覆盖「有 systemPrompt」这一半（注册面/内容/上限/稳定性/fail-open）；「缺 systemPrompt 时
+// 工具面仍可用」的红绿证在 test/loose-inject.test.mjs（用裸 cordis 才能判出必需依赖的 PENDING 门禁）。
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { apply } from '../lib/index.js'
+import * as pluginModule from '../lib/index.js'
 import {
   DEFAULT_INJECTION_MAX_CHARS, DEFAULT_INJECTION_TOP_TAGS, HARD_MARK,
   INJECTION_CONTEXT_NAME, INJECTION_CONTEXT_ORDER,
@@ -131,14 +136,16 @@ test('I4a：injection.enabled=false ⇒ 一个 context 都不注册、文本为�
 })
 
 // ── 4. 工具面不受影响（4 个工具照旧） ────────────────────────────────────
-test('I4a：工具面照旧是 4 个（inject 增加 systemPrompt 不改既有工具契约）', () => {
+test('I4a.1：工具面照旧 4 个；注入面是条件注册，不再进 inject 必需依赖', () => {
   const home = freshHome('i4a-tools')
   seed(home, smallLibrary())
   const defs = tools({ home })
   assert.deepEqual([...defs.keys()].sort(), ['memory_expand', 'memory_prune', 'memory_recall', 'memory_remember'])
-  const { ctx } = makeCtx()
+  const { ctx, contexts } = makeCtx()
   apply(ctx, { home })
-  assert.ok(ctx.systemPrompt !== undefined)
+  assert.ok(ctx.systemPrompt !== undefined, '桩里 systemPrompt 在（有它时注入应注册）')
+  assert.equal(contexts.size, 1, '有 systemPrompt ⇒ 注入照旧注册')
+  assert.ok(contexts.has(INJECTION_CONTEXT_NAME))
 })
 
 // ── 5. 口径解析：默认 / 越界夹取 / 非法回落 ──────────────────────────────
@@ -347,6 +354,16 @@ test('I4a fail-open：systemPrompt.context 注册时抛 ⇒ apply 不抛、4 个
   assert.deepEqual([...defs.keys()].sort(), ['memory_expand', 'memory_prune', 'memory_recall', 'memory_remember'])
 })
 
+test('I4a.1 fail-open：宿主连 ctx.inject 都没有 ⇒ 不抛、4 个工具照常注册（只有注入面缺席）', () => {
+  const home = freshHome('i4a-noinject')
+  seed(home, smallLibrary())
+  const { ctx, defs } = makeCtx()
+  delete ctx.inject
+  delete ctx.systemPrompt
+  assert.doesNotThrow(() => apply(ctx, { home }))
+  assert.deepEqual([...defs.keys()].sort(), ['memory_expand', 'memory_prune', 'memory_recall', 'memory_remember'])
+})
+
 // ── 11. 真引擎 assemble（不可用时如实降级，见测试尾部说明）────────────────
 const ENGINE_BASE = '/data/data/com.dsharnessmobile.shell/files/usr/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai'
 const ENGINE_SP = `${ENGINE_BASE}/dsh-system-prompt/lib/index.js`
@@ -372,13 +389,22 @@ test('I4a：真引擎 SystemPrompt.context 注册 + assemble：落在 contexts �
   const service = rootCtx.get('systemPrompt')
   assert.ok(service, '真引擎必须提供 systemPrompt 服务')
 
+  // I4a.1：注入面改走 ctx.inject(['systemPrompt']) ⇒ 必须真 cordis 才能跑通（旧的裸对象桩没有 inject，
+  // 插件会 fail-open 地跳过注入注册）。所以这里补一个 tools 服务，然后把**插件模块本身**按官方方式加载。
   const defs = new Map()
-  apply({
-    tools: { register: (d) => { defs.set(d.name, d); return { dispose: () => defs.delete(d.name) } } },
-    effect: (cb) => cb(),
-    systemPrompt: service,
-  }, { home })
+  rootCtx.plugin({
+    name: 'i4a-engine-tools',
+    apply: (c) => {
+      c.provide('tools', { register: (d) => { defs.set(d.name, d); return { dispose: () => defs.delete(d.name) } } })
+    },
+  })
+  await new Promise((r) => setTimeout(r, 20))
+  assert.ok(rootCtx.get('tools'), 'tools 服务必须先就位')
+  const fiber = rootCtx.plugin(pluginModule, { home })
+  await new Promise((r) => setTimeout(r, 20))
+  assert.equal(fiber.state, 2, '真 cordis 下插件 fiber 必须是 ACTIVE（2）')
   assert.equal(defs.size, 4)
+  assert.deepEqual([...pluginModule.inject], ['tools'])
 
   const snapshots = []
   for (let i = 0; i < 5; i += 1) {

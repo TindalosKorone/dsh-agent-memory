@@ -4,6 +4,9 @@
  * 本脚本只读：默认 DSH_HOME 下那份真实记忆库（9 条），不写任何文件、不启动 DSH。
  * 运行：node scripts/i4a-measure.mjs
  *
+ * I4a.1 起：插件经真 cordis 的 ctx.plugin() 加载（注入面是 ctx.inject(['systemPrompt']) 条件注册），
+ * 手搓 ctx 直接调 apply() 的旧写法会静默跳过注入，已废弃。
+ *
  * 分三块，实测与「源码依据」严格分开写：
  *  1) 落点：真引擎 SystemPrompt.context 注册 → assemble().contexts → renderContextSnapshot()；
  *  2) 成本：字符数 / UTF-8 字节数 / dsh-token-meter 的固定启发式 token 估算（**不是**供应商计费 token）；
@@ -11,7 +14,7 @@
  */
 import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'
-import { apply } from '../lib/index.js'
+import * as pluginModule from '../lib/index.js'
 import { INJECTION_CONTEXT_NAME, INJECTION_CONTEXT_ORDER, buildInjectionIndex } from '../lib/inject.js'
 import { memoryPath } from '../lib/store.js'
 
@@ -42,12 +45,19 @@ const service = root.get('systemPrompt')
 console.log('systemPrompt 服务:', service !== undefined)
 
 const defs = new Map()
-apply({
-  tools: { register: (d) => { defs.set(d.name, d) ; return { dispose: () => defs.delete(d.name) } } },
-  effect: (cb) => cb(),
-  systemPrompt: service,
-}, {})
-console.log('本插件注册的工具数:', defs.size)
+// I4a.1：注入面走 ctx.inject(['systemPrompt']) 条件注册 ⇒ 必须真 cordis（提供 tools 服务后按官方方式加载插件）。
+// 旧版这里手搓裸对象 ctx 直接调 apply()，在松耦合之后会**静默**跳过注入注册（测出 0 字符），所以不能再那样写。
+root.plugin({
+  name: 'i4a-measure-tools',
+  apply: (c) => {
+    c.provide('tools', { register: (d) => { defs.set(d.name, d) ; return { dispose: () => defs.delete(d.name) } } })
+  },
+})
+await new Promise((r) => setTimeout(r, 20))
+const pluginFiber = root.plugin(pluginModule, {})
+await new Promise((r) => setTimeout(r, 20))
+console.log('本插件注册的工具数:', defs.size, '| 插件 fiber 状态:', pluginFiber.state, '（2=ACTIVE）')
+console.log('声明的 inject:', JSON.stringify([...pluginModule.inject]))
 
 const snapshots = []
 const ourTexts = []

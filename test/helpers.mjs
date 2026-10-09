@@ -54,6 +54,18 @@ export function makeCtx() {
         return { dispose: () => contexts.delete(contribution.name) }
       },
     },
+    // 桩 ctx.inject：与 cordis 同语义 —— **任一**必需服务缺席 ⇒ 回调永不执行（fiber 停在 PENDING），
+    // 齐全则把 scope（挂上这些服务的子 ctx）交给回调。插件已改成用这条路径条件注册注入面。
+    inject: (deps, callback) => {
+      const names = Array.isArray(deps) ? deps : Object.keys(deps ?? {})
+      const scope = {}
+      for (const dep of names) {
+        if (ctx[dep] === undefined) return { dispose: () => {} }
+        scope[dep] = ctx[dep]
+      }
+      callback(scope, undefined)
+      return { dispose: () => {} }
+    },
   }
   return { ctx, defs, effects, contexts }
 }
