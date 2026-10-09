@@ -23,7 +23,7 @@ import assert from 'node:assert/strict'
 import { HEADER_MAX_CHARS, HEADER_QUERY_TRUNCATION_MARK } from '../lib/index.js'
 import { freshHome, tools } from './helpers.mjs'
 
-test('I5 表头自检：单行、<= 400 字符，且可复算信息一个都不少', async () => {
+test('I5 表头自检：单行、<= 428 字符，且可复算信息一个都不少', async () => {
   const home = freshHome('header-selfcheck')
   const defs = tools()
   const remember = defs.get('memory_remember')
@@ -40,7 +40,10 @@ test('I5 表头自检：单行、<= 400 字符，且可复算信息一个都不�
   const header = r.text.split('\n')[0]
   assert.ok(r.shown > 0, '至少召回一条，否则表头断言没有说服力')
   assert.ok(!header.includes('\n'), '表头必须单行（分诊/I3 字段不得换行）')
-  assert.ok(header.length <= 400, `表头必须 <= 400 字符（旧表头实测 1049~1066），实际 ${header.length}：${header}`)
+  // 428 是**实测锚点**（内容量闸门落地后本夹具 = 420；旧值 400 见 git 历史）。
+  // 这不是「放松总量上界」：真正的上界仍是 HEADER_MAX_CHARS=448，由本文件后两条最坏情况用例钉死；
+  // 这里钉的是「常配短查询下别把表头再喂胖」的收紧位。改动表头文案前先量一遍这个数。
+  assert.ok(header.length <= 428, `表头必须 <= 428 字符（旧表头实测 1049~1066），实际 ${header.length}：${header}`)
 
   // ① 列序：10 列的名字与顺序（行按 " | " 切片读列，列序本身就是契约）
   assert.ok(header.includes('列序:id|kind|title|tags|graph|via|rel|cov|match|score'),
@@ -85,6 +88,14 @@ test('I5 表头自检：单行、<= 400 字符，且可复算信息一个都不�
   // match 的恒可复算同样必须在表头（判红点：删掉 (恒可复算) ⇒ 本条变红）
   assert.ok(header.includes('否则 none(恒可复算)'),
     `表头必须写明 match 恒可由 rel + 阈值复算：${header}`)
+  // ⑩ 内容量闸门（本次新增）：闸门的**两个输入**（qTok 与阈值）必须逐字回显，规则必须写明 ——
+  //    否则「低内容量 ⇒ strong 封顶 weak」这条判定读者复算不出来（I1.3 铁律的延续）。
+  //    判红点：删掉这段回显（或只回显 qTok 不回显阈值）⇒ 本条变红。
+  assert.equal(r.contentTokenMin, 2, '内容量闸门默认阈值必须是 2（标定见 src/pure.ts）')
+  assert.ok(Number.isInteger(r.contentTokens) && r.contentTokens >= 0,
+    `结构化字段 contentTokens 必须是非负整数：${r.contentTokens}`)
+  assert.ok(header.includes(`内容量qTok=${r.contentTokens}<${r.contentTokenMin}⇒strong封顶weak`),
+    `表头必须逐字回显内容量闸门的输入与规则（qTok=${r.contentTokens} 阈值=${r.contentTokenMin}）：${header}`)
 
   // 反向（防回涨）：非结论性诊断不得再占表头字符预算——它们仍逐字在结构化返回字段/rows 里。
   for (const gone of ['basisSize=', 'layers=', 'logicalDepth=', 'explainedRatio=', 'residualRatio=',
@@ -95,7 +106,7 @@ test('I5 表头自检：单行、<= 400 字符，且可复算信息一个都不�
   // 无词元能量分支（‖q‖²≈0）同样要如实、同样要短
   const e = await recall.execute({ query: '   ', limit: 5 })
   const eh = e.text.split('\n')[0]
-  assert.ok(eh.length <= 400, `未分诊分支的表头也必须 <= 400 字符，实际 ${eh.length}：${eh}`)
+  assert.ok(eh.length <= 420, `未分诊分支的表头也必须 <= 420 字符（实测锚点 416），实际 ${eh.length}：${eh}`)
   assert.ok(eh.includes('未分诊'), `未分诊分支必须如实写明：${eh}`)
   assert.ok(eh.includes('expanded=false'), `未分诊分支必须回显 expanded=false：${eh}`)
   assert.ok(eh.includes('0/0'), `未分诊分支必须如实说明比值未定义（0/0）：${eh}`)

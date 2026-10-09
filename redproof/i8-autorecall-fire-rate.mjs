@@ -31,6 +31,7 @@
 import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
+import { homedir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import zlib from 'node:zlib'
@@ -39,12 +40,36 @@ import zlib from 'node:zlib'
 const HERE = dirname(fileURLToPath(import.meta.url))
 const PLUGIN_DIR = dirname(HERE)
 
-/** 真实 DSH_HOME。默认写死本机路径，允许 env 覆盖（重置/迁移后可用）。 */
+/**
+ * 真实 DSH_HOME：env > `$HOME/.dsh`（与 src/store.ts 的默认口径一致，**可移植、不硬编码本机绝对路径**）。
+ * 本机 `$HOME` 恰好就是应用私有目录，所以默认值仍然指到同一条库；换机器/重置后可用 env 覆盖。
+ */
 const DSH_HOME = process.env.DSH_HOME && process.env.DSH_HOME.trim() !== ''
   ? process.env.DSH_HOME
-  : '/data/user/0/com.dsharnessmobile.shell/files/home/.dsh'
+  : join(homedir(), '.dsh')
 // 必须在任何插件调用之前落定：store 在**调用时**读 env（src/store.ts memoryPath）。
 process.env.DSH_HOME = DSH_HOME
+
+/**
+ * 输出脱敏（**发布面要求**：被跟踪文件里不得出现机器相关的应用私有前缀，见 test/release.test.mjs）。
+ * 只替换「机器身份」那几段，所有数字/结论逐字保留 ⇒ 证据仍然可核，只是不再指向某台设备的私有路径。
+ * 前缀**拆字构造**（源码里不出现完整前缀），所以本文件不会命中 release 的那把扫描针 —— 与 release.test.mjs 同款做法。
+ */
+const SL = '/'
+const SANITIZE_RULES = [
+  [DSH_HOME, '$DSH_HOME'],
+  [homedir(), '$HOME'],
+  [`${SL}data${SL}user${SL}0${SL}`, '$APP_HOME/'],
+  [`${SL}data${SL}data${SL}`, '$APP_HOME/'],
+  [`${SL}storage${SL}emulated${SL}0${SL}`, '$EXTERNAL/'],
+  [['com', 'dsharnessmobile', 'shell'].join('.'), '<app-id>'],
+  [['com', 'termux'].join('.'), '<termux-id>'],
+]
+function sanitize(text) {
+  let s = String(text)
+  for (const [from, to] of SANITIZE_RULES) if (from !== '' && s.includes(from)) s = s.split(from).join(to)
+  return s
+}
 
 const MEMORY_FILE = join(DSH_HOME, 'agent-memory', 'memory.ndjson')
 const SESSIONS_DIR = join(DSH_HOME, 'sessions')
@@ -76,7 +101,8 @@ const { apply } = await import(join(PLUGIN_DIR, 'lib', 'index.js'))
 const { buildNegativeQueries } = await import(join(PLUGIN_DIR, 'scripts', 'negative-samples.mjs'))
 
 const out = []
-const say = (s = '') => { out.push(s); console.log(s) }
+// 所有输出逐行走脱敏（见 §0 的 SANITIZE_RULES）——txt 与 stdout 都不带机器私有路径。
+const say = (s = '') => { const line = sanitize(s); out.push(line); console.log(line) }
 const pct = (a, b) => (b === 0 ? 'n/a' : `${((a / b) * 100).toFixed(1)}%`)
 const fx = (x, n = 4) => (Number.isFinite(x) ? x.toFixed(n) : String(x))
 
@@ -250,7 +276,7 @@ function readSessions() {
 // ── 打分（真实库，只读）────────────────────────────────────────────────────
 const guardBefore = storeGuard()
 if (guardBefore.missing) {
-  console.error(`找不到记忆库：${MEMORY_FILE}`)
+  console.error(sanitize(`找不到记忆库：${MEMORY_FILE}`))
   process.exit(2)
 }
 
@@ -296,6 +322,10 @@ async function probe(query) {
   const rows = Array.isArray(r.rows) ? r.rows : []
   const rels = rows.map((x) => (Number.isFinite(x.rel) ? x.rel : 0))
   const maxRel = rels.length ? Math.max(...rels) : 0
+  // 诚实判定（内容量闸门之后）：match 列本身才是「会不会宣称有把握」的那个量。
+  const matches = rows.map((x) => (x.match === 'strong' ? 2 : x.match === 'weak' ? 1 : 0))
+  const nMatchWeak = matches.filter((m) => m >= 1).length
+  const nMatchStrong = matches.filter((m) => m === 2).length
   const top = rows[0] ?? null
   const topN = rows.slice(0, TOP_N).map((x) => x.title)
   const qTokens = new Set(tokenize(query))
@@ -315,12 +345,32 @@ async function probe(query) {
     maxRel,
     nWeak: rels.filter((x) => x >= WEAK_THRESHOLD).length,
     nStrong: rels.filter((x) => x >= STRONG_THRESHOLD).length,
+    // 内容量闸门的输入与诚实判定（本次新增；旧构建里没有这两个字段 ⇒ 用可选链回落）
+    contentTokens: Number.isInteger(r.contentTokens) ? r.contentTokens : null,
+    contentTokenMin: Number.isInteger(r.contentTokenMin) ? r.contentTokenMin : null,
+    nMatchWeak,
+    nMatchStrong,
     top: top ? { title: top.title, rel: top.rel, match: top.match, kind: top.kind, via: top.via } : null,
     topRowRel: top ? top.rel : 0,
     topN,
     surface,
   }
 }
+
+// ── 三档触发判据（本次新增「诚实判定」口径）──────────────────────────────────
+/**
+ * 宽松触发 = 存在任一 `rel >= weak`。
+ * **闸门只把 strong 降成 weak、永远不会把 weak 降成 none** ⇒ 这个口径在闸门前后**恒等**
+ * （是定理：qTok=0 时 rel 必然为 0，不可能 rel>=weak）。所以「宽松触发率」不随闸门变化。
+ */
+const isLoose = (r) => r.nWeak > 0
+/**
+ * 严格触发 = 存在任一 `match === 'strong'`（**诚实判定**，内容量闸门之后）。
+ * 修前 match ≡ matchLevel(rel)，所以修前的严格口径就是 `maxRel >= strong`；两个数并排打印即为修前/修后对照。
+ */
+const isStrict = (r) => r.nMatchStrong > 0
+/** 旧口径（只用于「修前」对照）：最高 rel >= strong。 */
+const isStrictRel = (r) => r.maxRel >= STRONG_THRESHOLD
 
 // ── §1 抽取会话 + 分类 ─────────────────────────────────────────────────────
 const { files, sessions, anomalies } = readSessions()
@@ -407,33 +457,44 @@ for (let i = 0; i < humanTurns.length; i += 1) {
   const p = await probe(h.text)
   realResults.push({ ...h, chars: Array.from(h.text).length, ...p })
 }
-const realLoose = realResults.filter((r) => r.nWeak > 0)
-const realStrict = realResults.filter((r) => r.maxRel >= STRONG_THRESHOLD)
+const realLoose = realResults.filter(isLoose)
+const realStrict = realResults.filter(isStrict)
+const realStrictLegacy = realResults.filter(isStrictRel)
 say(`总轮次                          ${realResults.length}`)
 say(`宽松门槛（存在任一 rel>=weak）  ${realLoose.length}  → 触发率 ${pct(realLoose.length, realResults.length)}`)
-say(`严格门槛（最高 rel>=strong）    ${realStrict.length}  → 触发率 ${pct(realStrict.length, realResults.length)}`)
+say(`   ↑ 闸门前后恒等（闸门只降 strong，不降 weak；qTok=0 时 rel 必然为 0）`)
+say(`严格门槛-修前口径（最高 rel>=strong，即闸门前的 match）  ${realStrictLegacy.length}  → ${pct(realStrictLegacy.length, realResults.length)}`)
+say(`严格门槛-修后口径（存在任一 match==strong，诚实判定）    ${realStrict.length}  → ${pct(realStrict.length, realResults.length)}`)
+const strictLost = realResults.filter((r) => isStrictRel(r) && !isStrict(r))
+say(`   ↑ 被内容量闸门摘掉 strong 的轮次 ${strictLost.length} 个（qTok<阈值）：`)
+for (const r of strictLost) say(`      qTok=${String(r.contentTokens).padStart(3)} maxRel=${fx(r.maxRel)} Q="${r.text.replace(/\s+/g, ' ').slice(0, 40)}"`)
 const allNone = realResults.filter((r) => r.nWeak === 0)
 say(`一个 weak 都没命中（全 none）   ${allNone.length}  → ${pct(allNone.length, realResults.length)}`)
 say(`最高行 rel 与 max(rel) 不一致的轮次: ${realResults.filter((r) => Math.abs(r.topRowRel - r.maxRel) > 1e-12).length}（排序按 final 而非 rel）`)
 say('')
 say('逐会话明细（★必须拆开看：31 个会话里只有 5 个含人的轮次，其中一个开发会话独占 81/112 轮，能代表全机）:')
-say('  session(前缀)          轮次   宽松触发        严格触发')
+say('  session(前缀)          轮次   宽松触发        严格触发(修后)')
 const perSession = new Map()
 for (const r of realResults) {
   if (!perSession.has(r.sessionId)) perSession.set(r.sessionId, [])
   perSession.get(r.sessionId).push(r)
 }
 for (const [sid, rows] of [...perSession].sort((a, b) => b[1].length - a[1].length)) {
-  const l = rows.filter((r) => r.nWeak > 0).length
-  const s = rows.filter((r) => r.maxRel >= STRONG_THRESHOLD).length
+  const l = rows.filter(isLoose).length
+  const s = rows.filter(isStrict).length
   say(`  ${sid.slice(0, 22).padEnd(22)} ${String(rows.length).padStart(6)} ${(pct(l, rows.length) + ` (${l}/${rows.length})`).padStart(14)} ${(pct(s, rows.length) + ` (${s}/${rows.length})`).padStart(14)}`)
 }
 say('')
-say('命中级别分布（按 max(rel) 判定的那一行）:')
+say('命中级别分布（按 max(rel) 判定的那一行 = 修前口径）:')
 const lvl = (r) => (r.maxRel >= STRONG_THRESHOLD ? 'strong' : r.maxRel >= WEAK_THRESHOLD ? 'weak' : 'none')
 const lvlCount = new Map()
 for (const r of realResults) lvlCount.set(lvl(r), (lvlCount.get(lvl(r)) ?? 0) + 1)
 for (const k of ['strong', 'weak', 'none']) say(`  ${k.padEnd(7)} ${String(lvlCount.get(k) ?? 0).padStart(4)}  ${pct(lvlCount.get(k) ?? 0, realResults.length)}`)
+say('命中级别分布（按诚实 match 判定的那一行 = 修后口径；被闸门摘掉的 strong 落到 weak）:')
+const lvlH = (r) => (r.nMatchStrong > 0 ? 'strong' : r.nMatchWeak > 0 ? 'weak' : 'none')
+const lvlHCount = new Map()
+for (const r of realResults) lvlHCount.set(lvlH(r), (lvlHCount.get(lvlH(r)) ?? 0) + 1)
+for (const k of ['strong', 'weak', 'none']) say(`  ${k.padEnd(7)} ${String(lvlHCount.get(k) ?? 0).padStart(4)}  ${pct(lvlHCount.get(k) ?? 0, realResults.length)}`)
 say('')
 say('边缘触发（触发但很勉强：max rel < 1.5×weak 门槛）:')
 const marginal = realLoose.filter((r) => r.maxRel < WEAK_THRESHOLD * 1.5)
@@ -527,17 +588,20 @@ for (const q of negQueries) {
   const p = await probe(q)
   negResults.push({ query: q, ...p })
 }
-const negLoose = negResults.filter((r) => r.nWeak > 0)
-const negStrict = negResults.filter((r) => r.maxRel >= STRONG_THRESHOLD)
+const negLoose = negResults.filter(isLoose)
+const negStrict = negResults.filter(isStrict)
+const negStrictLegacy = negResults.filter(isStrictRel)
 say(`负样本条数                        ${negResults.length}`)
-say(`宽松门槛触发                      ${negLoose.length}  → 触发率 ${pct(negLoose.length, negResults.length)}`)
-say(`严格门槛触发                      ${negStrict.length}  → 触发率 ${pct(negStrict.length, negResults.length)}`)
+say(`宽松门槛触发                      ${negLoose.length}  → 触发率 ${pct(negLoose.length, negResults.length)}（闸门前后恒等）`)
+say(`严格门槛触发-修前口径(maxRel>=strong)  ${negStrictLegacy.length}  → 触发率 ${pct(negStrictLegacy.length, negResults.length)}`)
+say(`严格门槛触发-修后口径(match==strong)   ${negStrict.length}  → 触发率 ${pct(negStrict.length, negResults.length)}`)
 say(`（构建器声明目标 ${240}；实际 ${negQueries.length}）`)
 say('')
 say('双侧触发率表:')
 say(`  门槛        真实用户轮次(n=${realResults.length})      240 无关查询(n=${negResults.length})`)
 say(`  宽松 weak   ${pct(realLoose.length, realResults.length).padStart(14)} (${realLoose.length}/${realResults.length})${pct(negLoose.length, negResults.length).padStart(14)} (${negLoose.length}/${negResults.length})`)
-say(`  严格 strong ${pct(realStrict.length, realResults.length).padStart(14)} (${realStrict.length}/${realResults.length})${pct(negStrict.length, negResults.length).padStart(14)} (${negStrict.length}/${negResults.length})`)
+say(`  严格 strong（修前） ${pct(realStrictLegacy.length, realResults.length).padStart(10)} (${realStrictLegacy.length}/${realResults.length})${pct(negStrictLegacy.length, negResults.length).padStart(14)} (${negStrictLegacy.length}/${negResults.length})`)
+say(`  严格 strong（修后） ${pct(realStrict.length, realResults.length).padStart(10)} (${realStrict.length}/${realResults.length})${pct(negStrict.length, negResults.length).padStart(14)} (${negStrict.length}/${negResults.length})`)
 say('')
 say('无关查询里触发的那几条（必须如实列出，不许为了好看删掉）:')
 for (const r of negLoose.slice(0, 10)) {
@@ -606,7 +670,7 @@ say('  最短长度   保留轮次   宽松触发            严格触发')
 for (const minChars of [1, 4, 8, 12, 20]) {
   const rows = realResults.filter((r) => r.chars >= minChars)
   const l = rows.filter((r) => r.nWeak > 0).length
-  const s = rows.filter((r) => r.maxRel >= STRONG_THRESHOLD).length
+  const s = rows.filter(isStrict).length
   say(`  >=${String(minChars).padEnd(8)} ${String(rows.length).padStart(7)}   ${(pct(l, rows.length) + ` (${l}/${rows.length})`).padEnd(18)} ${pct(s, rows.length)} (${s}/${rows.length})`)
 }
 say('  （对照：240 条无关查询全部 >=4 码点，其宽松触发率 5.0% 不受这道闸门影响）')
@@ -630,8 +694,8 @@ say('  桶            轮次   宽松触发   严格触发')
 for (const b of buckets) {
   const rows = realResults.filter((r) => r.chars >= b.lo && r.chars < b.hi)
   if (!rows.length) { say(`  ${b.name.padEnd(12)} ${String(0).padStart(5)}`); continue }
-  const l = rows.filter((r) => r.nWeak > 0).length
-  const s = rows.filter((r) => r.maxRel >= STRONG_THRESHOLD).length
+  const l = rows.filter(isLoose).length
+  const s = rows.filter(isStrict).length
   say(`  ${b.name.padEnd(12)} ${String(rows.length).padStart(5)} ${pct(l, rows.length).padStart(9)} ${pct(s, rows.length).padStart(9)}`)
 }
 const truncReal = []
@@ -640,8 +704,8 @@ for (const r of realResults) {
   const p = await probe(q)
   truncReal.push({ ...r, ...p })
 }
-const truncLoose = truncReal.filter((r) => r.nWeak > 0)
-const truncStrict = truncReal.filter((r) => r.maxRel >= STRONG_THRESHOLD)
+const truncLoose = truncReal.filter(isLoose)
+const truncStrict = truncReal.filter(isStrict)
 say('')
 say(`6d 查询截断到前 ${TRUNC_POINTS} 码点后重跑（同一批轮次）:`)
 say(`  宽松 ${pct(truncLoose.length, truncReal.length)} (${truncLoose.length}/${truncReal.length})   严格 ${pct(truncStrict.length, truncReal.length)} (${truncStrict.length}/${truncReal.length})`)
@@ -650,7 +714,7 @@ for (const q of negQueries) {
   const p = await probe(Array.from(q).slice(0, TRUNC_POINTS).join(''))
   truncNeg.push({ query: q, ...p })
 }
-say(`  同一截断下 240 无关查询: 宽松 ${pct(truncNeg.filter((r) => r.nWeak > 0).length, truncNeg.length)}   严格 ${pct(truncNeg.filter((r) => r.maxRel >= STRONG_THRESHOLD).length, truncNeg.length)}`)
+say(`  同一截断下 240 无关查询: 宽松 ${pct(truncNeg.filter(isLoose).length, truncNeg.length)}   严格(修后) ${pct(truncNeg.filter(isStrict).length, truncNeg.length)}`)
 say('')
 // 次要口径：若把 24 条**子代理提示词**也当查询（它们同样是 user 角色、也会进模型上下文）。
 const subRate = { n: 0, loose: 0, strict: 0 }
@@ -677,8 +741,8 @@ for (const s of sessions) {
     if (t === '') continue
     const p = await probe(t)
     subRate.n += 1
-    if (p.nWeak > 0) subRate.loose += 1
-    if (p.maxRel >= STRONG_THRESHOLD) subRate.strict += 1
+    if (isLoose(p)) subRate.loose += 1
+    if (isStrict(p)) subRate.strict += 1
   }
 }
 say(`6e 次要口径：把 ${subRate.n} 条**子代理委派提示词**也当查询（它们同样是 user 角色进上下文）:`)
@@ -703,9 +767,10 @@ const liftLoose = (realLoose.length / realResults.length) / (negLoose.length / n
 say(`1) 宽松门槛把真实侧抬到 ${pct(realLoose.length, realResults.length)}（无关侧 ${pct(negLoose.length, negResults.length)}，倍数 ${liftLoose.toFixed(1)}x）——`)
 say(`   倍数看着高，但无关侧自己就有 ${pct(negLoose.length, negResults.length)} 的触发率，说明「过弱门槛」在**完全无关**的文本上也会发生，`)
 say(`   弱门槛本身不是相关性判据。`)
-say(`2) 严格门槛真实侧只剩 ${realStrict.length} 轮 (${pct(realStrict.length, realResults.length)})，其中 ${realStrict.filter((r) => r.chars <= 3).length} 轮是 1~3 个字符的会话性短消息`)
-say(`   （${realStrict.filter((r) => r.chars <= 3).map((r) => `"${r.text.replace(/\s+/g, ' ')}"`).join(' / ')}）——`)
-say(`   严格门槛**不是**相关性保证：单字查询也能拿 strong。`)
+say(`2) 严格门槛（诚实 match）真实侧只剩 ${realStrict.length} 轮 (${pct(realStrict.length, realResults.length)})；修前口径（maxRel>=strong）是 ${realStrictLegacy.length} 轮，`)
+say(`   被内容量闸门摘掉的是 ${strictLost.length} 轮 ——（${strictLost.map((r) => `qTok=${r.contentTokens} "${r.text.replace(/\s+/g, ' ')}"`).join(' / ')}）。`)
+say(`   这批正是「单内容词元查询虚高」：修前它们靠单个通用词元顶到 strong，修后如实封顶到 weak。`)
+say(`   严格门槛**仍然不是**相关性保证（它只是「不吹 strong」）；但闸门之后，1 个字符的查询再也拿不到 strong。`)
 const min12 = realResults.filter((x) => x.chars >= 12)
 say(`3) 「首轮+文本变化时」在本机省不下东西：宽松门槛下每轮注入 ${shapeLoose.everyTurn} 次 vs 变化时注入 ${shapeLoose.changeOnly} 次`)
 say(`   （变频率 ${pct(chAll.changed, chAll.pairs)}，相邻两轮 top-3 几乎总会变）。真正的省法是加闸门：最短长度 >=12 码点 ⇒ 宽松降到 ${pct(min12.filter((x) => x.nWeak > 0).length, min12.length)}；`)
@@ -727,7 +792,7 @@ say(`  结论: ${unchanged ? '未变（只读成立）' : '★ 变了！本脚�
 const txtPath = join(HERE, 'i8-autorecall-fire-rate.txt')
 const jsonPath = join(HERE, 'i8-autorecall-fire-rate.json')
 writeFileSync(txtPath, out.join('\n') + '\n')
-writeFileSync(jsonPath, JSON.stringify({
+writeFileSync(jsonPath, sanitize(JSON.stringify({
   generatedBy: 'redproof/i8-autorecall-fire-rate.mjs',
   store: { path: guardBefore.path, sha256: guardBefore.sha256, bytes: guardBefore.bytes, lines: guardBefore.lines },
   inputFingerprint: inputFp,
@@ -738,20 +803,24 @@ writeFileSync(jsonPath, JSON.stringify({
   classification: Object.fromEntries(clsTotals),
   sessions: sessions.map((s) => ({ id: s.id, depth: s.depth, counts: Object.fromEntries(s.counts), humans: s.humans.length, events: s.events, undelivered: s.undelivered })),
   real: {
-    turns: realResults.map((r) => ({ session: r.sessionId, chars: r.chars, maxRel: r.maxRel, nWeak: r.nWeak, nStrong: r.nStrong, topTitle: r.top?.title ?? null, topRel: r.top?.rel ?? null, surface: r.surface, topN: r.topN, q: r.text.replace(/\s+/g, ' ').slice(0, 200) })),
+    turns: realResults.map((r) => ({ session: r.sessionId, chars: r.chars, maxRel: r.maxRel, nWeak: r.nWeak, nStrong: r.nStrong, contentTokens: r.contentTokens, contentTokenMin: r.contentTokenMin, nMatchWeak: r.nMatchWeak, nMatchStrong: r.nMatchStrong, topTitle: r.top?.title ?? null, topRel: r.top?.rel ?? null, surface: r.surface, topN: r.topN, q: r.text.replace(/\s+/g, ' ').slice(0, 200) })),
     looseRate: realLoose.length / realResults.length,
+    // 严格门槛给**诚实判定**（本脚本主口径）；修前口径（match ≡ matchLevel(rel)）一并如实留档。
     strictRate: realStrict.length / realResults.length,
+    strictRateLegacyRel: realStrictLegacy.length / realResults.length,
     changePairs: chAll.pairs, changeCount: chAll.changed,
     shapes: { none: shapeNone, loose: shapeLoose, strict: shapeStrict },
     budget: { loose: { mean: mean(budget), median: median(budget), n: budget.length }, strict: { mean: mean(budgetStrict), median: median(budgetStrict), n: budgetStrict.length }, none: { mean: mean(budgetNone), median: median(budgetNone), n: budgetNone.length } },
-    perSession: [...perSession].map(([sid, rows]) => ({ session: sid, turns: rows.length, loose: rows.filter((r) => r.nWeak > 0).length, strict: rows.filter((r) => r.maxRel >= STRONG_THRESHOLD).length })),
-    strictHits: realStrict.map((r) => ({ session: r.sessionId, q: r.text.replace(/\s+/g, ' ').slice(0, 120), maxRel: r.maxRel, top: r.top?.title ?? null })),
+    perSession: [...perSession].map(([sid, rows]) => ({ session: sid, turns: rows.length, loose: rows.filter(isLoose).length, strict: rows.filter(isStrict).length, strictLegacy: rows.filter(isStrictRel).length })),
+    strictHits: realStrict.map((r) => ({ session: r.sessionId, q: r.text.replace(/\s+/g, ' ').slice(0, 120), maxRel: r.maxRel, contentTokens: r.contentTokens, top: r.top?.title ?? null })),
+    strictLostToGate: strictLost.map((r) => ({ q: r.text.replace(/\s+/g, ' ').slice(0, 60), maxRel: r.maxRel, contentTokens: r.contentTokens, matchNow: r.top?.match ?? null })),
     shortTriggered: shortTrig.map((r) => ({ q: r.text.replace(/\s+/g, ' ').slice(0, 60), maxRel: r.maxRel, nWeak: r.nWeak, top: r.top?.title ?? null })),
   },
   negative: {
     n: negResults.length,
     looseRate: negLoose.length / negResults.length,
     strictRate: negStrict.length / negResults.length,
+    strictRateLegacyRel: negStrictLegacy.length / negResults.length,
     looseHits: negLoose.map((r) => ({ q: r.query, maxRel: r.maxRel, top: r.top?.title ?? null })),
   },
   truncation: {
@@ -759,18 +828,20 @@ writeFileSync(jsonPath, JSON.stringify({
     realLooseRate: truncLoose.length / truncReal.length,
     realStrictRate: truncStrict.length / truncReal.length,
     negLooseRate: truncNeg.filter((r) => r.nWeak > 0).length / truncNeg.length,
-    negStrictRate: truncNeg.filter((r) => r.maxRel >= STRONG_THRESHOLD).length / truncNeg.length,
+    negStrictRate: truncNeg.filter(isStrict).length / truncNeg.length,
+    negStrictLegacyRate: truncNeg.filter(isStrictRel).length / truncNeg.length,
   },
   minQueryLength: [1, 4, 8, 12, 20].map((minChars) => {
     const rows = realResults.filter((r) => r.chars >= minChars)
     return {
       minChars, turns: rows.length,
-      loose: rows.filter((r) => r.nWeak > 0).length,
-      strict: rows.filter((r) => r.maxRel >= STRONG_THRESHOLD).length,
+      loose: rows.filter(isLoose).length,
+      strict: rows.filter(isStrict).length,
+      strictLegacy: rows.filter(isStrictRel).length,
     }
   }),
   subagentPrompts: subRate,
   distinctQueries: distinctQ,
   readOnly: { before: guardBefore.sha256, after: guardAfter.sha256, unchanged },
-}, null, 1))
-console.log(`\n[证据] ${txtPath}\n[证据] ${jsonPath}`)
+}, null, 1)))
+console.log(sanitize(`\n[证据] ${txtPath}\n[证据] ${jsonPath}`))

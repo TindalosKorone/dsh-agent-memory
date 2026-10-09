@@ -318,10 +318,13 @@ test('I3 工具层：行内 graph/via 与结构化行一致，final=rel+graph �
     assert.equal(f[5], row.via, 'via 必须在第 6 列')
     assert.equal(idOfLine(line), row.id)
     assert.ok(row.graph >= 0 && row.graph <= r.graphBonusCap, `每行 graph 必须 <= graphBonusCap：${row.graph}`)
-    // match 仍可由打印的 rel 复算（图奖励不参与 match）
+    // match 仍可由打印的 rel 复算（图奖励不参与 match）；本次新增内容量闸门后，
+    // 复算式是 match = qTok=0 ? none : (qTok<contentTokenMin ? strong封顶weak : 阈值比较)，
+    // 两个闸门输入都在返回体（contentTokens/contentTokenMin）与表头里，恒可复算。
     const rel = Number(f.at(-4))
-    const expect = rel >= r.strongThreshold ? 'strong' : rel >= r.weakThreshold ? 'weak' : 'none'
-    assert.equal(row.match, expect, 'match 必须能由打印的 rel + 表头阈值复算')
+    const base = rel >= r.strongThreshold ? 'strong' : rel >= r.weakThreshold ? 'weak' : 'none'
+    const expect = (base === 'strong' && r.contentTokens !== 0 && r.contentTokens < r.contentTokenMin) ? 'weak' : (r.contentTokens === 0 ? 'none' : base)
+    assert.equal(row.match, expect, 'match 必须能由打印的 rel + 表头阈值 + 表头闸门输入复算')
     // via 的语义：有词法证据 direct；否则必须标出 tag:<标签>
     if (row.rel > 0) assert.equal(row.via, 'direct')
     else {

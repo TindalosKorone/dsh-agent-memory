@@ -8,15 +8,27 @@ import assert from 'node:assert/strict'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import {
-  BM25_B, BM25_K1, DEFAULT_DIVERSITY_BETA, FIELD_WEIGHTS, SCALE_A, SCALE_B, STRONG_THRESHOLD, WEAK_THRESHOLD,
+  BM25_B, BM25_K1, CONTENT_TOKEN_MIN, DEFAULT_DIVERSITY_BETA, FIELD_WEIGHTS, SCALE_A, SCALE_B, STRONG_THRESHOLD, WEAK_THRESHOLD,
   absoluteDisp, bm25Relevance, clamp01, corpusStats, diversify, fieldSat, idf, lexicalScore, logCompress,
-  matchLevel, resolveScoreOptions, tagCoverage, tagWeight,
+  matchLevel, matchLevelGated, queryContentTokens, resolveScoreOptions, tagCoverage, tagWeight,
 } from '../lib/pure.js'
 import { freshHome, memFile, tools } from './helpers.mjs'
 
 const SPLIT = ' | '
 const scoreOfLine = (line) => Number(line.split(SPLIT).at(-1))
 const fieldOfLine = (line, k) => line.split(SPLIT).at(k)
+
+/**
+ * 用**打印出来的量**复算 match（I1.3 铁律）：rel + 两个阈值 + 内容量闸门输入。
+ * 规则与表头逐字一致：
+ *   match = qTok=0 ? none : (qTok < contentTokenMin ? strong 封顶 weak : matchLevel(rel, weak, strong))
+ * 这个函数故意**不**import matchLevelGated —— 复算必须是「读者看着输出就能做」的独立算式。
+ */
+function expectMatch(reply, rel) {
+  if (reply.contentTokens === 0) return 'none'
+  const base = matchLevel(rel, reply.weakThreshold, reply.strongThreshold)
+  return base === 'strong' && reply.contentTokens < reply.contentTokenMin ? 'weak' : base
+}
 
 // ── 修 B：BM25 ───────────────────────────────────────────────────────────────
 
@@ -252,8 +264,8 @@ test('工具层：Top1 不再恒为 1.0000（绝对映射），且 rel/score 同
   assert.ok(r.rows[0].score < 0.5, `Top1 不得是满分：${r.rows[0].score}`)
   assert.ok(r.rows[0].score < 1)
   // I1.3 自证修正：rel 是判定所依据的 BM25 原始分，score 是映射到 0..1 的展示分（两种标度，
-  // 表头已声明）。可验算的是「用打印的 rel 复现 match」，而不是两列相等。
-  assert.equal(r.rows[0].match, matchLevel(r.rows[0].rel, r.weakThreshold, r.strongThreshold),
+  // 表头已声明）。可验算的是「用打印的 rel + 阈值 + 内容量闸门输入复现 match」，而不是两列相等。
+  assert.equal(r.rows[0].match, expectMatch(r, r.rows[0].rel),
     '用打印的 rel 与表头阈值必须能复现 match')
   assert.ok(r.rows[0].score >= 0 && r.rows[0].score <= 1, `score 必须落在 0..1：${r.rows[0].score}`)
   assert.equal(r.scaleA, SCALE_A)
@@ -301,8 +313,8 @@ test('工具层：候选 > 5 才启用多样性；cov 作为诊断列不门控�
   for (const row of r.rows) {
     assert.ok(row.cov >= 0 && row.cov <= 1, `cov 必须落在 0..1：${row.cov}`)
     // I1.3：rel 与 score 是两种标度（rel=BM25 原始分，score=disp(final)），不再有 score<=rel
-    // 的跨标度关系；改为断言「match 可由打印的 rel 复现」。
-    assert.equal(row.match, matchLevel(row.rel, r.weakThreshold, r.strongThreshold),
+    // 的跨标度关系；改为断言「match 可由打印的 rel + 阈值 + 内容量闸门输入复现」。
+    assert.equal(row.match, expectMatch(r, row.rel),
       '用打印的 rel 与表头阈值必须能复现 match')
     assert.ok(row.score >= 0 && row.score <= 1, `score 必须落在 0..1：${row.score}`)
   }
@@ -353,9 +365,9 @@ test('I1.3 自证：每一行都可用打印的 rel 与表头阈值复现 match�
     const r = await recall.execute({ query, limit: 3 })
     assert.equal(r.ok, true)
     for (const row of r.rows) {
-      // 判据：打印的 rel（= BM25 原始分）与打印的阈值 must 复现打印的 match。
-      assert.equal(row.match, matchLevel(row.rel, r.weakThreshold, r.strongThreshold),
-        `query=${query} 行 ${row.id}：rel=${row.rel} 阈值=${r.weakThreshold}/${r.strongThreshold} 却判 ${row.match}`)
+      // 判据：打印的 rel（= BM25 原始分）、打印的阈值与打印的闸门输入 must 复现打印的 match。
+      assert.equal(row.match, expectMatch(r, row.rel),
+        `query=${query} 行 ${row.id}：rel=${row.rel} 阈值=${r.weakThreshold}/${r.strongThreshold} qTok=${r.contentTokens}/${r.contentTokenMin} 却判 ${row.match}`)
       // rel 是绝对标度、不随批次归一化 ⇒ 无关查询不得出现满分。
       assert.ok(Number.isFinite(row.rel) && row.rel >= 0, `rel 必须是非负有限数：${row.rel}`)
       // score 是映射后的展示分，必须落在 0..1。
@@ -528,4 +540,145 @@ test('边界红证（判红点：SCALE_A 改回 0.0187 即变红）：rel 落在
     `夹具 rel 必须严格落在 (0.0187, 0.0199)（= SCALE_A 的新旧值）：${row.rel}`)
   assert.equal(row.score, 0,
     `rel 落在新噪声地板之下的记录展示分必须是 0（旧 SCALE_A 会给出一个小正数）：${row.score}`)
+})
+
+// ── 内容量闸门（本次新增；病灶与标定见 src/pure.ts 的 CONTENT_TOKEN_MIN 注释）──────────
+//
+// 病：`rel` 的分母是「查询自身的理论 BM25 上界」，**单内容词元**的查询几乎能独自顶到那个上界
+// ⇒ 比值虚高。真实 204 条库实测：`ok`/`做`/`b` 三条完全无关的记忆都判 strong（rel 0.187/0.183/0.171，
+// 阈值 0.1507）。修法**不动 rel、不动四个已标定常数**，只给判定加一层内容量闸门（封顶）。
+//
+// 这里用**合成语料**钉住机制（真实 4 例 + 虚拟屏两侧由 redproof/i9-short-query-gate.mjs 在真库上固化成用例）：
+// 200 条语料里只有 rec0 的标题与正文含 `zzgate` ⇒ 单内容词元查询实测 rel≈0.2176（>= strong 阈值），
+// 修前必判 strong、修后必须判 weak；同一条记录用两个内容词元查询（`zzgate note`，rel≈0.1740）仍判 strong。
+
+test('内容量闸门（纯函数）：queryContentTokens 口径 + matchLevelGated 三层规则 + 配置回落', () => {
+  // 语料：rec0 标题含 zzgate，rec1 正文含 shared，其余是填充
+  const docs = [
+    { title: 'zzgate note', body: 'pad0 pad1', tags: ['topic'] },
+    { title: 'filler one', body: 'shared pad0', tags: ['topic'] },
+    { title: 'filler two', body: 'pad0 pad1', tags: ['topic'] },
+    { title: 'filler three', body: 'pad0 pad1', tags: ['topic'] },
+  ]
+  const stats = corpusStats(docs)
+  // qTok = 去重查询词元里「在库内任一分词字段出现过」的个数（库内一次都没出现过的不计）
+  assert.equal(queryContentTokens('zzgate', stats), 1)
+  assert.equal(queryContentTokens('zzgate shared', stats), 2)
+  assert.equal(queryContentTokens('zzgate zzgate', stats), 1, '去重后仍只有 1 个内容词元')
+  assert.equal(queryContentTokens('zzq-nonexistent', stats), 0, '库内没出现过的词元不算内容量')
+  assert.equal(queryContentTokens('zzq-nonexistent2 也不存在', stats), 0)
+  assert.equal(queryContentTokens('', stats), 0)
+  assert.equal(queryContentTokens('   ', stats), 0)
+  assert.equal(queryContentTokens('pad0', stats), 1)
+
+  // 三层：无内容量⇒none；内容量不足⇒strong 封顶 weak；否则原样
+  assert.equal(CONTENT_TOKEN_MIN, 2, '闸门默认阈值 2（标定见 src/pure.ts）')
+  assert.equal(matchLevelGated(0.9, WEAK_THRESHOLD, STRONG_THRESHOLD, 0), 'none')
+  assert.equal(matchLevelGated(0.9, WEAK_THRESHOLD, STRONG_THRESHOLD, 1), 'weak')
+  assert.equal(matchLevelGated(0.9, WEAK_THRESHOLD, STRONG_THRESHOLD, 2), 'strong')
+  assert.equal(matchLevelGated(0.9, WEAK_THRESHOLD, STRONG_THRESHOLD, 99), 'strong')
+  // 只封顶 strong：weak / none 两档逐字不变（短查询照样返回、照样能判 weak）
+  assert.equal(matchLevelGated(STRONG_THRESHOLD, WEAK_THRESHOLD, STRONG_THRESHOLD, 5), 'strong')
+  assert.equal(matchLevelGated(STRONG_THRESHOLD, WEAK_THRESHOLD, STRONG_THRESHOLD, 1), 'weak')
+  assert.equal(matchLevelGated(WEAK_THRESHOLD, WEAK_THRESHOLD, STRONG_THRESHOLD, 1), 'weak')
+  assert.equal(matchLevelGated(WEAK_THRESHOLD - 1e-9, WEAK_THRESHOLD, STRONG_THRESHOLD, 1), 'none')
+  assert.equal(matchLevelGated(0, WEAK_THRESHOLD, STRONG_THRESHOLD, 1), 'none')
+  // qTok 非有限：保守（当 0）⇒ 不给 strong
+  assert.equal(matchLevelGated(0.9, WEAK_THRESHOLD, STRONG_THRESHOLD, Number.NaN), 'none')
+  // 阈值非法一律回落默认（绝不因为坏配置静默关掉闸门）
+  assert.equal(matchLevelGated(0.9, WEAK_THRESHOLD, STRONG_THRESHOLD, 1, 0), 'weak')
+  assert.equal(matchLevelGated(0.9, WEAK_THRESHOLD, STRONG_THRESHOLD, 1, -3), 'weak')
+  assert.equal(matchLevelGated(0.9, WEAK_THRESHOLD, STRONG_THRESHOLD, 1, Number.NaN), 'weak')
+  // 与 matchLevel 的关系：base 不是 strong 时两者恒等
+  for (const raw of [0, 0.01, WEAK_THRESHOLD, 0.1, STRONG_THRESHOLD - 1e-9]) {
+    assert.equal(matchLevelGated(raw, WEAK_THRESHOLD, STRONG_THRESHOLD, 1), matchLevel(raw, WEAK_THRESHOLD, STRONG_THRESHOLD))
+  }
+
+  // resolveScoreOptions：默认 2、显式 1 可关闸门、非法回落
+  assert.equal(resolveScoreOptions().contentTokenMin, CONTENT_TOKEN_MIN)
+  assert.equal(resolveScoreOptions({ contentTokenMin: 1 }).contentTokenMin, 1, '阈值 1 = 关闸门（红证用）')
+  assert.equal(resolveScoreOptions({ contentTokenMin: 3.9 }).contentTokenMin, 3, '取整')
+  assert.equal(resolveScoreOptions({ contentTokenMin: 0 }).contentTokenMin, CONTENT_TOKEN_MIN)
+  assert.equal(resolveScoreOptions({ contentTokenMin: -3 }).contentTokenMin, CONTENT_TOKEN_MIN)
+  assert.equal(resolveScoreOptions({ contentTokenMin: Number.NaN }).contentTokenMin, CONTENT_TOKEN_MIN)
+  // 加一个字段不得动四个已标定常数
+  assert.equal(resolveScoreOptions().scaleA, SCALE_A)
+  assert.equal(resolveScoreOptions().scaleB, SCALE_B)
+  assert.equal(resolveScoreOptions().weak, WEAK_THRESHOLD)
+  assert.equal(resolveScoreOptions().strong, STRONG_THRESHOLD)
+})
+
+/** 内容量闸门夹具：200 条，仅目标记录标题+正文含 zzgate（单内容词元、真命中、rel >= strong）。 */
+function seedContentGateCorpus(home) {
+  const lines = []
+  for (let i = 0; i < 200; i += 1) {
+    const isTarget = i === 0
+    lines.push(JSON.stringify({
+      id: isTarget ? 'mem_gate_target' : `mem_gate_f${String(i).padStart(3, '0')}`,
+      ts: 1_700_000_000_000 + i,
+      kind: 'fact',
+      title: isTarget ? 'zzgate note' : `zzcommon filler${i}`,
+      body: isTarget ? 'zzgate pad0 pad1' : `zzcommon body pad0 pad1 filler${i}`,
+      tags: ['zzcommon'],
+      source: 'test:content-gate',
+      hits: 0,
+    }))
+  }
+  mkdirSync(dirname(memFile(home)), { recursive: true })
+  writeFileSync(memFile(home), lines.join('\n') + '\n', 'utf8')
+}
+
+test('内容量闸门（工具层）：单内容词元查询 rel>=strong 也只判 weak，行照样返回；关闸门即回到 strong', async () => {
+  const home = freshHome('scoring-content-gate')
+  seedContentGateCorpus(home)
+  const r = await tools().get('memory_recall').execute({ query: 'zzgate', limit: 3 })
+  const row = r.rows.find((x) => x.id === 'mem_gate_target')
+  assert.ok(row !== undefined, '目标记录必须在结果里（低内容量不整批否决）')
+  assert.equal(r.contentTokens, 1, `夹具前提：单内容词元（实测 qTok=${r.contentTokens}）`)
+  assert.equal(r.contentTokenMin, 2)
+  // 夹具自检：rel 必须真的 >= strong 阈值，否则本用例没有区分力（封顶根本没触发）
+  assert.ok(row.rel >= r.strongThreshold,
+    `夹具自检：目标行 rel 必须 >= strong 阈值，否则闸门没被触发：rel=${row.rel} 阈值=${r.strongThreshold}`)
+  // 核心断言：单内容词元 ⇒ 最高只到 weak
+  assert.equal(row.match, 'weak', `单内容词元查询不得判 strong（rel=${row.rel}）`)
+  assert.equal(row.match, expectMatch(r, row.rel), '打印量（rel+阈值+qTok）必须复现 match')
+  assert.ok(r.rows.length > 0, '低内容量不得返回空（不整批否决）')
+
+  // 表头必须逐字回显闸门的两个输入与规则（否则 match 复算不出来）
+  const header = r.text.split('\n')[0]
+  assert.ok(header.includes('内容量qTok=1<2⇒strong封顶weak'),
+    `表头必须回显内容量闸门的输入与规则：${header}`)
+
+  // 判红点：把阈值设成 1（等价关掉闸门）⇒ 同一行必须回到 strong
+  const off = await tools({ score: { contentTokenMin: 1 } }).get('memory_recall').execute({ query: 'zzgate', limit: 3 })
+  assert.equal(off.contentTokenMin, 1)
+  const offRow = off.rows.find((x) => x.id === 'mem_gate_target')
+  assert.equal(offRow.rel, row.rel, '关闸门绝不该改 rel（只改判定）')
+  assert.equal(offRow.match, 'strong', '关掉闸门后必须回到 strong —— 这正是本用例的判红点')
+  assert.ok(off.text.split('\n')[0].includes('内容量qTok=1<1⇒strong封顶weak'),
+    '闸门回显必须跟着配置走（阈值 1 时 qTok<1 恒不成立）')
+
+  // 话题侧防误伤：两个内容词元的查询（阈值 2）不被封顶
+  const two = await tools().get('memory_recall').execute({ query: 'zzgate note', limit: 3 })
+  const twoRow = two.rows.find((x) => x.id === 'mem_gate_target')
+  assert.equal(two.contentTokens, 2, `夹具前提：两个内容词元（实测 ${two.contentTokens}）`)
+  assert.ok(twoRow.rel >= two.strongThreshold, `夹具自检：两词元查询 rel 必须 >= strong：${twoRow.rel}`)
+  assert.equal(twoRow.match, 'strong', '内容量达标（qTok>=阈值）的查询不得被封顶')
+  assert.equal(twoRow.match, expectMatch(two, twoRow.rel), '打印量必须复现 match')
+})
+
+test('内容量闸门：标定一致性（CONTENT_TOKEN_MIN=2 + 标定注释可核对）', () => {
+  assert.equal(CONTENT_TOKEN_MIN, 2)
+  const src = readFileSync(new URL('../src/pure.ts', import.meta.url), 'utf8')
+  // 机器可读的落地行（格式别改）：与常数双向钉住
+  const m = /CONTENT_TOKEN_MIN = (\d+)/.exec(src)
+  assert.ok(m !== null, 'src/pure.ts 必须保留 CONTENT_TOKEN_MIN = <数字> 这一行')
+  assert.equal(Number(m[1]), CONTENT_TOKEN_MIN)
+  // 标定出处与反例必须留在注释里（防「只改数字、不留证据」）
+  for (const frag of ['ok', '做', 'b', '虚拟屏', '快照', '好的', 'qTok', '204 条']) {
+    assert.ok(src.includes(frag), `内容量闸门的标定注释必须保留可核对片段：${frag}`)
+  }
+  assert.ok(src.includes('绝不整批否决'), '必须写明低内容量只封顶、不否决')
+  assert.ok(src.includes('idf 阈值会**先误伤真话题再压噪声**') || src.includes('先误伤真话题再压噪声'),
+    '必须写明为什么不用 idf 当闸门（否则后人会改回去）')
 })

@@ -53,10 +53,13 @@ export declare const RECALL_LIMIT_MAX = 50;
  * 回显的预算由 `HEADER_MAX_CHARS` 减去固定部分**现算**（不是常数），因此
  * 「表头总长 <= HEADER_MAX_CHARS」是由构造保证的，与查询长度无关。
  *
- * 取值依据（本机实测）：固定部分在「默认标度 + 3 条库」下 382 字符；在
- * 「常数回显最宽（见 HEADER_CONST_MAX_CHARS）+ 三位数库规模统计」下约 415 字符；
- * 448 = 415 + `L1:query=` 前缀 9 + 分隔空格 1 + 回显预算 23，留了一点余量。
- * 覆盖最坏情况的用例见 test/header.test.mjs 的「长查询/边界字符」段。
+ * 取值依据（本机实测，2026-10-09 内容量闸门落地后重测）：固定部分在「默认标度 + 3 条库」下
+ * **404 字符**（I7c 时是 384；闸门回显 `内容量qTok=N<2⇒strong封顶weak` 换来 +20）；
+ * 固定部分的最坏观测是「`Number.MAX_VALUE` 极值常数 + 两位数库规模」下的 **414**。
+ * 于是表头 = 9（`L1:query=`）+ 查询回显 + 1（分隔）+ 固定部分 <= 9 + 24 + 1 + 414 = 448 ——
+ * 由 `echoBudget` 的 `-1` 与有界回显共同保证。实测最坏 447（负数极值常数 + 240 字符边界查询）。
+ * 余量只有 1~4 个字符，**往表头加文本前必须先跑 test/header.test.mjs 的最坏情况两条用例**。
+ * 覆盖最坏情况的用例见 test/header.test.mjs 的「长查询/边界字符」段与「固定部分」段。
  */
 export declare const HEADER_MAX_CHARS = 448;
 /**
@@ -129,7 +132,7 @@ export interface L1ScoreView {
     rel: number;
     /** VCP 式标签覆盖率（I1.2 仅诊断，不门控）。 */
     cov: number;
-    /** 绝对判定：raw 与 WEAK_THRESHOLD / STRONG_THRESHOLD 比较。 */
+    /** 绝对判定：由 raw、两个绝对阈值**与内容量闸门**共同决定（规则见表头，恒可复算）。 */
     match: MatchLevel;
     /** I3 图奖励（已应用硬上限 GRAPH_BONUS_CAP；无图证据恰好为 0）。 */
     graph: number;
@@ -168,12 +171,12 @@ export interface L1Row {
  *    如果把新列插在 match 与 score 之间或追加在尾部，①②必坏其一（要么行尾不再是分数，
  *    要么既有列的整体下标位移，既有读者会静默读错列）。
  *  - 表头（单一表头行）必须写明列序与绝对标度常数；I5 减肥后它只保留**可复算所必需**的信息
- *    （列序 / rel 语义与 match 依据 / 两个阈值 / disp(final) 公式与两个标度常数 / limit 是硬显示
- *    上限 / I2 结论 novelty·阈值·expanded·kBase->kUsed / 低置信 cov_max·激活阈值 / I3 结论
+ *    （列序 / rel 语义与 match 依据 / 两个阈值 / **内容量闸门的两个输入** / disp(final) 公式与两个标度常数
+ *    / limit 是硬显示上限 / I2 结论 novelty·阈值·expanded·kBase->kUsed / 低置信 cov_max·激活阈值 / I3 结论
  *    final=rel+graph·graph 硬上限·图规模·枢纽被压数·reachable），详见下面构造处的注释；
  *  - final = (rel + graph) × 多样性因子：多样性因子只在候选数 > 5 时施加（否则恒为 1），
- *    因此**多样性启用时 score 无法仅由打印的 rel/graph 精确复算**；rel = BM25 原始相关度
- *    （match 只依据它，恒可由 rel + 表头阈值复算）。
+ *    因此**多样性启用时 score 无法仅由打印的 rel/graph 精确复算**；rel = BM25 原始相关度，
+ *    match 由 rel + 两个阈值 + **内容量闸门**共同判定（三者都在表头/结构化字段上 ⇒ 恒可复算）。
  */
 export declare function formatL1(rec: MemoryRecord, view: L1ScoreView): string;
 /**

@@ -1,0 +1,64 @@
+✔ BM25：idf 口径正确（稀有 > 常见，df=0 取上界，N=0 为 0） (14.648854ms)
+✔ BM25：长度惩罚（b=0.75 压低长文档；b=0 关掉长度归一后同 tf 完全相等） (3.21901ms)
+✔ BM25：字段权重保留（tags > title > body），长文档靠噪声拿不到高分 (4.000312ms)
+✔ cov：命中标签权重占总权重的比例；外围非命中标签只能稀释 (2.557031ms)
+✔ 绝对映射：disp=clip((raw−A)/(B−A))，常数固定、不看批次 (1.368386ms)
+✔ match：由 raw 与两个绝对阈值比较得出（none/weak/strong），阈值可配置 (1.862812ms)
+✔ 多样性并入分数：final = rel × (1 − β·maxSim)，序列本身单调不增 (11.317813ms)
+✔ 候选 <= minCandidates 时跳过多样性（final 恒等于 rel） (1.925833ms)
+✔ 工具层：Top1 不再恒为 1.0000（绝对映射），且 rel/score 同标度可比 (122.82427ms)
+✔ 工具层：候选 > 5 才启用多样性；cov 作为诊断列不门控（低覆盖不返回空） (282.857083ms)
+✖ I1.3 自证：每一行都可用打印的 rel 与表头阈值复现 match（两种标度不混用） (141.535156ms)
+✔ 边界红证（判红点：WEAK_THRESHOLD 改回 0.06 即变红）：噪声上界 0.06 -> 0.0363 后，rel 落在该区间的真相关记录必须由 none 变 weak (44.6775ms)
+✔ 标定一致性：4 个默认常数必须与 src/pure.ts 注释里「落地值：」那一行的数字逐字一致 (5.321979ms)
+✔ 边界红证（判红点：WEAK_THRESHOLD 改回 0.0363 即变红）：rel 落在 (0.0363, 0.0382) 的记录必须由 weak 落回 none (52.52526ms)
+✔ 边界红证（判红点：STRONG_THRESHOLD 改回 0.1476 即变红）：rel 落在 (0.1476, 0.1507) 的记录必须由 strong 降为 weak (37.461666ms)
+✔ 边界红证（判红点：SCALE_B 改回 0.3420 即变红）：rel 落在 (0.3420, 0.3666) 的记录展示分不再顶到 1.0000 (33.071354ms)
+✔ 边界红证（判红点：SCALE_A 改回 0.0187 即变红）：rel 落在 (0.0187, 0.0199) 的记录展示分被新噪声地板压到 0 (49.184635ms)
+✔ 内容量闸门（纯函数）：queryContentTokens 口径 + matchLevelGated 三层规则 + 配置回落 (2.176615ms)
+✖ 内容量闸门（工具层）：单内容词元查询 rel>=strong 也只判 weak，行照样返回；关闸门即回到 strong (52.664063ms)
+✔ 内容量闸门：标定一致性（CONTENT_TOKEN_MIN=2 + 标定注释可核对） (4.265521ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 18
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 944.79651
+
+✖ failing tests:
+
+test at test/scoring.test.mjs:332:1
+✖ I1.3 自证：每一行都可用打印的 rel 与表头阈值复现 match（两种标度不混用） (141.535156ms)
+  AssertionError [ERR_ASSERTION]: query=zeta 行 mem_mv0phahj_8eec2f069c：rel=0.35063731345166654 阈值=0.0382/0.1507 qTok=1/2 却判 strong
+  
+  'strong' !== 'weak'
+  
+      at TestContext.<anonymous> (file://<repo>/test/scoring.test.mjs:369:14)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'strong',
+    expected: 'weak',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/scoring.test.mjs:631:1
+✖ 内容量闸门（工具层）：单内容词元查询 rel>=strong 也只判 weak，行照样返回；关闸门即回到 strong (52.664063ms)
+  AssertionError [ERR_ASSERTION]: 单内容词元查询不得判 strong（rel=0.21763343449529332）
+  
+  'strong' !== 'weak'
+  
+      at TestContext.<anonymous> (file://<repo>/test/scoring.test.mjs:643:10)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'strong',
+    expected: 'weak',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

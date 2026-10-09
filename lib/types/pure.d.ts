@@ -130,6 +130,38 @@ export declare const SCORE_FIELDS: readonly ScoreField[];
 export declare const FIELD_WEIGHTS: Readonly<Record<ScoreField, number>>;
 /** 绝对判定三档。 */
 export type MatchLevel = 'none' | 'weak' | 'strong';
+/**
+ * ── 内容量闸门（本次新增；只改判定 match 的诚实性，绝不动 rel 与四个已标定常数）──────
+ *
+ * 病灶（真实 204 条库实测，redproof/i9-short-query-gate.*）：`rel` 是
+ * `BM25 原始分 ÷ 查询自身的理论上界`，而**单内容词元**的查询几乎能独自顶到那个上界
+ * ⇒ 比值虚高。实测 `ok`(rel=0.1867)、`做`(0.1829)、`b`(0.1707) 三条**完全无关**的记忆都判
+ * `strong`（阈值 0.1507）；而真话题 `虚拟屏`（3 个字符但 5 个内容词元）rel=0.5549。
+ *
+ * 判据：**内容词元数 qTok** = 去重后的查询词元里、**在本库任一分词字段（tags/title/body）
+ * 至少出现过一次**（df>0）的个数。取这个量而不是字符数：
+ *   - `虚拟屏` 只有 3 个字符却切出 5 个内容词元（虚/虚拟/拟/拟屏/屏）⇒ 不被封顶；
+ *   - `ok`/`做`/`b` 各只有 1 个 ⇒ 被封顶。字符数闸门会把前者一起压掉（红证 i9-red2）。
+ *
+ * 为什么**不**用 idf 质量/最高 idf 当闸门（实测过的反例，别改回去）：
+ *   - 本库上噪声 `好的` 的 idf 质量 qIdf=6.49 **高于**真话题 `快照`=3.90、`注入`=2.93、`判据`=2.57；
+ *   - `虚拟屏` 的逐词元 idf 约 2.0~2.35，与 `好的` 的均值 2.16 在统计上不可区分。
+ *   ⇒ idf 阈值会**先误伤真话题再压噪声**，方向是反的。字符数/idf 都试过，只有「有几个内容词元」能同时满足两侧。
+ *
+ * 阈值标定（2026-10-09，真实 204 条库；证据 redproof/i9-*.txt）：
+ *   - 噪声侧：`ok`/`做`/`b` 的 qTok 全是 1；
+ *   - 话题侧：`虚拟屏` qTok=5、`虚拟屏不能用吗？` qTok=11（该库全部真话题查询 qTok>=3）；
+ *   - 取**能判红的最小值 2**：任何更大的阈值都会开始封顶 qTok=3 的真短话题
+ *     （`快照`/`门禁`/`注入` 实测 qTok 均为 3，rel≈0.5 判 strong，不该被封顶）。
+ *   代价（如实声明）：单内容词元的查询（如英文单标签 `adb`/`ci`）从此最多 weak；
+ *   本库 795 个正样本里 83 个（10.4%）落在这一档 —— 方向是**保守**的（宁可不吹 strong，也不误伤真话题）。
+ *
+ * 语义（表头逐字回显这条规则，读者可用打印量复算 match）：
+ *   match = 无内容量(qTok=0) ? none : (qTok < CONTENT_TOKEN_MIN ? strong 封顶 weak : matchLevel(rel, …))
+ *   注意 qTok=0 时 rel 必然 = 0（num=0）⇒ `none` 由 matchLevel 已经给出，闸门只负责 strong→weak 的封顶。
+ *   因此**绝不整批否决**：低内容量查询照样返回行，只是不再宣称 strong。
+ */
+export declare const CONTENT_TOKEN_MIN = 2;
 /** 打分口径的可覆盖项（配置来自工具 config，见 resolveScoreOptions）。 */
 export interface ScoreOptions {
     scaleA?: number;
@@ -137,6 +169,8 @@ export interface ScoreOptions {
     weakThreshold?: number;
     strongThreshold?: number;
     diversityBeta?: number;
+    /** 内容量闸门阈值（内容词元数下限），默认 CONTENT_TOKEN_MIN=2；设 1 等价于关掉闸门（红证用）。 */
+    contentTokenMin?: number;
 }
 /** 已解析（always 有值）的打分口径。 */
 export interface ResolvedScoreOptions {
@@ -145,6 +179,7 @@ export interface ResolvedScoreOptions {
     weak: number;
     strong: number;
     beta: number;
+    contentTokenMin: number;
 }
 /** 夹到 0..1；非有限值一律夹成 0。 */
 export declare function clamp01(value: number): number;
@@ -163,6 +198,33 @@ export declare function resolveScoreOptions(opts?: ScoreOptions): ResolvedScoreO
 export declare function absoluteDisp(raw: number, scaleA?: number, scaleB?: number): number;
 /** 绝对判定：raw 与两个绝对阈值比较（不涉及任何批次统计）。 */
 export declare function matchLevel(raw: number, weak?: number, strong?: number): MatchLevel;
+/**
+ * 查询的**内容词元数** qTok（内容量闸门的唯一输入，见 CONTENT_TOKEN_MIN 的注释）。
+ *
+ * 口径：查询去重分词后，落在**本库任一分词字段**（tags/title/body）里至少出现过一次的
+ * 词元个数（即「在库内有据可查」的词元）。库内一次都没出现过的词元（df 全为 0）不计：
+ * 它们既召回不到东西、也提示不了话题（`zzq` 这类拼凑串就是这种）。
+ *
+ * 只看现算出来的 CorpusStats，**不引入任何批次相关量、不读候选得分** —— 与 rel 同一条隔离纪律。
+ */
+export declare function queryContentTokens(query: unknown, stats: CorpusStats): number;
+/**
+ * 带内容量闸门的绝对判定（**唯一**被 recall 路径调用的判定函数）：
+ *
+ *   match = 无内容量(qTok=0) ? none : (qTok < contentTokenMin ? strong 封顶 weak : matchLevel(rel, …))
+ *
+ * 三层：
+ *  1. `qTok = 0` ⇒ 查询里没有一个词元在库内出现过 ⇒ 不可能有词法证据 ⇒ rel 必然为 0
+ *     ⇒ `matchLevel` 已经给出 `none`（这里显式短路，让规则与表头回显逐字对应，也防万一）；
+ *  2. `qTok < contentTokenMin` ⇒ 内容量不足：**只封顶 strong，不封顶 weak**（短查询照样返回行，
+ *     绝不整批否决；weak 仍表示「证据高于噪声上界」，那是一个诚实的断言）；
+ *  3. 否则原样 `matchLevel(rel, weak, strong)`（长查询、真话题完全不受影响）。
+ *
+ * 单调性：weak > strong 被交换的配置（resolveScoreOptions）下 `base='strong'` 仍是最高档，
+ * 封顶到 weak 依然单调；非有限 qTok 一律保守（NaN/-Infinity 当 0，只有缺省 +Infinity 表示「不封顶」），
+ * 阈值非法一律回落 CONTENT_TOKEN_MIN。
+ */
+export declare function matchLevelGated(raw: number, weak?: number, strong?: number, contentTokens?: number, contentTokenMin?: number): MatchLevel;
 /**
  * 频次 / 边权类量一律先做 log(1 + λW) 压缩，**禁止线性累加**（第三方审计点名）。
  * 说明：BM25 内部对 tf 的压缩由 (k1+1) 饱和完成（有界，非线性）；本函数用于

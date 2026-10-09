@@ -26,7 +26,7 @@ import {
   RecordTooLargeError, StoreChangedExternallyError,
   type MemoryConfig,
 } from './store.js'
-import { cmpId, decay, diversify, absoluteDisp, lexicalScore, matchLevel, rrf, corpusStats, tagCoverage, resolveScoreOptions, resolveTriageOptions, residualPyramid, resolveGraphOptions, tagGraphIndex, propagateTags, memoryGraphRewards, tokenize, type MatchLevel } from './pure.js'
+import { cmpId, decay, diversify, absoluteDisp, lexicalScore, matchLevelGated, rrf, corpusStats, tagCoverage, resolveScoreOptions, resolveTriageOptions, residualPyramid, resolveGraphOptions, tagGraphIndex, propagateTags, memoryGraphRewards, tokenize, queryContentTokens, type MatchLevel } from './pure.js'
 import {
   INJECTION_CONTEXT_NAME, INJECTION_CONTEXT_ORDER, INJECTION_HABIT_TEXT, INJECTION_SECTION_NAME,
   INJECTION_SECTION_ORDER, buildInjectionIndex, createInjectionCache, sanitizeForPrompt,
@@ -68,10 +68,13 @@ export const RECALL_LIMIT_MAX = 50
  * 回显的预算由 `HEADER_MAX_CHARS` 减去固定部分**现算**（不是常数），因此
  * 「表头总长 <= HEADER_MAX_CHARS」是由构造保证的，与查询长度无关。
  *
- * 取值依据（本机实测）：固定部分在「默认标度 + 3 条库」下 382 字符；在
- * 「常数回显最宽（见 HEADER_CONST_MAX_CHARS）+ 三位数库规模统计」下约 415 字符；
- * 448 = 415 + `L1:query=` 前缀 9 + 分隔空格 1 + 回显预算 23，留了一点余量。
- * 覆盖最坏情况的用例见 test/header.test.mjs 的「长查询/边界字符」段。
+ * 取值依据（本机实测，2026-10-09 内容量闸门落地后重测）：固定部分在「默认标度 + 3 条库」下
+ * **404 字符**（I7c 时是 384；闸门回显 `内容量qTok=N<2⇒strong封顶weak` 换来 +20）；
+ * 固定部分的最坏观测是「`Number.MAX_VALUE` 极值常数 + 两位数库规模」下的 **414**。
+ * 于是表头 = 9（`L1:query=`）+ 查询回显 + 1（分隔）+ 固定部分 <= 9 + 24 + 1 + 414 = 448 ——
+ * 由 `echoBudget` 的 `-1` 与有界回显共同保证。实测最坏 447（负数极值常数 + 240 字符边界查询）。
+ * 余量只有 1~4 个字符，**往表头加文本前必须先跑 test/header.test.mjs 的最坏情况两条用例**。
+ * 覆盖最坏情况的用例见 test/header.test.mjs 的「长查询/边界字符」段与「固定部分」段。
  */
 export const HEADER_MAX_CHARS = 448
 /**
@@ -148,7 +151,7 @@ export interface L1ScoreView {
   rel: number
   /** VCP 式标签覆盖率（I1.2 仅诊断，不门控）。 */
   cov: number
-  /** 绝对判定：raw 与 WEAK_THRESHOLD / STRONG_THRESHOLD 比较。 */
+  /** 绝对判定：由 raw、两个绝对阈值**与内容量闸门**共同决定（规则见表头，恒可复算）。 */
   match: MatchLevel
   /** I3 图奖励（已应用硬上限 GRAPH_BONUS_CAP；无图证据恰好为 0）。 */
   graph: number
@@ -189,12 +192,12 @@ export interface L1Row {
  *    如果把新列插在 match 与 score 之间或追加在尾部，①②必坏其一（要么行尾不再是分数，
  *    要么既有列的整体下标位移，既有读者会静默读错列）。
  *  - 表头（单一表头行）必须写明列序与绝对标度常数；I5 减肥后它只保留**可复算所必需**的信息
- *    （列序 / rel 语义与 match 依据 / 两个阈值 / disp(final) 公式与两个标度常数 / limit 是硬显示
- *    上限 / I2 结论 novelty·阈值·expanded·kBase->kUsed / 低置信 cov_max·激活阈值 / I3 结论
+ *    （列序 / rel 语义与 match 依据 / 两个阈值 / **内容量闸门的两个输入** / disp(final) 公式与两个标度常数
+ *    / limit 是硬显示上限 / I2 结论 novelty·阈值·expanded·kBase->kUsed / 低置信 cov_max·激活阈值 / I3 结论
  *    final=rel+graph·graph 硬上限·图规模·枢纽被压数·reachable），详见下面构造处的注释；
  *  - final = (rel + graph) × 多样性因子：多样性因子只在候选数 > 5 时施加（否则恒为 1），
- *    因此**多样性启用时 score 无法仅由打印的 rel/graph 精确复算**；rel = BM25 原始相关度
- *    （match 只依据它，恒可由 rel + 表头阈值复算）。
+ *    因此**多样性启用时 score 无法仅由打印的 rel/graph 精确复算**；rel = BM25 原始相关度，
+ *    match 由 rel + 两个阈值 + **内容量闸门**共同判定（三者都在表头/结构化字段上 ⇒ 恒可复算）。
  */
 export function formatL1(rec: MemoryRecord, view: L1ScoreView): string {
   const cells = recallCells(rec, view)
@@ -454,7 +457,7 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
     name: 'memory_recall',
     description: '按查询召回记忆索引（L1），**绝不返回 body**（要正文请拿 id 调 memory_expand）。每条一行：'
       + `${RECALL_COLUMNS.join(' | ')}。`
-      + 'rel=BM25 原始相关度（match 由 rel 与绝对阈值判定）；score=disp(final)，仅用于排序展示。'
+      + 'rel=BM25 原始相关度（match 由 rel、绝对阈值与内容量闸门判定）；score=disp(final)，仅用于排序展示。'
       + '**limit 是硬显示上限**（返回行数恒为 min(limit, 可用候选数)）。完整口径见 docs/recall-contract.md。',
     parameters: {
       query: { type: 'string', required: true, description: '查询串（中文/英文均可；空串/纯空白表示无词元能量、不分诊，只按新鲜度排）' },
@@ -478,6 +481,14 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
           scaleB: { type: 'number', required: true },
           weakThreshold: { type: 'number', required: true },
           strongThreshold: { type: 'number', required: true },
+          /**
+           * 内容量闸门（本次新增）：`contentTokens` = 查询里在库内出现过的去重词元数（qTok）；
+           * `contentTokenMin` = 封顶阈值（默认 2）。规则：
+           *   match = qTok=0 ? none : (qTok < contentTokenMin ? strong 封顶 weak : matchLevel(rel, weak, strong))
+           * 这两个数就是读者复算 match 所需的**闸门输入**（表头同步逐字回显）。
+           */
+          contentTokens: { type: 'integer', required: true },
+          contentTokenMin: { type: 'integer', required: true },
           diversityBeta: { type: 'number', required: true },
           diversityApplied: { type: 'boolean', required: true },
           /**
@@ -589,6 +600,12 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
       // 相关度主分：BM25（字段内部各自统计）+ 字段权重，落在 0..1 绝对标度。
       const relById = new Map<string, number>()
       for (const r of records) relById.set(r.id, lexicalScore(query, r, stats))
+
+      // ── 内容量闸门（本次新增；判据/阈值/反例见 pure.ts 的 CONTENT_TOKEN_MIN 注释）────────
+      // qTok = 查询里「在本库任一分词字段出现过」的去重词元数（现算，无批次相关量）。
+      // 它只影响 **match 的判定**：qTok < contentTokenMin 时 strong 封顶 weak；
+      // rel 的语义与四个已标定常数**一个字都不动**（rel 仍是 BM25 原始分、仍按它排序/判 weak/none）。
+      const contentTokens = queryContentTokens(query, stats)
 
       // 路 1：词法相关度（只保留正分）
       const lexical = records
@@ -713,8 +730,10 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
       for (const item of picked) {
         const rec = byId.get(item.id)
         if (rec === undefined) continue
-        // I1.3 自证修正：`rel` 直接打印**判定所用的同一个量**（BM25 原始分），
-        // 因为 `match` 就是 matchLevel(rel, weak, strong)，与图奖励**无关**。
+        // I1.3 自证修正：`rel` 直接打印**判定所用的同一个量**（BM25 原始分）。
+        // 本次新增内容量闸门后，`match` 的完整规则是
+        //   match = 无内容量(qTok=0) ? none : (qTok<contentTokenMin ? strong封顶weak : matchLevel(rel,…))
+        // —— qTok 与阈值都在表头与结构化字段里回显，所以**仍然恒可复算**（I1.3 铁律）。
         // 图奖励只进 final = rel + graph（再乘多样性惩罚），绝不改 rel 或 match。
         const rel = relById.get(item.id) ?? 0
         const graph = Number.isFinite(item.graph) && (item.graph ?? 0) > 0 ? (item.graph ?? 0) : 0
@@ -724,7 +743,7 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
           score: absoluteDisp(item.final, scoreCfg.scaleA, scoreCfg.scaleB),
           rel,
           cov: item.cov,
-          match: matchLevel(rel, scoreCfg.weak, scoreCfg.strong),
+          match: matchLevelGated(rel, scoreCfg.weak, scoreCfg.strong, contentTokens, scoreCfg.contentTokenMin),
           graph,
           via,
         }
@@ -763,7 +782,9 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
       // 必须保留（一个都不能少，理由见括号）：
       //   ① 列序（RECALL_COLUMNS 的列名与顺序，由它派生）——行按 ` | ` 切片读列，列序本身就是契约；
       //   ② rel=BM25 原始相关度、且是 match 的判定依据——否则 match 无法复算；
-      //   ③ match 两个阈值数字 + 否则 none + (恒可复算)——复算 none/weak/strong 的唯一依据；
+      //   ③ match 两个阈值数字 + 否则 none + (恒可复算)——复算 none/weak/strong 的依据；
+      //   ③b 内容量闸门（本次新增）：`内容量qTok=N<min⇒strong封顶weak` —— qTok 与阈值都是**闸门输入**，
+      //      少一个 match 就复算不出来（判据/阈值标定见 pure.ts 的 CONTENT_TOKEN_MIN 注释）；
       //   ④ score=disp(final) 的公式与两个标度常数——复算展示分的唯一依据；
       //   ⑤ limit 是硬显示上限——防止把「内部候选池预算」误读成显示上限；
       //   ⑥ I2 结论：novelty、novelty 阈值、expanded、kBase->kUsed——复算 expanded；
@@ -773,8 +794,10 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
       //      以及「多样性开时 score 无法仅由打印的 rel/graph 复算」——否则读者会以为
       //      score 恒等于 disp(rel+graph)（这正是旧表头漏掉多样性的那处不成立表述）。
       //
-      // 为腾出 ⑨ 与「match 恒可复算」的字符预算，本次同时压掉（都不是复算必需项）：
+      // 为腾出 ⑨、③b 与「match 恒可复算」的字符预算，本次（含内容量闸门那次）同时压掉（都不是复算必需项）：
       //   - limit 段的 `(min(limit,候选数))`（min 语义仍在工具描述与 structured `shown` 上）；
+      //   - 行首的 `候选N;`（词法融合候选数仍在结构化字段 matched 上，且它不参与任何复算）；
+      //   - I3 段的括号与两处分隔符（判据文字一字未改，见 header.test 的三条 substring 断言）；
       //   - 行首的 `记忆召回` 前缀与 `库N`（`L1:` 已足以自证；库容在结构化字段 total 上）；
       //   - 未分诊分支的 `(‖q‖²≈0)` 与 `阈值 X 不门控`（原因在结构化字段 noQueryEnergy 上，
       //     且该分支不门控 ⇒ 阈值数字本来就不参与复算）。
@@ -808,15 +831,20 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
       const constWeak = formatHeaderConstant(scoreCfg.weak)
       const constStrong = formatHeaderConstant(scoreCfg.strong)
       // 固定部分（与**查询串**完全无关）：长度由库规模统计与上面四个定宽常数决定。
-      const tail = ` 候选${fused.length};`
-        + `limit=${limit} 是硬显示上限;`
+      // 内容量闸门（本次新增）：`;内容量qTok=N<min⇒strong封顶weak`。
+      //   - qTok 与 min 都逐字回显 ⇒ 读者用「打印的 rel + 两个阈值 + 这两个数」仍能**恒可复算** match；
+      //   - 无内容量（qTok=0）时 rel 必为 0，matchLevel 已经给出 none，故闸门只写 strong→weak 这一档；
+      //   - 为了给这段腾字符，同一次改动压掉了 `候选N;`（min(limit,候选数) 语义在工具描述与结构化
+      //     字段 matched/shown 上）并把 I3 段的括号与两处分隔符收紧（判据语一字未改）。
+      const tail = `;limit=${limit} 是硬显示上限;`
         + `列序:${RECALL_COLUMNS.join('|')};`
         + 'rel=BM25原始相关度,match 依据;'
         + `score=disp(final)=clip((final-${constA})/(${constB}-${constA}));`
         + `match:rel>=${constWeak} weak、>=${constStrong} strong、否则 none(恒可复算);`
+        + `内容量qTok=${contentTokens}<${scoreCfg.contentTokenMin}⇒strong封顶weak;`
         + `${triageSeg};`
         + `${lowConfSeg};`
-        + `I3:final=rel+graph×多样性(候选>5时启用,开时不可由 rel/graph 复算)，graph硬上限<=${graphCfg.bonusCap}，图${graphSize.nodes}节点/${graphSize.edges}边，`
+        + `I3:final=rel+graph×多样性,候选>5时启用,开时不可由 rel/graph 复算,graph硬上限<=${graphCfg.bonusCap}，图${graphSize.nodes}节点/${graphSize.edges}边，`
         + `枢纽被压${hubSuppressedCount}，reachable=${reachable}`
       // query 回显的预算是**现算**的：HEADER_MAX_CHARS 减去固定部分与分隔符。于是
       // 「表头总长 <= HEADER_MAX_CHARS」由构造保证，与查询串多长（含换行/引号/反斜杠）无关。
@@ -843,6 +871,9 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
         scaleB: scoreCfg.scaleB,
         weakThreshold: scoreCfg.weak,
         strongThreshold: scoreCfg.strong,
+        // 内容量闸门的两个输入（复算 match 所必需；表头同步回显）。
+        contentTokens,
+        contentTokenMin: scoreCfg.contentTokenMin,
         diversityBeta: beta,
         diversityApplied: beta > 0,
         // I2 分诊字段（全部是本次调用的局部结论；rows 之外的返回体，schema 已同步声明）

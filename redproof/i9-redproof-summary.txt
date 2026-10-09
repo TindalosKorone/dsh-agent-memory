@@ -1,0 +1,84 @@
+==============================================================================
+I9 红证汇总：短查询/低内容量查询的 match 虚高（内容量闸门）
+==============================================================================
+
+0. 病灶（真实 204 条库实测，redproof/i9-short-query-gate.txt §1）
+------------------------------------------------------------------------------
+  rel 的分母是「查询自身的理论 BM25 上界」，单内容词元的查询几乎能独自顶到那个上界
+  ⇒ 比值虚高。修前（只有 rel 与两个绝对阈值）：
+    ok  top1 rel=0.186730  → strong（命中「写后回读的回包缺 ok…」：完全无关）
+    做  top1 rel=0.182895  → strong（命中「稀疏向量做 Gram-Schmidt…」：完全无关）
+    b   top1 rel=0.170655  → strong（命中「闸门A拒启与闸门B自愈互锁…」：完全无关）
+  真话题（话题侧，不得误伤）：
+    虚拟屏         3 个字符但 5 个内容词元，rel=0.554950
+    虚拟屏不能用吗？ 8 个字符、11 个内容词元，rel=0.150709（本来就只超 strong 线 8.7e-6）
+
+1. 闸门设计与阈值
+------------------------------------------------------------------------------
+  判据：内容词元数 qTok = 去重查询词元里「在本库任一分词字段（tags/title/body）出现过」的个数。
+  规则：match = qTok=0 ? none : (qTok < contentTokenMin ? strong 封顶 weak : matchLevel(rel,weak,strong))
+  阈值：CONTENT_TOKEN_MIN = 2（配置项 score.contentTokenMin；设 1 即关闸门）。
+  为什么不用字符数：字符数闸门会把 虚拟屏（3 字符）一起压掉 —— 见 R2。
+  为什么不用 idf 质量：本库噪声「好的」的 idf 质量 6.49 > 真话题「快照」3.90 / 「注入」2.93，
+  且 虚拟屏 的逐词元 idf（约 2.0~2.35）与「好的」的均值 2.16 不可区分 ⇒ idf 阈值会先误伤真话题。
+  标定：噪声侧 qTok=1；话题侧 虚拟屏=5、虚拟屏不能用吗？=11（本库真话题查询 qTok>=3）；
+  取能判红的最小值 2。代价：本库 795 个正样本里 83 个（10.4%）是单内容词元，从此最多 weak（保守方向）。
+
+2. 红证（关什么 → 断言原文 → 判红实测 → 恢复后哈希）
+------------------------------------------------------------------------------
+  R1 「去掉闸门」（contentTokenMin=1，跑 redproof/i9-short-query-gate.mjs --disable-gate）
+     断言原文：`${q}：无关查询被判 strong（内容量闸门没起作用）`（q ∈ ok/做/b）
+     判红实测：redproof/i9-red1-nogate-disable.txt 退出码 1，3 条不成立：
+       ★ ok：无关查询被判 strong（内容量闸门没起作用）
+       ★ 做：无关查询被判 strong（内容量闸门没起作用）
+       ★ b：无关查询被判 strong（内容量闸门没起作用）
+
+  R2a 「把闸门换成按字符数封顶（<=3 字符 ⇒ 当成单内容词元）」
+     断言原文：`虚拟屏 行 mem_*：复算得 strong，打印 weak`（逐行复算不变量）
+     判红实测：redproof/i9-red2a-chargate-capweak-disable.txt 退出码 1，5 条行级复算不成立
+       ★ 虚拟屏 行 mem_mv04htiw_17893e20bc：复算得 strong，打印 weak（共 5 行同款）
+       （注意：只封顶到 weak 时，话题侧「weak 或以上」仍然成立 ⇒ 这条红证只打行级复算）
+
+  R2 「短就一律降级到 none（<=3 字符 ⇒ qTok=0）」—— 这条才打中话题侧
+     断言原文：`虚拟屏：真话题查询被误伤（match=none），闸门区分力不足`
+     判红实测：redproof/i9-red2-chargate-disable.txt 退出码 1，21 条不成立，含：
+       "虚拟屏"  3 码点 qTok=5  闸门开 top1=none（应为 strong）  ← 真话题被误伤
+       ★ 虚拟屏：真话题查询被误伤（match=none），闸门区分力不足
+     ⇒ R1 与 R2 合起来证明闸门**双侧**都有区分力：噪声侧（R1）与话题侧（R2）都能判红。
+
+  R3 「源码级去掉封顶」（把 recall 调用处的 contentTokenMin 写死成 1）—— 让既有用例也参与判红
+     断言原文（test/scoring.test.mjs）：
+       `单内容词元查询不得判 strong` 与 `用打印的 rel 与表头阈值必须能复现 match`
+     判红实测：redproof/i9-red3-nocap-suite.txt 退出码 1，pass=18 fail=2：
+       ✖ I1.3 自证：每一行都可用打印的 rel 与表头阈值复现 match（两种标度不混用）
+       ✖ 内容量闸门（工具层）：单内容词元查询 rel>=strong 也只判 weak，行照样返回；关闸门即回到 strong
+
+  恢复后哈希（每次红证后都 cp 回去重跑；`sha256sum -c redproof/i9-hashes-before.txt`）：
+    b407e7562c44e5c32c225899f040ed3d61188f2f3ead3d116355688e0ed079a5  src/index.ts
+    81754bef4ecce47adac38dcc9b3159e03f335e02bc432005b0aefebfab2a3500  src/pure.ts
+    src/index.ts: OK
+    src/pure.ts: OK
+  （构建产物已随同重建：node node_modules/typescript/bin/tsc -p . exit=0）
+
+3. 修后正常取证
+------------------------------------------------------------------------------
+  redproof/i9-short-query-gate.txt（退出码 0，全部断言成立）：
+    ok                2 码点 qTok=1  match=weak   rel=0.186730
+    做                 1 码点 qTok=1  match=weak   rel=0.182895
+    b                 1 码点 qTok=1  match=weak   rel=0.170655
+    虚拟屏             3 码点 qTok=5  match=strong rel=0.554950（未误伤）
+    虚拟屏不能用吗？     8 码点 qTok=11 match=strong rel=0.150709（未掉线）
+  表头逐字回显闸门输入与规则：`内容量qTok=1<2⇒strong封顶weak`
+  只读守卫：记忆库 sha256/字节/条数运行前后一致（未变）。
+
+4. 全量测试修前/修后（逐文件 node test/x.test.mjs；本机 node --test 不可用）
+------------------------------------------------------------------------------
+  修前（HEAD b4bbede，用 git worktree 检出后原样跑；证据 redproof/i9-baseline-full-suite.txt）:
+    redproof/run-all.sh 的 18 个文件：pass=182 fail=0
+    release.test.mjs（run-all.sh 不含它）：pass=1 fail=1 ← **HEAD 是红的**：
+      被跟踪文件里不得再有机器相关前缀：redproof/i8-autorecall-fire-rate.{json,mjs,txt} 命中
+      （上一轮 i8 证据入库时硬编码了本机 home 且未脱敏）
+  修后（证据 redproof/i9-final-full-suite.txt）:
+    18 个文件：pass=185 fail=0（+3：本次新增的 3 条内容量闸门用例）
+    release.test.mjs：pass=2 fail=0（i8 脚本改成 $HOME/.dsh + 逐行脱敏；i9 同款）
+  合计：修前 183 pass / 1 fail → 修后 187 pass / 0 fail。

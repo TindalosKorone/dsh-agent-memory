@@ -1,0 +1,276 @@
+{
+ "generatedBy": "redproof/i9-short-query-gate.mjs",
+ "gateDisabled": true,
+ "gate": {
+  "contentTokenMin": 1,
+  "rule": "match = qTok=0 ? none : (qTok < contentTokenMin ? strong 封顶 weak : matchLevel(rel, weak, strong))"
+ },
+ "store": {
+  "path": "$DSH_HOME/agent-memory/memory.ndjson",
+  "sha256": "be7162f0d2309cef7da19fd22af63ed2a8cefd70c6537897f30f1254cd5457a9",
+  "bytes": 374349,
+  "lines": 204
+ },
+ "cases": [
+  {
+   "q": "ok",
+   "kind": "noise",
+   "why": "真实案例：回包 `ok` 与「写后回读回包缺 ok」标题表面重合，其实是逐字确认语",
+   "chars": 2,
+   "contentTokens": 1,
+   "contentTokenMin": 1,
+   "gateOn": {
+    "match": "strong",
+    "rel": 0.18672958665533151,
+    "title": "写后回读的回包缺 `ok` ＋ 拒收码不进 CALL_REASON ⇒ 已成功的动作被渲染成「失败：原因未在本版登记」（2026-09-30，用户实测撤销同意）"
+   },
+   "gateOff": {
+    "match": "strong",
+    "rel": 0.18672958665533151,
+    "title": "写后回读的回包缺 `ok` ＋ 拒收码不进 CALL_REASON ⇒ 已成功的动作被渲染成「失败：原因未在本版登记」（2026-09-30，用户实测撤销同意）"
+   },
+   "rows": [
+    {
+     "id": "mem_mv0btnw0_86efc51427",
+     "rel": 0.18672958665533151,
+     "match": "strong",
+     "title": "写后回读的回包缺 `ok` ＋ 拒收码不进 CALL_REASON ⇒ 已成功的动作被渲染成「失败：原因未在本版登记」（2026-09-30，用户实测撤销同意）"
+    },
+    {
+     "id": "mem_mv0btn3a_22195f4cda",
+     "rel": 0.06342918894860577,
+     "match": "weak",
+     "title": "`am` 退出码 0 ≠ 落在目标屏；且 16 KiB stdout 上限会把虚拟屏那一段吃掉（0.14.1，缺陷 C1）"
+    },
+    {
+     "id": "mem_mv0btmve_da018463da",
+     "rel": 0.0550473047974311,
+     "match": "weak",
+     "title": "原生「打开方式」两条出口与白名单（0.13.7）"
+    },
+    {
+     "id": "mem_mv0btnx8_26ae58e2f2",
+     "rel": 0.05260627054803751,
+     "match": "weak",
+     "title": "root 通道写盘把文件属主变成 root:root ⇒ 应用自己读不回来（2026-09-30，主人点名「Root 属主这种 bug 也得找一找修一修」）"
+    },
+    {
+     "id": "mem_mv0btmqo_2f94838acb",
+     "rel": 0.05283108564194098,
+     "match": "weak",
+     "title": "配对伪成功防御（2026-08-24 真机实锤）"
+    }
+   ]
+  },
+  {
+   "q": "做",
+   "kind": "noise",
+   "why": "真实案例：单字动词命中「稀疏向量做 Gram-Schmidt」标题，完全无关",
+   "chars": 1,
+   "contentTokens": 1,
+   "contentTokenMin": 1,
+   "gateOn": {
+    "match": "strong",
+    "rel": 0.18289458713275103,
+    "title": "稀疏向量做 Gram-Schmidt 必须按并集减否则基不正交"
+   },
+   "gateOff": {
+    "match": "strong",
+    "rel": 0.18289458713275103,
+    "title": "稀疏向量做 Gram-Schmidt 必须按并集减否则基不正交"
+   },
+   "rows": [
+    {
+     "id": "mem_mv061krd_362efdf779",
+     "rel": 0.18289458713275103,
+     "match": "strong",
+     "title": "稀疏向量做 Gram-Schmidt 必须按并集减否则基不正交"
+    },
+    {
+     "id": "mem_mv0btmtg_edf1f26b6f",
+     "rel": 0.15675659882751292,
+     "match": "strong",
+     "title": "WSL 9p 挂载 chmod 无效 → 归档权限归一化只能在重打包层做（2026-09-08 实测）"
+    },
+    {
+     "id": "mem_mv0dz63f_b48a90f03d",
+     "rel": 0.14850091575135768,
+     "match": "weak",
+     "title": "做自己的插件前先读 VCP 的原始文档与实现 避免重复造轮子和重踩它已回退的坑"
+    },
+    {
+     "id": "mem_mv0btmu4_80045c8c2d",
+     "rel": 0.14085846397364252,
+     "match": "weak",
+     "title": "inset 通道只做了一半：没有 top 通道 → 关闭沉浸式后顶栏/设置页头被状态栏压住（#135，2026-09-10 模拟器实证）"
+    },
+    {
+     "id": "mem_mv0bto74_e9f76abec5",
+     "rel": 0.12839535046926712,
+     "match": "weak",
+     "title": "入口临界区里做「真绑定探测」会把状态查询挡住最长 15s（2026-10-03，issue #319；#314 复审 D 项；方案与用例来自 PR #322 @Ni-ShuWu）"
+    }
+   ]
+  },
+  {
+   "q": "b",
+   "kind": "noise",
+   "why": "真实案例：单字 `b` 命中「闸门B」标题，完全无关",
+   "chars": 1,
+   "contentTokens": 1,
+   "contentTokenMin": 1,
+   "gateOn": {
+    "match": "strong",
+    "rel": 0.17065525573002352,
+    "title": "闸门A拒启与闸门B自愈互锁：只有能spawn才会写engine.log，而拒启恰恰不spawn（0.14.3，#309）"
+   },
+   "gateOff": {
+    "match": "strong",
+    "rel": 0.17065525573002352,
+    "title": "闸门A拒启与闸门B自愈互锁：只有能spawn才会写engine.log，而拒启恰恰不spawn（0.14.3，#309）"
+   },
+   "rows": [
+    {
+     "id": "mem_mv0bto3q_c304873cb3",
+     "rel": 0.17065525573002352,
+     "match": "strong",
+     "title": "闸门A拒启与闸门B自愈互锁：只有能spawn才会写engine.log，而拒启恰恰不spawn（0.14.3，#309）"
+    },
+    {
+     "id": "mem_mv0btn3l_233b3c6b66",
+     "rel": 0.04758773836792742,
+     "match": "weak",
+     "title": "`uiautomator dump --display <n>` 会被收下但不生效：本仓曾把真实屏的树当虚拟屏证据（0.14.1 判定性实测）"
+    },
+    {
+     "id": "mem_mv0btn6a_059452e352",
+     "rel": 0.04722296569194998,
+     "match": "weak",
+     "title": "快照内 git 的编译期 SHELL_PATH 等长重定位：落点必须晚于 7d（git.real 是那一步才诞生的），且白名单内绝大多数是符号链接（apk#247，0.14.1 真机复现 + 本轮落到产出链）"
+    },
+    {
+     "id": "mem_mv0btmzx_f476d6770b",
+     "rel": 0.04650320386729121,
+     "match": "weak",
+     "title": "`screencap -d <Android displayId>` 对虚拟屏必然失败：必须用 SurfaceFlinger 的长整型 display token（0.14.1 块G F6 设备实测）"
+    },
+    {
+     "id": "mem_mv0btmzf_e2063104f8",
+     "rel": 0.045829996484616026,
+     "match": "weak",
+     "title": "`Color.argb(...)` 在 `unitTests.isReturnDefaultValues = true` 下恒返回 0：颜色类单测会假绿"
+    }
+   ]
+  },
+  {
+   "q": "虚拟屏",
+   "kind": "topic",
+   "why": "话题侧防误伤：只 3 个**字符**，但 5 个内容词元，是真话题",
+   "chars": 3,
+   "contentTokens": 5,
+   "contentTokenMin": 1,
+   "gateOn": {
+    "match": "strong",
+    "rel": 0.5549499932690536,
+    "title": "虚拟屏 screencap -d 必败只有屏的 owner 能抓到画面"
+   },
+   "gateOff": {
+    "match": "strong",
+    "rel": 0.5549499932690536,
+    "title": "虚拟屏 screencap -d 必败只有屏的 owner 能抓到画面"
+   },
+   "rows": [
+    {
+     "id": "mem_mv04htiw_17893e20bc",
+     "rel": 0.5549499932690536,
+     "match": "strong",
+     "title": "虚拟屏 screencap -d 必败只有屏的 owner 能抓到画面"
+    },
+    {
+     "id": "mem_mv0btn3a_22195f4cda",
+     "rel": 0.5002295087083514,
+     "match": "strong",
+     "title": "`am` 退出码 0 ≠ 落在目标屏；且 16 KiB stdout 上限会把虚拟屏那一段吃掉（0.14.1，缺陷 C1）"
+    },
+    {
+     "id": "mem_mv0btn05_ae6ec41129",
+     "rel": 0.4999895122657888,
+     "match": "strong",
+     "title": "无障碍通道对虚拟屏 取树/截屏 曾被范围门误拒"
+    },
+    {
+     "id": "mem_mv0btmzx_f476d6770b",
+     "rel": 0.4938210114832962,
+     "match": "strong",
+     "title": "`screencap -d <Android displayId>` 对虚拟屏必然失败：必须用 SurfaceFlinger 的长整型 display token（0.14.1 块G F6 设备实测）"
+    },
+    {
+     "id": "mem_mv0btocx_582473864c",
+     "rel": 0.4859185114575133,
+     "match": "strong",
+     "title": "壳侧快照载荷的帧尺寸 `scr` 不随目标屏变化（恒缺省屏）⇒ 虚拟屏读屏拿到的「屏幕尺寸」是真实屏的（2026-10-06 真机实测，未修）"
+    }
+   ]
+  },
+  {
+   "q": "虚拟屏不能用吗？",
+   "kind": "topic",
+   "why": "话题侧防误伤：口语疑问句，真话题（它本来就只超 strong 线 8.7e-6）",
+   "chars": 8,
+   "contentTokens": 11,
+   "contentTokenMin": 1,
+   "gateOn": {
+    "match": "strong",
+    "rel": 0.15070867548889608,
+    "title": "虚拟屏 screencap -d 必败只有屏的 owner 能抓到画面"
+   },
+   "gateOff": {
+    "match": "strong",
+    "rel": 0.15070867548889608,
+    "title": "虚拟屏 screencap -d 必败只有屏的 owner 能抓到画面"
+   },
+   "rows": [
+    {
+     "id": "mem_mv04htiw_17893e20bc",
+     "rel": 0.15070867548889608,
+     "match": "strong",
+     "title": "虚拟屏 screencap -d 必败只有屏的 owner 能抓到画面"
+    },
+    {
+     "id": "mem_mv0btn05_ae6ec41129",
+     "rel": 0.1339891364174042,
+     "match": "weak",
+     "title": "无障碍通道对虚拟屏 取树/截屏 曾被范围门误拒"
+    },
+    {
+     "id": "mem_mv0btn3a_22195f4cda",
+     "rel": 0.1282279583199989,
+     "match": "weak",
+     "title": "`am` 退出码 0 ≠ 落在目标屏；且 16 KiB stdout 上限会把虚拟屏那一段吃掉（0.14.1，缺陷 C1）"
+    },
+    {
+     "id": "mem_mv0btmzx_f476d6770b",
+     "rel": 0.13158596882256854,
+     "match": "weak",
+     "title": "`screencap -d <Android displayId>` 对虚拟屏必然失败：必须用 SurfaceFlinger 的长整型 display token（0.14.1 块G F6 设备实测）"
+    },
+    {
+     "id": "mem_mv0btocx_582473864c",
+     "rel": 0.12686783112745367,
+     "match": "weak",
+     "title": "壳侧快照载荷的帧尺寸 `scr` 不随目标屏变化（恒缺省屏）⇒ 虚拟屏读屏拿到的「屏幕尺寸」是真实屏的（2026-10-06 真机实测，未修）"
+    }
+   ]
+  }
+ ],
+ "failures": [
+  "ok：无关查询被判 strong（内容量闸门没起作用）",
+  "做：无关查询被判 strong（内容量闸门没起作用）",
+  "b：无关查询被判 strong（内容量闸门没起作用）"
+ ],
+ "readOnly": {
+  "before": "be7162f0d2309cef7da19fd22af63ed2a8cefd70c6537897f30f1254cd5457a9",
+  "after": "be7162f0d2309cef7da19fd22af63ed2a8cefd70c6537897f30f1254cd5457a9",
+  "unchanged": true
+ }
+}
