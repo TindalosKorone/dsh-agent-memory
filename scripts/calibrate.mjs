@@ -28,18 +28,35 @@
  *   node scripts/calibrate.mjs --home /path       # 显式指定 home
  *   node scripts/calibrate.mjs --dump-negatives   # 额外逐条打印全部负样本查询与其最高分
  *
- * 退出码：0 = 正常（含「库为空」这种可读提示）；1 = 前置条件不满足（lib 未构建 / 文件不可读）。
+ * 落地（**显式 opt-in，默认绝不写**）：
+ *   node scripts/calibrate.mjs --write            # 把「建议 B」落到 src/pure.ts（写前备份 + 打印 diff）
+ *   node scripts/calibrate.mjs --write --target /path/pure.ts   # 指定落地目标（测试用；默认 src/pure.ts）
+ *   - 不带 `--write` 时**行为完全不变**：只打印、一个字节都不写（本契约由 test/calibrate.test.mjs 钉住）。
+ *   - 带 `--write` 时先备份成 `<target>.bak-<YYYYMMDD-HHmmss>`，打印逐行 diff，再改写 5 行
+ *     （4 条常数声明 + 「落地值：」那一行）；锚点缺失即**失败关闭**（退非零、不写）。
+ *   - 落地后仍需人工复核并重建：`node node_modules/typescript/bin/tsc -p .`，然后跑全量用例。
+ *
+ * 退出码：0 = 正常（含「库为空」这种可读提示）；1 = 前置条件不满足（lib 未构建 / 文件不可读 / --write 失败关闭）。
  */
-import { existsSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { copyFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { NEGATIVE_HEAD, buildNegativeQueries } from './negative-samples.mjs'
 
+const PLUGIN_DIR = dirname(dirname(fileURLToPath(import.meta.url)))
 const ARGV = process.argv.slice(2)
 const homeFlagIdx = ARGV.indexOf('--home')
 const HOME = homeFlagIdx >= 0 && ARGV[homeFlagIdx + 1] !== undefined
   ? ARGV[homeFlagIdx + 1]
   : (typeof process.env.DSH_HOME === 'string' && process.env.DSH_HOME.trim() !== '' ? process.env.DSH_HOME.trim() : undefined)
 const DUMP_NEGATIVES = ARGV.includes('--dump-negatives')
+/** 显式落地开关。**默认 false** ⇒ 行为与历史完全一致（只打印）。 */
+const WRITE = ARGV.includes('--write')
+const targetFlagIdx = ARGV.indexOf('--target')
+/** 落地目标（默认 src/pure.ts；`--target` 只为了让测试指向临时副本）。 */
+const WRITE_TARGET = targetFlagIdx >= 0 && ARGV[targetFlagIdx + 1] !== undefined
+  ? ARGV[targetFlagIdx + 1]
+  : join(PLUGIN_DIR, 'src', 'pure.ts')
 
 /** 敏感性对照的头部样本量：固定 12 = 旧脚本的样本量（NEGATIVE_HEAD 的长度）。 */
 const SENSITIVITY_HEAD = NEGATIVE_HEAD.length
@@ -64,7 +81,11 @@ try {
 const resolvedHome = HOME ?? store.resolveHome()
 const file = join(resolvedHome, store.MEMORY_SUBDIR, store.MEMORY_FILE)
 
-console.log('I2 离线标定（残差金字塔分诊的附带工具；本脚本只打印建议，不写任何文件）')
+console.log('I2 离线标定（残差金字塔分诊的附带工具；'
+  + (WRITE
+    ? '本次带 --write：会**显式**落地到目标文件（写前备份 + 打印 diff）'
+    : '本脚本只打印建议，不写任何文件')
+  + '）')
 console.log(`- 记忆库：${file}`)
 console.log(`- DSH_HOME：${HOME === undefined ? '(未显式指定，用默认/环境变量)' : HOME}`)
 
@@ -73,6 +94,7 @@ if (!existsSync(file)) {
   console.log('- 这不算错误：先用 memory_remember 写入一些记忆，再重跑本脚本。')
   printCurrentDefaults()
   printSuggestion(undefined, '建议')
+  if (WRITE) console.error('- [--write] 没有可标定的库 ⇒ 无建议可落地：**不写任何文件**；退出码按「库里没有文件」保持 0。')
   process.exit(0)
 }
 
@@ -99,6 +121,7 @@ if (records.length === 0) {
   console.log('- 这不算错误：先写入若干条记忆（memory_remember）再重跑本脚本。')
   printCurrentDefaults()
   printSuggestion(undefined, '建议')
+  if (WRITE) console.error('- [--write] 库为空 ⇒ 无建议可落地：**不写任何文件**；退出码按「库为空」保持 0。')
   process.exit(0)
 }
 
@@ -212,30 +235,131 @@ function printCurrentDefaults() {
 
 function printSuggestion(s, title) {
   console.log(`\n${title}（本脚本只打印，不会改写任何配置或源码）：`)
-  if (s === undefined) {
+  const r = resolveSuggestion(s)
+  if (r === undefined) {
     console.log('- 样本不足，无法给出建议：请先让库里至少有若干条记忆，或稍后重跑。')
     return
   }
+  for (const w of r.warnings) console.log(w)
+  console.log(`- SCALE_A = ${r.scaleA.toFixed(4)}   （p50(负样本)：噪声地板）`)
+  console.log(`- SCALE_B = ${r.scaleB.toFixed(4)}   （p95(正样本)：真命中高分位）`)
+  console.log(`- WEAK    = ${r.weak.toFixed(4)}   （p95(负样本)：噪声上界）`)
+  console.log(`- STRONG  = ${r.strong.toFixed(4)}   （p10(正样本)：真命中低分位）`)
+  console.log('- 落地位置：src/pure.ts 的 SCALE_A / SCALE_B / WEAK_THRESHOLD / STRONG_THRESHOLD'
+    + '（或经工具配置 score.{scaleA,scaleB,weakThreshold,strongThreshold} 覆盖）。')
+  console.log('- 注意：本脚本不替你改这些常数；改之前请先取 undo 快照。')
+}
+
+/**
+ * 把原始建议整理成**可落地的四个数**（区间退化 / 弱强倒挂时按同一套口径回落并给出警告）。
+ * 打印与落地**共用**它 —— 免得出现「打印的是 A、写下去的是 B」这种对不上账的情况。
+ * @returns {{scaleA:number,scaleB:number,weak:number,strong:number,warnings:string[]}|undefined}
+ */
+function resolveSuggestion(s) {
+  if (s === undefined) return undefined
   const scaleA = s.scaleA ?? 0
   let scaleB = s.scaleB ?? pure.SCALE_B
+  const warnings = []
   if (!(scaleB > scaleA)) {
-    console.log(`- [警告] p95(正样本)=${fmt(scaleB)} 不大于 p50(负样本)=${fmt(scaleA)}：`
+    warnings.push(`- [警告] p95(正样本)=${fmt(scaleB)} 不大于 p50(负样本)=${fmt(scaleA)}：`
       + `区间退化，改用 SCALE_B = SCALE_A + ${pure.SCALE_B}；样本区分度不足，建议先补更多正样本。`)
     scaleB = scaleA + pure.SCALE_B
   }
   let weak = s.weak ?? pure.WEAK_THRESHOLD
   let strong = s.strong ?? pure.STRONG_THRESHOLD
   if (!(weak < strong)) {
-    console.log(`- [警告] p95(负样本)=${fmt(weak)} 不小于 p10(正样本)=${fmt(strong)}：弱/强阈值倒挂，`
+    warnings.push(`- [警告] p95(负样本)=${fmt(weak)} 不小于 p10(正样本)=${fmt(strong)}：弱/强阈值倒挂，`
       + '建议保留当前默认阈值，或补充区分度更好的样本（正样本本身要更像真实查询）。')
     weak = pure.WEAK_THRESHOLD
     strong = pure.STRONG_THRESHOLD
   }
-  console.log(`- SCALE_A = ${scaleA.toFixed(4)}   （p50(负样本)：噪声地板）`)
-  console.log(`- SCALE_B = ${scaleB.toFixed(4)}   （p95(正样本)：真命中高分位）`)
-  console.log(`- WEAK    = ${weak.toFixed(4)}   （p95(负样本)：噪声上界）`)
-  console.log(`- STRONG  = ${strong.toFixed(4)}   （p10(正样本)：真命中低分位）`)
-  console.log('- 落地位置：src/pure.ts 的 SCALE_A / SCALE_B / WEAK_THRESHOLD / STRONG_THRESHOLD'
-    + '（或经工具配置 score.{scaleA,scaleB,weakThreshold,strongThreshold} 覆盖）。')
-  console.log('- 注意：本脚本不替你改这些常数；改之前请先取 undo 快照。')
+  return { scaleA, scaleB, weak, strong, warnings }
+}
+
+// ── --write：显式落地（**只有带 --write 才会走到这里**）────────────────────
+
+/** 落地的 5 个锚点：4 条常数声明 + 「落地值：」那一行。任一缺失即失败关闭。 */
+function buildWrittenSource(src, r) {
+  const vals = {
+    SCALE_A: r.scaleA.toFixed(4),
+    SCALE_B: r.scaleB.toFixed(4),
+    WEAK_THRESHOLD: r.weak.toFixed(4),
+    STRONG_THRESHOLD: r.strong.toFixed(4),
+  }
+  let out = src
+  for (const [name, v] of Object.entries(vals)) {
+    const re = new RegExp(`(export const ${name} = )[0-9.]+`)
+    if (!re.test(out)) return undefined
+    out = out.replace(re, `$1${v}`)
+  }
+  // 「落地值：」行的格式是 test/scoring.test.mjs 的「注释 ↔ 常数一致性」断言所锚定的，别改分隔符。
+  const landing = /(落地值：)SCALE_A = [0-9.]+ {2}SCALE_B = [0-9.]+ {2}WEAK_THRESHOLD = [0-9.]+ {2}STRONG_THRESHOLD = [0-9.]+/
+  if (!landing.test(out)) return undefined
+  return out.replace(landing,
+    `$1SCALE_A = ${vals.SCALE_A}  SCALE_B = ${vals.SCALE_B}`
+    + `  WEAK_THRESHOLD = ${vals.WEAK_THRESHOLD}  STRONG_THRESHOLD = ${vals.STRONG_THRESHOLD}`)
+}
+
+/** 逐行 diff（只打印有变化的行，`-` 旧 / `+` 新）。 */
+function diffLines(a, b) {
+  const la = a.split('\n')
+  const lb = b.split('\n')
+  const out = []
+  for (let i = 0; i < Math.max(la.length, lb.length); i += 1) {
+    if (la[i] === lb[i]) continue
+    if (la[i] !== undefined && la[i] !== '') out.push(`- ${la[i]}`)
+    if (lb[i] !== undefined && lb[i] !== '') out.push(`+ ${lb[i]}`)
+  }
+  return out
+}
+
+function stamp() {
+  const d = new Date()
+  const p = (x) => String(x).padStart(2, '0')
+  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`
+}
+
+function applyWrite(s) {
+  const r = resolveSuggestion(s)
+  console.log('\n── --write：显式落地（不带 --write 时本段不存在，行为完全不变）────────────────')
+  if (r === undefined) {
+    console.error('- 没有可落地的建议（样本不足）：**失败关闭，不写任何文件**。')
+    process.exit(1)
+  }
+  let src
+  try {
+    src = readFileSync(WRITE_TARGET, 'utf8')
+  } catch (err) {
+    console.error(`- 读不到落地目标 ${WRITE_TARGET}：${err instanceof Error ? err.message : String(err)}`)
+    process.exit(1)
+  }
+  const next = buildWrittenSource(src, r)
+  if (next === undefined) {
+    console.error(`- 落地目标 ${WRITE_TARGET} 缺少锚点（4 条 \`export const <NAME> = <数字>\` 声明`
+      + ' 与「落地值：」那一行）：**失败关闭，不写任何文件**。')
+    process.exit(1)
+  }
+  console.log(`- 目标：${WRITE_TARGET}`)
+  const diff = diffLines(src, next)
+  if (diff.length === 0) {
+    console.log('- 四个常数与「落地值：」行已经是建议值：无差异，**不写**、也不生成备份。')
+    return
+  }
+  console.log('- diff（- 旧 / + 新）：')
+  for (const line of diff) console.log(`  ${line}`)
+  const backup = `${WRITE_TARGET}.bak-${stamp()}`
+  copyFileSync(WRITE_TARGET, backup)
+  console.log(`- 已备份：${backup}`)
+  writeFileSync(WRITE_TARGET, next)
+  console.log('- 已写入。下一步：`node node_modules/typescript/bin/tsc -p .` 重建，然后跑全量用例。')
+  console.log('- 注意：本次写入是**显式请求**（--write）的结果；不带 --write 时本脚本一个字节都不写。')
+}
+
+if (WRITE) {
+  applyWrite({
+    scaleA: p50All,
+    scaleB: percentile(positives, 0.95),
+    weak: p95All,
+    strong: percentile(positives, 0.1),
+  })
 }

@@ -124,10 +124,12 @@ test('cov：命中标签权重占总权重的比例；外围非命中标签只�
 // ── 修 A：绝对映射与绝对判定 ─────────────────────────────────────────────────
 
 test('绝对映射：disp=clip((raw−A)/(B−A))，常数固定、不看批次', () => {
-  // 标定后 SCALE_A != 0（0.0187 = p50 负样本，噪声地板）⇒ 区间中点不再是固定的 0.225，
+  // 标定后 SCALE_A != 0（0.0199 = p50 负样本，噪声地板）⇒ 区间中点不再是固定的 0.225，
   // 而是 (SCALE_A + SCALE_B) / 2；下界本身映射到 0、下界以下一律 0（这两条是新标度下的强断言）。
-  assert.equal(SCALE_A, 0.0187)
-  assert.equal(SCALE_B, 0.342)
+  // 这两个数是**写死的锚点**（不是从常量读回来的）：标定改了就必须有人来改这一行，否则「常数被悄悄改小」
+  // 不会变红。与 src/pure.ts 注释里「落地值：」那一行的逐字一致由本文件末尾的用例另行钉住。
+  assert.equal(SCALE_A, 0.0199)
+  assert.equal(SCALE_B, 0.3666)
   assert.equal(absoluteDisp(SCALE_A), 0, '下界本身必须映射到 0')
   assert.equal(absoluteDisp(SCALE_A / 2), 0, '噪声地板以下一律 0（不再线性外推到负分）')
   assert.equal(absoluteDisp(SCALE_B), 1)
@@ -321,12 +323,13 @@ test('I1.3 自证：每一行都可用打印的 rel 与表头阈值复现 match�
   const remember = defs.get('memory_remember')
   const recall = defs.get('memory_recall')
 
-  // 造出多种判定的样本。**关键靶子**：正文里恰好 3 个查询词元、且正文很短（dl=3）的记录，
-  // 实测 rel≈0.0715（判 weak），而 disp(rel)≈0.1632（会被判 strong）——
+  // 造出多种判定的样本。**关键靶子**：正文里恰好 4 个查询词元、且正文很短（dl=4）的记录，
+  // 实测 rel≈0.0736（判 weak），而 disp(rel)≈0.1548（会被判 strong）——
   // 只有落在「两种基准判定分歧」区间内的行，才能让本用例真正有区分力。
-  // 2026-10-09 标定把噪声地板抬到 0.0187、把两个阈值下调：旧夹具那条「正文 20 词元、命中 3 次」的
-  // 记录 rel≈0.0518，恰好落在两种基准判定**一致**的 weak 区，本判据因此退化成空转（bandRows=0）。
-  // 现在把它的正文压到 3 个词元，让它重新落进分歧区（rel 判 weak、disp 判 strong）。
+  // 沿革：2026-10-09 第一次标定（0.0187/0.3420/0.0363/0.1476）时，正文 3 个词元（dl=3）就够
+  // （rel≈0.0715 判 weak、disp≈0.1632 判 strong）。第二次标定（0.0199/0.3666/0.0382/0.1507）
+  // 把 SCALE_B 抬高后，同一条 dig 的 disp 掉到 ≈0.1487 < 0.1507 ⇒ 两侧都判 weak，本判据退化成空转
+  // （bandRows=0）。所以这里把靶子正文加到 4 个词元，让它重新落进分歧区（rel 判 weak、disp 判 strong）。
   await remember.execute({
     kind: 'fact', title: 'alpha beta gamma delta', body: 'alpha beta gamma delta epsilon',
     tags: ['alpha', 'beta'], source: 'test:selfproof',
@@ -341,7 +344,7 @@ test('I1.3 自证：每一行都可用打印的 rel 与表头阈值复现 match�
   })
   await remember.execute({
     kind: 'fact', title: 'band probe note',
-    body: 'bandword bandword bandword',
+    body: 'bandword bandword bandword bandword',
     tags: ['band'], source: 'test:selfproof',
   })
 
@@ -439,4 +442,90 @@ test('标定一致性：4 个默认常数必须与 src/pure.ts 注释里「落�
     src.includes('该语料有偏（单一项目、单一种文风），语料明显增长后必须用 `scripts/calibrate.mjs` 重新标定并同步更新本注释。'),
     '标定注释里这句（有偏语料 + 重新标定要求）必须逐字保留',
   )
+})
+
+// ── 第二次标定（2026-10-09）：四个常数**各自**的边界红证 ───────────────────────
+//
+// 第二次落地把四个常数改到 0.0199 / 0.3666 / 0.0382 / 0.1507，与旧值的差分别是
+// +0.0012 / +0.0246 / +0.0019 / +0.0031（四个量出自**同一次确定性运行**；按「差异 ≥ 0.005 视为显著」
+// 只有 SCALE_B 单独显著，整组落地的理由见 src/pure.ts 注释）。
+// 这里给四个常数各配一条**夹具 rel 落在该常数新旧值之间**的用例，断言只写在「标签 / 展示分」上
+//（**不回显常量**）⇒ 把该常数改回旧值，对应那条必红。这就是「配能判红的边界用例」。
+//
+// 夹具的 rel 是**实测锚点**（写死才判得动红）：字符串里写死的两个数是新旧常数，不是从常量读回来的 ——
+// 从常量读会让断言跟着常量漂移成假绿。
+
+/** 合成一份「目标记录 rel 恰好夹在某个常数新旧值之间」的语料（与既有边界用例同构）。 */
+function seedSecondBandCorpus(home, { N, df, fields, tf, pad }) {
+  const lines = []
+  for (let i = 0; i < N; i += 1) {
+    const isTarget = i === 0
+    const hasQ = i < df
+    const body = []
+    if (hasQ && fields.body) for (let t = 0; t < (isTarget ? tf : 1); t += 1) body.push('zzqterm')
+    for (let j = 0; j < pad; j += 1) body.push(`pad${j}`)
+    lines.push(JSON.stringify({
+      id: isTarget ? 'mem_band_target' : `mem_band_f${String(i).padStart(3, '0')}`,
+      ts: 1_700_000_000_000 + i,
+      kind: 'fact',
+      title: hasQ && fields.title ? `zzqterm t${i}` : `t${i}`,
+      body: body.join(' '),
+      tags: hasQ && fields.tags ? ['zzqterm', 'zzcommon'] : ['zzcommon'],
+      source: 'test:band2',
+      hits: 0,
+    }))
+  }
+  mkdirSync(dirname(memFile(home)), { recursive: true })
+  writeFileSync(memFile(home), `${lines.join('\n')}\n`, 'utf8')
+}
+
+/** 关掉多样性与图传播 ⇒ 打印的 score 恰好 = disp(rel)，让「标度」边界不被别的机制搅浑。 */
+const PURE_SCALE = { score: { diversityBeta: 0 }, graph: { maxHops: 0 } }
+
+test('边界红证（判红点：WEAK_THRESHOLD 改回 0.0363 即变红）：rel 落在 (0.0363, 0.0382) 的记录必须由 weak 落回 none', async () => {
+  const home = freshHome('scoring-band2-weak')
+  seedSecondBandCorpus(home, { N: 6, df: 3, fields: { body: true }, tf: 12, pad: 1 })
+  const r = await tools().get('memory_recall').execute({ query: 'zzqterm', limit: 5 })
+  const row = r.rows.find((x) => x.id === 'mem_band_target')
+  assert.ok(row !== undefined, '目标记录必须在结果里')
+  assert.ok(row.rel > 0.0363 && row.rel < 0.0382,
+    `夹具 rel 必须严格落在 (0.0363, 0.0382)（= WEAK 的新旧值）：${row.rel}`)
+  assert.equal(row.match, 'none',
+    `rel 落在新噪声上界之下的记录必须判 none（实测 rel=${row.rel} 判 ${row.match}）`)
+})
+
+test('边界红证（判红点：STRONG_THRESHOLD 改回 0.1476 即变红）：rel 落在 (0.1476, 0.1507) 的记录必须由 strong 降为 weak', async () => {
+  const home = freshHome('scoring-band2-strong')
+  seedSecondBandCorpus(home, { N: 6, df: 2, fields: { title: true, body: true }, tf: 8, pad: 16 })
+  const r = await tools().get('memory_recall').execute({ query: 'zzqterm', limit: 5 })
+  const row = r.rows.find((x) => x.id === 'mem_band_target')
+  assert.ok(row !== undefined, '目标记录必须在结果里')
+  assert.ok(row.rel > 0.1476 && row.rel < 0.1507,
+    `夹具 rel 必须严格落在 (0.1476, 0.1507)（= STRONG 的新旧值）：${row.rel}`)
+  assert.equal(row.match, 'weak',
+    `rel 落在新 strong 阈值之下的记录必须判 weak（实测 rel=${row.rel} 判 ${row.match}）`)
+})
+
+test('边界红证（判红点：SCALE_B 改回 0.3420 即变红）：rel 落在 (0.3420, 0.3666) 的记录展示分不再顶到 1.0000', async () => {
+  const home = freshHome('scoring-band2-scaleb')
+  seedSecondBandCorpus(home, { N: 6, df: 1, fields: { tags: true, title: true, body: true }, tf: 1, pad: 4 })
+  const r = await tools(PURE_SCALE).get('memory_recall').execute({ query: 'zzqterm', limit: 5 })
+  const row = r.rows.find((x) => x.id === 'mem_band_target')
+  assert.ok(row !== undefined, '目标记录必须在结果里')
+  assert.ok(row.rel > 0.342 && row.rel < 0.3666,
+    `夹具 rel 必须严格落在 (0.3420, 0.3666)（= SCALE_B 的新旧值）：${row.rel}`)
+  assert.ok(row.score < 1,
+    `rel 低于新区间上界的记录展示分必须**严格小于** 1（旧 SCALE_B 会把它顶到 1.0000）：${row.score}`)
+})
+
+test('边界红证（判红点：SCALE_A 改回 0.0187 即变红）：rel 落在 (0.0187, 0.0199) 的记录展示分被新噪声地板压到 0', async () => {
+  const home = freshHome('scoring-band2-scalea')
+  seedSecondBandCorpus(home, { N: 6, df: 5, fields: { title: true }, tf: 1, pad: 1 })
+  const r = await tools(PURE_SCALE).get('memory_recall').execute({ query: 'zzqterm', limit: 5 })
+  const row = r.rows.find((x) => x.id === 'mem_band_target')
+  assert.ok(row !== undefined, '目标记录必须在结果里')
+  assert.ok(row.rel > 0.0187 && row.rel < 0.0199,
+    `夹具 rel 必须严格落在 (0.0187, 0.0199)（= SCALE_A 的新旧值）：${row.rel}`)
+  assert.equal(row.score, 0,
+    `rel 落在新噪声地板之下的记录展示分必须是 0（旧 SCALE_A 会给出一个小正数）：${row.score}`)
 })

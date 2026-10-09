@@ -62,7 +62,7 @@ id | kind | title | tags | graph | via | rel | cov | match | score
 - **`match` 恒可复算**：把打印出的 `rel` 与表头给出的两个阈值比一下即可 —— `rel >= weak` 记 `weak`、`rel >= strong` 记 `strong`、否则 `none`。表头会同时打印阈值数字，所以复算不需要翻源码。
 - **`score` 不保证可精确复算**：`score = disp(final)`，其中 `final = (rel + graph) × 多样性因子`，多样性因子 `= 1 − β·maxSim`（β 默认 0.3，`maxSim` 是该行与**已选行**的最大标签 Jaccard 相似度），且该因子**只在候选数 > 5 时施加**（候选 <= 5 时恒为 1）。由于 **β 与 maxSim 都不是打印列**，多样性被启用时 `score` 无法仅由打印的 `rel` / `graph` 精确复算。这是如实声明的限制，不是实现疏漏。
 - **`match` 与 `score` 是两种标度**，别拿一个去验另一个。
-- **无词法证据时 `rel = 0`**（不是「score 是 0」）。仅由标签图到达的记录会 `graph > 0`、`via = tag:<标签>`、`match = none`；它的 `score` 取决于标度常数，默认口径下因 `SCALE_A (0.0187) > GRAPH_BONUS_CAP (0.018)` 而恰好为 `0.0000`，但这不是恒等式 —— 改了标度常数就会变。图奖励**只奖不罚**，绝不整批否决。
+- **无词法证据时 `rel = 0`**（不是「score 是 0」）。仅由标签图到达的记录会 `graph > 0`、`via = tag:<标签>`、`match = none`；它的 `score` 取决于标度常数，默认口径下因 `SCALE_A (0.0199) > GRAPH_BONUS_CAP (0.018)` 而恰好为 `0.0000`，但这不是恒等式 —— 改了标度常数就会变。图奖励**只奖不罚**，绝不整批否决。
 
 ## 6. 打分常数（5 个）
 
@@ -70,10 +70,10 @@ id | kind | title | tags | graph | via | rel | cov | match | score
 
 | 常数 | 落地值 | 口径 |
 | --- | --- | --- |
-| `SCALE_A` | 0.0187 | p50(负样本)，噪声地板 |
-| `SCALE_B` | 0.3420 | p95(正样本)，真命中高分位 |
-| `WEAK_THRESHOLD` | 0.0363 | p95(负样本)，噪声上界 |
-| `STRONG_THRESHOLD` | 0.1476 | p10(正样本)，正样本低分位 |
+| `SCALE_A` | 0.0199 | p50(负样本)，噪声地板 |
+| `SCALE_B` | 0.3666 | p95(正样本)，真命中高分位 |
+| `WEAK_THRESHOLD` | 0.0382 | p95(负样本)，噪声上界 |
+| `STRONG_THRESHOLD` | 0.1507 | p10(正样本)，正样本低分位 |
 | `GRAPH_BONUS_CAP` | 0.018 | 图奖励硬上限（保留度量的量级，**待真实语料标定**） |
 
 前四个可用配置 `score.{scaleA,scaleB,weakThreshold,strongThreshold}` 覆盖；标定出处与「语料变了必须重标」见 [limitations.md](limitations.md)。

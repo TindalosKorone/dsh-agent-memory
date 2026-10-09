@@ -220,3 +220,99 @@ test('I2.2 空库：可读提示 + 退出码 0（且不抛）', () => {
   assert.equal(second.code, 0)
   assert.ok(second.out.includes('记忆库为空'), second.out)
 })
+
+// ── 6. 修正 4：`--write` 是**显式 opt-in** 的唯一落地路径 ────────────────────
+//
+// 契约（全部可判红）：
+//  1) 不带 --write ⇒ 行为与历史完全一致：一个字节都不写、不多任何文件（上面第 4 组已钉，
+//     这里再钉一次「即使指定了 --target 也不写」）；
+//  2) 带 --write ⇒ 先备份成 `<target>.bak-<时间戳>`、打印逐行 diff、再改写 5 行锚点
+//     （4 条 `export const <NAME> = <数字>` + 「落地值：」那一行）；
+//  3) 锚点缺失（例如目标根本不是 pure.ts）⇒ **失败关闭**：退非零、不写、不备份；
+//  4) 目标已经是建议值 ⇒ 无差异，不写、也不生成备份。
+//
+// 注：测试一律指向 `.tmp-test/` 下的**临时副本**，绝不指向真实 `src/pure.ts`。
+const SRC_PURE = join(PLUGIN_DIR, 'src', 'pure.ts')
+/** 造一份「锚点齐全」的临时落地目标（内容 = 真实 src/pure.ts）。 */
+function tempTarget(name) {
+  const dir = freshDir(name)
+  const p = join(dir, 'pure.ts')
+  writeFileSync(p, readFileSync(SRC_PURE, 'utf8'), 'utf8')
+  return p
+}
+
+test('修正 4：不带 --write 时，即使指定了 --target 也一个字节都不写（默认契约不变）', () => {
+  const home = freshDir('calibrate-write-off')
+  seedLibrary(home, 6)
+  const target = tempTarget('calibrate-write-off-target')
+  const before = readFileSync(target)
+  const { code, out } = runCalibrate(home, ['--target', target])
+  assert.equal(code, 0, out)
+  assert.deepEqual(readFileSync(target), before, '不带 --write 时目标文件必须逐字节不变')
+  assert.deepEqual(readdirSync(dirname(target)), ['pure.ts'], '不带 --write 时不得生成备份')
+  assert.ok(out.includes('本脚本只打印建议，不写任何文件'), `不带 --write 时的横幅必须仍是「只打印」：${out}`)
+  assert.ok(!out.includes('--write：显式落地'), `不带 --write 时不得出现落地段：${out}`)
+})
+
+test('修正 4：带 --write 时备份 + 打印 diff + 改写 5 行锚点（且只在显式请求下发生）', () => {
+  const home = freshDir('calibrate-write-on')
+  seedLibrary(home, 6)
+  const target = tempTarget('calibrate-write-on-target')
+  const before = readFileSync(target, 'utf8')
+  const { code, out } = runCalibrate(home, ['--target', target, '--write'])
+  assert.equal(code, 0, out)
+  const after = readFileSync(target, 'utf8')
+  assert.notEqual(after, before, '带 --write 时目标文件必须被改写')
+
+  // 备份必须存在，且内容 = 写入前的原文
+  const backups = readdirSync(dirname(target)).filter((f) => f.startsWith('pure.ts.bak-'))
+  assert.equal(backups.length, 1, `必须恰好生成 1 个备份，实测 ${backups.join(',')}`)
+  assert.equal(readFileSync(join(dirname(target), backups[0]), 'utf8'), before,
+    '备份内容必须等于写入前的原文')
+
+  // diff 必须打印出来（- 旧 / + 新）
+  assert.ok(out.includes('- diff（- 旧 / + 新）：'), `必须打印 diff 段：${out}`)
+  assert.ok(/^ {2}- export const SCALE_A = /m.test(out), `diff 必须含旧 SCALE_A 行：${out}`)
+  assert.ok(/^ {2}\+ export const SCALE_A = /m.test(out), `diff 必须含新 SCALE_A 行：${out}`)
+  assert.ok(out.includes('已备份：'), `必须打印备份路径：${out}`)
+
+  // 5 行锚点必须真的改了：4 条声明数字变化，且「落地值：」行与之一致
+  const decl = (name, text) => new RegExp(`export const ${name} = ([0-9.]+)`).exec(text)[1]
+  const landing = (text) => text.split('\n').find((l) => l.includes('落地值：'))
+  for (const name of ['SCALE_A', 'SCALE_B', 'WEAK_THRESHOLD', 'STRONG_THRESHOLD']) {
+    assert.notEqual(decl(name, after), decl(name, before), `${name} 必须被改写`)
+    assert.ok(landing(after).includes(`${name} = ${decl(name, after)}`),
+      `「落地值：」行必须与 ${name} 的新值一致：${landing(after)}`)
+  }
+  // 除了那 5 行，其它内容不得改动（防止顺手重排整个文件）
+  const changed = before.split('\n').filter((l, i) => l !== after.split('\n')[i]).length
+  assert.equal(changed, 5, `必须只改 5 行（4 条声明 + 落地值行），实测 ${changed} 行`)
+})
+
+test('修正 4：--write 失败关闭 —— 目标缺锚点 ⇒ 退非零、不写、不备份', () => {
+  const home = freshDir('calibrate-write-bad')
+  seedLibrary(home, 6)
+  const dir = freshDir('calibrate-write-bad-target')
+  const target = join(dir, 'not-pure.ts')
+  writeFileSync(target, '// 这里没有任何锚点\n', 'utf8')
+  const { code, out } = runCalibrate(home, ['--target', target, '--write'])
+  assert.notEqual(code, 0, `锚点缺失必须退非零，实测 ${code}\n${out}`)
+  assert.equal(readFileSync(target, 'utf8'), '// 这里没有任何锚点\n', '失败关闭时目标必须逐字节不变')
+  assert.deepEqual(readdirSync(dir), ['not-pure.ts'], '失败关闭时不得生成备份')
+  assert.ok(out.includes('失败关闭'), `必须如实说明失败关闭：${out}`)
+})
+
+test('修正 4：第二次 --write 无差异 ⇒ 不写、不生成新备份（幂等）', () => {
+  const home = freshDir('calibrate-write-idem')
+  seedLibrary(home, 6)
+  const target = tempTarget('calibrate-write-idem-target')
+  const first = runCalibrate(home, ['--target', target, '--write'])
+  assert.equal(first.code, 0, first.out)
+  const afterFirst = readFileSync(target, 'utf8')
+  const backupsAfterFirst = readdirSync(dirname(target)).length
+  const second = runCalibrate(home, ['--target', target, '--write'])
+  assert.equal(second.code, 0, second.out)
+  assert.equal(readFileSync(target, 'utf8'), afterFirst, '第二次不得改动文件')
+  assert.equal(readdirSync(dirname(target)).length, backupsAfterFirst, '第二次不得新增备份')
+  assert.ok(second.out.includes('无差异'), `第二次必须如实说明无差异：${second.out}`)
+})

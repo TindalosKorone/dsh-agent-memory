@@ -1,0 +1,67 @@
+✔ BM25：idf 口径正确（稀有 > 常见，df=0 取上界，N=0 为 0） (4.074271ms)
+✔ BM25：长度惩罚（b=0.75 压低长文档；b=0 关掉长度归一后同 tf 完全相等） (0.959375ms)
+✔ BM25：字段权重保留（tags > title > body），长文档靠噪声拿不到高分 (1.071093ms)
+✔ cov：命中标签权重占总权重的比例；外围非命中标签只能稀释 (0.726354ms)
+✖ 绝对映射：disp=clip((raw−A)/(B−A))，常数固定、不看批次 (2.344063ms)
+✔ match：由 raw 与两个绝对阈值比较得出（none/weak/strong），阈值可配置 (0.489479ms)
+✔ 多样性并入分数：final = rel × (1 − β·maxSim)，序列本身单调不增 (3.241563ms)
+✔ 候选 <= minCandidates 时跳过多样性（final 恒等于 rel） (0.629375ms)
+✔ 工具层：Top1 不再恒为 1.0000（绝对映射），且 rel/score 同标度可比 (50.079011ms)
+✔ 工具层：候选 > 5 才启用多样性；cov 作为诊断列不门控（低覆盖不返回空） (195.689844ms)
+✔ I1.3 自证：每一行都可用打印的 rel 与表头阈值复现 match（两种标度不混用） (123.935521ms)
+✔ 边界红证（判红点：WEAK_THRESHOLD 改回 0.06 即变红）：噪声上界 0.06 -> 0.0363 后，rel 落在该区间的真相关记录必须由 none 变 weak (26.092604ms)
+✔ 标定一致性：4 个默认常数必须与 src/pure.ts 注释里「落地值：」那一行的数字逐字一致 (3.239791ms)
+✔ 边界红证（判红点：WEAK_THRESHOLD 改回 0.0363 即变红）：rel 落在 (0.0363, 0.0382) 的记录必须由 weak 落回 none (32.642812ms)
+✔ 边界红证（判红点：STRONG_THRESHOLD 改回 0.1476 即变红）：rel 落在 (0.1476, 0.1507) 的记录必须由 strong 降为 weak (45.979532ms)
+✔ 边界红证（判红点：SCALE_B 改回 0.3420 即变红）：rel 落在 (0.3420, 0.3666) 的记录展示分不再顶到 1.0000 (20.659115ms)
+✖ 边界红证（判红点：SCALE_A 改回 0.0187 即变红）：rel 落在 (0.0187, 0.0199) 的记录展示分被新噪声地板压到 0 (32.575625ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 15
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 577.401406
+
+✖ failing tests:
+
+test at test/scoring.test.mjs:126:1
+✖ 绝对映射：disp=clip((raw−A)/(B−A))，常数固定、不看批次 (2.344063ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0.0187 !== 0.0199
+  
+      at TestContext.<anonymous> (file://<repo>/test/scoring.test.mjs:131:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0.0187,
+    expected: 0.0199,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/scoring.test.mjs:521:1
+✖ 边界红证（判红点：SCALE_A 改回 0.0187 即变红）：rel 落在 (0.0187, 0.0199) 的记录展示分被新噪声地板压到 0 (32.575625ms)
+  AssertionError [ERR_ASSERTION]: rel 落在新噪声地板之下的记录展示分必须是 0（旧 SCALE_A 会给出一个小正数）：0.0012905595843675426
+  + actual - expected
+  
+  + 0.0012905595843675426
+  - 0
+  
+      at TestContext.<anonymous> (file://<repo>/test/scoring.test.mjs:529:10)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0.0012905595843675426,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -48,6 +48,11 @@ bash redproof/run-all.sh 证据路径   # 自定义输出；有 fail 时退出�
 | `lineformat-probe.mjs` | `node redproof/lineformat-probe.mjs <lib/index.js 路径> <home 子目录名>`，用同一份固定语料 + 同一批查询对比改动前后的 L1 输出 |
 | `draft-header-lengths.mjs` | `node redproof/draft-header-lengths.mjs`，试算表头草稿长度，找最短可行措辞组合 |
 | `i7a-header-after-measure.mjs` | `node redproof/i7a-header-after-measure.mjs`，量「修正 1」后的表头长度：短查询 / 240 字符边界查询 / `Number.MAX_VALUE` 常数，全部必须 `<= HEADER_MAX_CHARS` |
+| `i7c-desc-lengths.mjs` | `node redproof/i7c-desc-lengths.mjs`，量 4 个工具描述的字符数（修正 2 的前后对照） |
+| `i7e-band-search.mjs` | `node redproof/i7e-band-search.mjs`，扫合成语料，为每个常数找「rel 落在新旧值之间」的边界夹具参数 |
+| `i7e-band-verify.mjs` | `node redproof/i7e-band-verify.mjs`，把上一步找到的四组夹具参数喂给真工具，打印 rel / match / score |
+| `i7e-revert-const.mjs` | `node redproof/i7e-revert-const.mjs <NAME> <值>`，把 `src/pure.ts` 的某个常数**连同「落地值：」行**一起改到指定值（红证用；不改注释行会连带弄红「注释↔常数一致性」用例，那样就孤立不出边界用例） |
+| `i7e-redproof.sh` | `bash redproof/i7e-redproof.sh`，逐个回退 4 个常数并跑 `test/scoring.test.mjs`，确认**对应那条**边界用例判红，然后自动恢复 |
 
 **如何加一条红证**：
 
@@ -63,7 +68,7 @@ bash redproof/run-all.sh 证据路径   # 自定义输出；有 fail 时退出�
 
 | 脚本 | 行数 | 作用 |
 | --- | --- | --- |
-| `calibrate.mjs` | 241 | 标定打分常数，**只打印建议，从不自动改写**文件或配置；空库时退出码 0 并给可读提示 |
+| `calibrate.mjs` | 365 | 标定打分常数，**默认只打印建议、从不自动改写**文件或配置；唯一的落地路径是**显式** `--write`（写前备份成 `<target>.bak-<时间戳>` + 打印逐行 diff + 锚点缺失即失败关闭）；空库时退出码 0 并给可读提示 |
 | `import-gotchas.mjs` | 568 | 把 `gotchas.md` 导入记忆库，支持 dry-run 与备份 |
 | `negative-samples.mjs` | 99 | 零参数、确定性的跨域负样本生成器；把负样本从 12 条手写扩到 240 条，让标定不再依赖手写小集 |
 | `i4a-measure.mjs` | 117 | 注入行的实测（字符数 / 行数 / 落点） |
@@ -72,12 +77,13 @@ bash redproof/run-all.sh 证据路径   # 自定义输出；有 fail 时退出�
 常用：
 
 ```bash
-node scripts/calibrate.mjs                 # 只打印：当前常数 + 建议值 + 敏感性对照
+node scripts/calibrate.mjs                 # 只打印：当前常数 + 建议值 + 敏感性对照（默认，不写）
+node scripts/calibrate.mjs --write         # 显式落地：备份 + 打印 diff + 改写 src/pure.ts 的 5 行锚点
 node scripts/import-gotchas.mjs --source gotchas.md          # dry-run
 node scripts/import-gotchas.mjs --source gotchas.md --write  # 落盘（先备份）
 ```
 
-`calibrate.mjs` 的纪律：**只打印、从不自动改写**；要改常数得人工动 `src/pure.ts`（或经 `score.*` 配置覆盖）。标定出处与重标时机见 [limitations.md](limitations.md)。
+`calibrate.mjs` 的纪律：**默认只打印、从不自动改写**；唯一的落地路径是**显式** `--write`（写前备份 + 打印逐行 diff + 锚点缺失即失败关闭），且写完仍需人工复核、重建（`tsc`）并跑全量用例。要人工改常数则动 `src/pure.ts`（或经 `score.*` 配置覆盖）。标定出处与重标时机见 [limitations.md](limitations.md)。
 
 ## 5. 环境事实（本机特有的坑）
 
@@ -96,9 +102,9 @@ node scripts/import-gotchas.mjs --source gotchas.md --write  # 落盘（先备�
 | --- | --- |
 | `src/*.ts` | 6 个源文件（`index.ts` / `inject.ts` / `json.ts` / `protocol.ts` / `pure.ts` / `store.ts`） |
 | `lib/*.js` + `lib/types/*.d.ts` | tsc 构建产物（6 个 `.js` + 6 个 `.d.ts`），**随包入库** —— 官方安装不跑构建 |
-| `test/*.mjs` | 19 个测试文件（176 pass / 0 fail，2026-10-09 实测）；另有 `helpers.mjs` 与 `isolation-probe.mjs` 两个非测试文件 |
+| `test/*.mjs` | 19 个测试文件（184 pass / 0 fail，2026-10-09 实测）；另有 `helpers.mjs` 与 `isolation-probe.mjs` 两个非测试文件 |
 | `scripts/*.mjs` | 5 个脚本（标定 / 导入 / 负样本 / 注入实测 / 松耦合探针） |
-| `redproof/` | 168 个被跟踪红证取证文件（159 个 `.txt` + 6 个探针 `.mjs` + `run-all.sh` + 2 个 `lineformat-*.json`） |
+| `redproof/` | 181 个被跟踪红证取证文件（168 个 `.txt` + 9 个探针 `.mjs` + 2 个 `.sh` + 2 个 `lineformat-*.json`） |
 | `docs/` | 4 个工程文档（设计 / 召回契约 / 开发 / 局限） |
 | `package.json` / `tsconfig.json` | 包与编译配置 |
 | `cordis.patch.yml` | 本包的 bundle patch（`package.json` 的 `dsh.bundle.patch` 指向它；官方安装后由它挂载插件，不需要手改 profile 的 patch） |

@@ -125,10 +125,10 @@ test('I5 结构性断言：标度常数不得影响显示行数（判红点：�
   // 关掉图传播：图到达的行 via 是 `tag:x`（比 `direct` 长），会让行长不齐——本用例比的是「能放几行」。
   const base = { graph: { maxHops: 0 } }
   const CONFIGS = [
-    ['默认标度 0.0187/0.342/0.0363/0.1476', base],
+    ['默认标度（现用 0.0199/0.3666/0.0382/0.1507）', base],
     ['scaleA=0/scaleB=0.45/weak=0.06/strong=0.16', { ...base, score: { scaleA: 0, scaleB: 0.45, weak: 0.06, strong: 0.16 } }],
-    ['scaleB=1.2345', { ...base, score: { scaleA: 0.0187, scaleB: 1.2345, weak: 0.0363, strong: 0.1476 } }],
-    ['scaleB 回显 17 位小数', { ...base, score: { scaleA: 0.0187, scaleB: 0.12345678901234568, weak: 0.0363, strong: 0.1476 } }],
+    ['scaleB=1.2345', { ...base, score: { scaleA: 0.0199, scaleB: 1.2345, weak: 0.0382, strong: 0.1507 } }],
+    ['scaleB 回显 17 位小数', { ...base, score: { scaleA: 0.0199, scaleB: 0.12345678901234568, weak: 0.0382, strong: 0.1507 } }],
   ]
 
   const runs = []
@@ -146,7 +146,7 @@ test('I5 结构性断言：标度常数不得影响显示行数（判红点：�
 
   // 区分力自检（防假绿）：标度配置必须真的被吃进去，并且真的打印出不同的 score 列。
   // 若配置没生效，两次运行的行文本会逐字相同，「shown 相等」就变成了废话。
-  assert.equal(runs[0].scaleA, 0.0187)
+  assert.equal(runs[0].scaleA, 0.0199)
   assert.equal(runs[1].scaleA, 0)
   assert.equal(runs[3].scaleB, 0.12345678901234568)
   assert.notEqual(runs[0].last, runs[1].last, '两组标度必须真的打印出不同的 score 列（配置得生效）')
