@@ -1,0 +1,7 @@
+# 红证 I6-3（编译期结构证明）：往 RECALL_COLUMNS 追加一列 'extra'，而 formatL1 的取值表没跟上
+# 补丁：RECALL_COLUMNS 末尾追加 'extra'（模拟「单点真相改了、派生处漏改」）
+# 判红点：tsc 必须直接报错（Record<RecallColumn,string> 穷尽性检查），而不是运行时静默少一列
+# 关闭态 src/index.ts sha256：208561c7f75fdb808daa79da25258edefe69e3b19300ab6ac7113008091eeb7c
+
+src/index.ts(157,9): error TS2741: Property 'extra' is missing in type '{ id: string; kind: "fact" | "lesson" | "preference" | "pointer"; title: string; tags: string; graph: string; via: string; rel: string; cov: string; match: MatchLevel; score: string; }' but required in type 'Record<"id" | "kind" | "title" | "tags" | "match" | "graph" | "via" | "rel" | "cov" | "score" | "extra", string>'.
+tsc exit=2

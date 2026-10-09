@@ -15,7 +15,7 @@
   "private": true,
   "scripts": {
     "build": "node node_modules/typescript/bin/tsc -p .",
-    "test": "node test/protocol.test.mjs && node test/cap.test.mjs && node test/pure.test.mjs && node test/scoring.test.mjs && node test/recall.test.mjs && node test/triage.test.mjs && node test/lossless.test.mjs && node test/storage.test.mjs && node test/prune.test.mjs && node test/inject.test.mjs && node test/loose-inject.test.mjs && node test/anchor.test.mjs && node test/graph.test.mjs && node test/calibrate.test.mjs && node test/import-gotchas.test.mjs && node test/header.test.mjs",
+    "test": "node test/protocol.test.mjs && node test/cap.test.mjs && node test/pure.test.mjs && node test/scoring.test.mjs && node test/recall.test.mjs && node test/triage.test.mjs && node test/lossless.test.mjs && node test/storage.test.mjs && node test/prune.test.mjs && node test/inject.test.mjs && node test/loose-inject.test.mjs && node test/anchor.test.mjs && node test/graph.test.mjs && node test/calibrate.test.mjs && node test/import-gotchas.test.mjs && node test/header.test.mjs && node test/columns.test.mjs",
     "calibrate": "node scripts/calibrate.mjs"
   },
   "peerDependencies": {

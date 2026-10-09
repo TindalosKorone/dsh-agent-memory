@@ -1,0 +1,14 @@
+# 红证 I6-2 关渲染侧：src/index.ts 让 formatL1 漏渲染 graph|via 两列（模拟「实现少一列」）
+# 补丁：RECALL_COLUMNS.map(...)  ->  RECALL_COLUMNS.filter(col => col !== 'graph' && col !== 'via').map(...)
+# 判红点：test/columns.test.mjs 的「I6 防漂 2」必须变红（字段数 8 != 10）
+# 关闭态 src/index.ts sha256：d61042deb588d4366ea833ba75d1795eeafeebb6931d8727c05bc65ca27d1fb5
+
+✔ I6 单点真相：列清单自身的形状（首列 id、末列 score、无重复、分隔符带空格） (1.664271ms)
+✔ I6 防漂 1（判红点：把描述里的列清单改回旧的 8 列硬编码串 ⇒ 本条变红）：描述与列清单同源 (6.648698ms)
+✖ I6 防漂 2（判红点：让 formatL1 少渲染一列 / 调换列序 ⇒ 本条变红）：渲染行与列清单一致 (71.863177ms)
+ℹ tests 3
+ℹ pass 2
+ℹ fail 1
+✖ failing tests:
+✖ I6 防漂 2（判红点：让 formatL1 少渲染一列 / 调换列序 ⇒ 本条变红）：渲染行与列清单一致 (71.863177ms)
+  AssertionError [ERR_ASSERTION]: 第 0 行字段数必须等于列清单长度 10，实际 8：mem_mv0e2o5f_7297773e88 | fact | alpha beta note 0 | alpha,beta | 0.4545 | 0.5000 | strong | 1.0000

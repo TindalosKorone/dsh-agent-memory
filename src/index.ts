@@ -55,6 +55,27 @@ export const RECALL_MAX_CHARS = 2000
 /** recall 单次取回条数上限。 */
 export const RECALL_LIMIT_MAX = 50
 /**
+ * L1 行的列清单 —— **唯一来源**（列名 + 列序都在这里，别再抄第二遍）。
+ *
+ * 三处都从它派生，因此结构上不可能互相漂移：
+ *  - 渲染：`formatL1` 用 `Record<RecallColumn, string>` 的取值表 + `RECALL_COLUMNS.map(...)` 拼接
+ *    ⇒ 列数恒 == RECALL_COLUMNS.length，列序恒 == 数组顺序；少给一列 tsc 直接报错，
+ *    往数组里加一列而取值表没跟上也直接报错；
+ *  - 工具描述：memory_recall 的 description 里那串列清单是 `${RECALL_COLUMNS.join(' | ')}`；
+ *  - 表头：`列序:${RECALL_COLUMNS.join('|')}`。
+ *
+ * 列序不可随手挪（I3 的三步试错结论）：
+ *  - `score` **恒在末位**（既有读者按 `-1` 取分数）；
+ *  - rel/cov/match 仍在最后四列里 ⇒ 它们的行尾相对下标 -4/-3/-2 不变；
+ *  - 前三列 id/kind/title/tags 不动 ⇒ 行首解析不变。
+ *  因此 I3 的两列 `graph | via` 只能插在 tags 与 rel 之间。
+ */
+export const RECALL_COLUMNS = ['id', 'kind', 'title', 'tags', 'graph', 'via', 'rel', 'cov', 'match', 'score'] as const
+/** L1 行的列分隔符（` | `，竖线两侧各一个空格）。 */
+export const RECALL_COLUMN_SEP = ' | '
+/** 列名联合类型（由 RECALL_COLUMNS 派生）：formatL1 的取值表用它做穷尽性检查。 */
+export type RecallColumn = (typeof RECALL_COLUMNS)[number]
+/**
  * 候选数 <= 该值时跳过多样性重排（第三方做法：小候选集只重排、拿不到多样性收益、纯添乱）。
  * 与 pure.ts 的 diversify.minCandidates 对应；召回层显式传 5。
  */
@@ -80,7 +101,8 @@ export interface ExpandedRecord {
  *              ⇒ 读者可用打印的 rel 自行验算 match（I1.3 自证要求）；
  *  - `score` = `disp(final)` 映射到 0..1 的**展示分**（仅用于排序展示，与 rel 不同标度）。
  * I3 追加两列诊断：`graph`（图奖励，已应用硬上限）与 `via`（来源：direct / tag:<标签>）。
- * 列序固定为 `graph | via | rel | cov | match | score`，见 formatL1。
+ * 列序**不在这里重复**：唯一来源是 `RECALL_COLUMNS`（`RECALL_COLUMNS.join(' | ')`），
+ * 渲染见 formatL1、工具文案见 memory_recall 的 description、表头见下面构造处的「列序:」段。
  */
 export interface L1ScoreView {
   /** 含多样性惩罚的最终展示分 disp(final)；列表按它降序 ⇒ 打印天然单调不增。 */
@@ -112,7 +134,7 @@ export interface L1Row {
 }
 
 /**
- * 每条 L1 行：`id | kind | title | tags | graph | via | rel | cov | match | score`。**不含 body**。
+ * 每条 L1 行：`RECALL_COLUMNS.join(' | ')`（列名与列序的唯一来源就是 RECALL_COLUMNS，本注释不再抄一遍）。**不含 body**。
  *
  * 约定（列序是三步试出来的，别随手挪）：
  *  - 既有 8 列的名称/含义/相对位置**一个字不改**（rel 仍是 BM25 原始相关度、cov 仍是覆盖率、
@@ -130,9 +152,22 @@ export interface L1Row {
  *  - final = rel + graph（再乘多样性惩罚）；rel = **BM25 原始相关度**（match 只依据它）。
  */
 export function formatL1(rec: MemoryRecord, view: L1ScoreView): string {
-  return `${rec.id} | ${rec.kind} | ${rec.title} | ${rec.tags.join(',')} | `
-    + `${view.graph.toFixed(4)} | ${view.via} | `
-    + `${view.rel.toFixed(4)} | ${view.cov.toFixed(4)} | ${view.match} | ${view.score.toFixed(4)}`
+  // 取值表按**列名**给全：`Record<RecallColumn, string>` 是穷尽性检查 ——
+  // RECALL_COLUMNS 少改/多加一列而这里没跟着改，tsc 立刻报错（不是运行时静默漂移）。
+  const cells: Record<RecallColumn, string> = {
+    id: rec.id,
+    kind: rec.kind,
+    title: rec.title,
+    tags: rec.tags.join(','),
+    graph: view.graph.toFixed(4),
+    via: view.via,
+    rel: view.rel.toFixed(4),
+    cov: view.cov.toFixed(4),
+    match: view.match,
+    score: view.score.toFixed(4),
+  }
+  // 列数与列序**只**由 RECALL_COLUMNS 决定（含「score 恒在末位」）。
+  return RECALL_COLUMNS.map((col) => cells[col]).join(RECALL_COLUMN_SEP)
 }
 
 /**
@@ -307,7 +342,7 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
   host.tools.register(defineTool({
     name: 'memory_recall',
     description: '按查询召回记忆索引（L1）。每条一行：'
-      + 'id | kind | title | tags | rel | cov | match | score。'
+      + `${RECALL_COLUMNS.join(' | ')}。`
       + '**绝不返回 body**：要正文请拿 id 调 memory_expand。'
       + 'score 是含多样性惩罚的最终分（按它降序，映射到 0..1 的展示标度，不随批次归一化）；'
       + 'rel 是 BM25 原始相关度（**阈值直接作用于它**，可据此自行验算 match）；'
@@ -614,7 +649,7 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
       // 结构性断言「标度常数不得影响显示行数」钉住。
       //
       // 必须保留（一个都不能少，理由见括号）：
-      //   ① 列序（10 列的名字与顺序）——行按 ` | ` 切片读列，列序本身就是契约；
+      //   ① 列序（RECALL_COLUMNS 的列名与顺序，由它派生）——行按 ` | ` 切片读列，列序本身就是契约；
       //   ② rel=BM25 原始相关度、且是 match 的判定依据——否则 match 无法复算；
       //   ③ match 两个阈值数字——复算 none/weak/strong 唯一依据；
       //   ④ score=disp(final) 的公式与两个标度常数——复算展示分的唯一依据；
@@ -646,7 +681,7 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
 
       const header = `记忆召回L1:query=${JSON.stringify(query)} 库${records.length} 候选${fused.length};`
         + `limit=${limit} 是硬显示上限(min(limit,候选数));`
-        + '列序:id|kind|title|tags|graph|via|rel|cov|match|score;'
+        + `列序:${RECALL_COLUMNS.join('|')};`
         + 'rel=BM25原始相关度,match 依据;'
         + `score=disp(final)=clip((final-${scoreCfg.scaleA})/(${scoreCfg.scaleB}-${scoreCfg.scaleA}));`
         + `match:rel>=${scoreCfg.weak} weak、>=${scoreCfg.strong} strong、否则 none;`
