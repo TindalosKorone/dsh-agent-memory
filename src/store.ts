@@ -103,7 +103,11 @@ export interface MemoryConfig {
    */
   graph?: GraphOptions
   /**
-   * I4a：稳定记忆索引注入开关与预算（默认 enabled=true / maxChars=240 / topTags=3）。
+   * I4a：稳定记忆索引注入开关与预算
+   * （默认 enabled=true / maxChars=240 / topTags=3 / anchorMaxDfRatio=0.3）。
+   * I4a.2 起锚点先过**出现率资格过滤**（含该标签的记录数 / 总记录数 > anchorMaxDfRatio 的标签
+   * 不参与），避免覆盖全库的公共标签（例如「坑位」）霸占每一步的上下文；
+   * 合格锚点不足就如实少给，一个都没有就写「无可区分锚点」，**绝不回落到全库最高频标签**。
    * 只影响「往 prompt 尾部动态块注入的那一行」，**不改变任何写入/召回契约**。
    * 关掉（enabled:false）时不注册、不输出任何字符。
    */

@@ -19,7 +19,7 @@ import { dirname } from 'node:path'
 import { apply } from '../lib/index.js'
 import * as pluginModule from '../lib/index.js'
 import {
-  DEFAULT_INJECTION_MAX_CHARS, DEFAULT_INJECTION_TOP_TAGS, HARD_MARK,
+  ANCHOR_MAX_DF_RATIO, DEFAULT_INJECTION_MAX_CHARS, DEFAULT_INJECTION_TOP_TAGS, HARD_MARK,
   INJECTION_CONTEXT_NAME, INJECTION_CONTEXT_ORDER,
   buildInjectionIndex, createInjectionCache, planInjectionLine, resolveInjectionOptions,
   sanitizeForPrompt, stableAnchors,
@@ -38,23 +38,41 @@ function seed(home, records) {
   return p
 }
 
-/** 3 条固定记忆：锚点频次 失败关闭:2 / render:1 / 协议:1 ⇒ 锚点 = 失败关闭 / render / 协议（码元升序决胜）。 */
+/**
+ * 7 条固定记忆。锚点口径（I4a.2 起先做出现率资格过滤，总记录数 7）：
+ *   失败关闭 2/7 ≈ 0.2857（≤ 0.3，合格）；render / 协议 / 测试 / 填充1..4 各 1/7（合格）
+ *   ⇒ 合格集合排序 = 失败关闭(2) → render(1，ASCII 码元最小) → 协议(1) → 填充1..4 → 测试
+ *   ⇒ 锚点 = 失败关闭 / render / 协议。
+ * 【I4a.2 契约变更】原来只有 3 条记录，任何标签的出现率都 ≥ 1/3 > 0.3，默认口径下会**全部被过滤**，
+ * 那一行会退化成「无可区分锚点」——本文件要测的是「带锚点的完整行」，所以夹具扩到 7 条
+ * （每个新增记录的标签唯一 ⇒ 不抢前三名）。降级口径本身由 test/anchor.test.mjs 覆盖。
+ */
 function smallLibrary() {
   return [
     record('mem_a', T0, { tags: ['失败关闭', 'render'] }),
     record('mem_b', T0 + DAY, { tags: ['失败关闭', '协议'] }),
     record('mem_c', T0 + 2 * DAY, { tags: ['测试'] }),
+    record('mem_f1', T0 + 3 * DAY, { tags: ['填充1'] }),
+    record('mem_f2', T0 + 4 * DAY, { tags: ['填充2'] }),
+    record('mem_f3', T0 + 5 * DAY, { tags: ['填充3'] }),
+    record('mem_f4', T0 + 6 * DAY, { tags: ['填充4'] }),
   ]
 }
 
-const SMALL_EXPECT = '记忆 3 条（上限 2000）｜标签锚点：失败关闭 / render / 协议｜细则用 memory_recall'
+const SMALL_EXPECT = '记忆 7 条（上限 2000）｜标签锚点：失败关闭 / render / 协议｜细则用 memory_recall'
 
-/** 2000 条 + 12 个 32 字符长标签 ⇒ 默认预算下就超限（用 topTags=64 让超限更明确）。 */
+/**
+ * 2000 条 + 每条 12 个 ~27 字符长标签 ⇒ 默认预算下就超限（用 topTags=64 让超限更明确）。
+ * 【I4a.2】标签按记录索引取唯一名（df = 1/2000 ⇒ 全部合格）：否则 12 个标签在每条记录上
+ * 都出现（出现率 100%）会被资格过滤全部剔除，超限阶梯就永远走不到了。
+ */
 function bigLibrary(n) {
   const out = []
   for (let i = 0; i < n; i += 1) {
     const tags = []
-    for (let k = 0; k < 12; k += 1) tags.push(`长标签${String(k).padStart(2, '0')}-${'z'.repeat(22)}`)
+    for (let k = 0; k < 12; k += 1) {
+      tags.push(`长标签${String(i).padStart(4, '0')}-${String(k).padStart(2, '0')}-${'z'.repeat(16)}`)
+    }
     out.push({
       id: `mem_big_${String(i).padStart(4, '0')}`,
       ts: T0 + i,
@@ -152,17 +170,23 @@ test('I4a.1：工具面照旧 4 个；注入面是条件注册，不再进 injec
 test('I4a：口径解析有默认值、越界夹到天花板、非法类型回落（解析本身不抛）', () => {
   assert.deepEqual(resolveInjectionOptions(undefined), {
     enabled: true, maxChars: DEFAULT_INJECTION_MAX_CHARS, topTags: DEFAULT_INJECTION_TOP_TAGS,
+    anchorMaxDfRatio: ANCHOR_MAX_DF_RATIO,
   })
   assert.deepEqual(resolveInjectionOptions(null), {
     enabled: true, maxChars: DEFAULT_INJECTION_MAX_CHARS, topTags: DEFAULT_INJECTION_TOP_TAGS,
+    anchorMaxDfRatio: ANCHOR_MAX_DF_RATIO,
   })
   assert.deepEqual(resolveInjectionOptions({ enabled: 'no', maxChars: 100000, topTags: 9999 }), {
-    enabled: true, maxChars: 4000, topTags: 64,
+    enabled: true, maxChars: 4000, topTags: 64, anchorMaxDfRatio: ANCHOR_MAX_DF_RATIO,
   })
   assert.deepEqual(resolveInjectionOptions({ enabled: false, maxChars: -5, topTags: -1 }), {
-    enabled: false, maxChars: 0, topTags: 0,
+    enabled: false, maxChars: 0, topTags: 0, anchorMaxDfRatio: ANCHOR_MAX_DF_RATIO,
   })
   assert.equal(resolveInjectionOptions({ maxChars: '120' }).maxChars, 120)
+  // I4a.2：锚点资格过滤上限也在同一解析面里（越界夹到 0..1，非有限值回落默认）
+  assert.equal(ANCHOR_MAX_DF_RATIO, 0.3)
+  assert.equal(resolveInjectionOptions({ anchorMaxDfRatio: 9 }).anchorMaxDfRatio, 1)
+  assert.equal(resolveInjectionOptions({ anchorMaxDfRatio: Number.NaN }).anchorMaxDfRatio, ANCHOR_MAX_DF_RATIO)
 })
 
 // ── 6. 空库：不炸、给最小占位、不写「标签锚点」空段 ──────────────────────
@@ -200,8 +224,15 @@ test('I4a：2000 条 + 长标签 ⇒ 注入文本长度 <= maxChars 且带如实
 
 test('I4a：手工改库塞进 300 字符超长标签 ⇒ 仍 <= maxChars（阶梯最后一级硬截断）', () => {
   const home = freshHome('i4a-huge-tag')
-  seed(home, [record('mem_huge', T0, { tags: ['h'.repeat(300), '正常标签'] })])
+  // 【I4a.2】1 条记录时任何标签的出现率都是 100% ⇒ 会被资格过滤掉，超长标签根本进不了锚点。
+  // 这里补 9 条标签唯一的记录（超长标签出现率 1/10 = 0.1 ⇒ 合格，且 ASCII 码元最小 ⇒ 排第一），
+  // 本用例要测的仍是「超长锚点撑爆预算时的截断阶梯」。
+  const fillers = []
+  for (let i = 0; i < 9; i += 1) fillers.push(record(`mem_fill_${i}`, T0 + (i + 1) * DAY, { tags: [`填充${i}`] }))
+  seed(home, [record('mem_huge', T0, { tags: ['h'.repeat(300), '正常标签'] }), ...fillers])
   const r = buildInjectionIndex({ home })
+  assert.equal(r.diag.distinctTags, 11)
+  assert.equal(r.diag.qualifiedTags, 11)
   assert.ok(r.text.length <= DEFAULT_INJECTION_MAX_CHARS, `长度 ${r.text.length} 必须 <= ${DEFAULT_INJECTION_MAX_CHARS}`)
   assert.equal(r.diag.truncated, true)
   assert.equal(r.diag.omitted > 0, true)
@@ -226,11 +257,14 @@ test('I4a：锚点排序是确定口径（频次降序 → 码元升序），净
     record('mem_2', T0, { tags: ['a', 'c'] }),
     record('mem_3', T0, { tags: ['c', '{d}'] }),
   ]
-  // 频次：a=2 c=2 b=1 d=1（'{d}' 被净化成 'd'）⇒ 先按频次降序，再按码元升序决胜
-  assert.deepEqual(stableAnchors(recs, 3), ['a', 'c', 'b'])
-  assert.deepEqual(stableAnchors(recs, 10), ['a', 'c', 'b', 'd'])
-  assert.deepEqual(stableAnchors(recs, 0), [])
-  assert.deepEqual(stableAnchors([], 3), [])
+  // 频次：a=2 c=2 b=1 d=1（'{d}' 被净化成 'd'）⇒ 先按频次降序，再按码元升序决胜。
+  // 【I4a.2 契约变更】stableAnchors 增加第三参数 maxDfRatio（默认 0.3 资格过滤）：本用例的
+  // 三条记录里每个标签的出现率都 ≥ 1/3 > 0.3，默认口径下会全被过滤掉，无法再验证「纯排序」。
+  // 所以这里**显式传 1**（= 关掉过滤）来保留本用例原本的语义；过滤语义由 test/anchor.test.mjs 覆盖。
+  assert.deepEqual(stableAnchors(recs, 3, 1), ['a', 'c', 'b'])
+  assert.deepEqual(stableAnchors(recs, 10, 1), ['a', 'c', 'b', 'd'])
+  assert.deepEqual(stableAnchors(recs, 0, 1), [])
+  assert.deepEqual(stableAnchors([], 3, 1), [])
 })
 
 // ── 8. 稳定性：库不变 ⇒ 逐字节相同 ───────────────────────────────────────
@@ -260,7 +294,7 @@ test('I4a：库内容变了（条数/锚点变）⇒ 文本才跟着变（不是
   seed(home, [...smallLibrary(), record('mem_d', T0 + 3 * DAY, { tags: ['失败关闭'] })])
   const after = buildInjectionIndex({ home }).text
   assert.notEqual(after, SMALL_EXPECT)
-  assert.ok(after.startsWith('记忆 4 条'))
+  assert.ok(after.startsWith('记忆 8 条'))
 })
 
 // ── 9. 只读缓存：键 = {path,size,mtimeMs}，同键必同值 ──────────────────────
@@ -273,7 +307,7 @@ test('I4a：缓存键严格是 {path,size,mtimeMs}：命中同值、文件改动
   // 键的形状就是 {path, size, mtimeMs} 三元组（\u0000 连接），没有任何其他维度
   const st = statSync(memFile(home))
   assert.equal(cache.key, `${memFile(home)}\u0000${st.size}\u0000${st.mtimeMs}`)
-  assert.equal(cache.count, 3)
+  assert.equal(cache.count, 7)
   const second = buildInjectionIndex({ home }, cache)
   assert.equal(second.diag.cached, true, '同键必须命中缓存')
   assert.equal(second.text, first.text)
@@ -296,8 +330,8 @@ test('I4a：缓存键严格是 {path,size,mtimeMs}：命中同值、文件改动
   seed(home, [...smallLibrary(), record('mem_d', T0 + 3 * DAY, { tags: ['测试'] })])
   const third = buildInjectionIndex({ home }, cache)
   assert.equal(third.diag.cached, false)
-  assert.equal(third.diag.count, 4)
-  assert.ok(third.text.startsWith('记忆 4 条'))
+  assert.equal(third.diag.count, 8)
+  assert.ok(third.text.startsWith('记忆 8 条'))
 })
 
 // ── 10. fail-open：读库抛 / 解析坏 / 注册抛，全都不许抛 ────────────────────
@@ -342,7 +376,7 @@ test('I4a fail-open：NDJSON 坏行/空行/非对象行 ⇒ 跳过坏行、不�
   writeFileSync(p, `${serialize(smallLibrary())}{坏行不是 JSON\n\n[1,2,3]\nnull\n`, 'utf8')
   const r = buildInjectionIndex({ home })
   assert.equal(r.text, SMALL_EXPECT)
-  assert.equal(r.diag.count, 3)
+  assert.equal(r.diag.count, 7)
 })
 
 test('I4a fail-open：systemPrompt.context 注册时抛 ⇒ apply 不抛、4 个工具照常注册', () => {

@@ -1,0 +1,31 @@
+I4a.2 最终全量：tsc + 逐文件直跑（node test/x.test.mjs；本机 node --test 汇总坏，不用它）
+生成时间戳: 2026-10-09T02:19:15Z
+
+$ node node_modules/typescript/bin/tsc -p .
+tsc exit=0
+
+test/protocol.test.mjs: exit=0 pass=23 fail=0
+test/cap.test.mjs: exit=0 pass=4 fail=0
+test/pure.test.mjs: exit=0 pass=7 fail=0
+test/scoring.test.mjs: exit=0 pass=11 fail=0
+test/recall.test.mjs: exit=0 pass=7 fail=0
+test/triage.test.mjs: exit=0 pass=15 fail=0
+test/lossless.test.mjs: exit=0 pass=4 fail=0
+test/storage.test.mjs: exit=0 pass=13 fail=0
+test/prune.test.mjs: exit=0 pass=3 fail=0
+test/inject.test.mjs: exit=0 pass=20 fail=0
+test/loose-inject.test.mjs: exit=0 pass=4 fail=0
+test/anchor.test.mjs: exit=0 pass=11 fail=0
+test/graph.test.mjs: exit=0 pass=17 fail=0
+test/import-gotchas.test.mjs: exit=0 pass=7 fail=0
+
+TOTAL pass=146 fail=0
+（基线：原有 13 文件 135 pass / 0 fail；本增量新增 test/anchor.test.mjs 11 pass。原有用例的夹具/期望值按 I4a.2 契约点名更新，见汇报）
+
+src/*.ts 逐文件 sha256：
+38bc71a0aefedea1f915d1b834c86109a58ddeed77f028aa79b1e3facfde9749  src/index.ts
+52e20a2dfec01839a492987ecab5269cd6261c52fd1ccb8a92ded847ef91c2b3  src/inject.ts
+bb207e7aeff55bf7b1b4425d99597040d1cae5c74cd0660b1c146086d053e00a  src/json.ts
+ece2919ca670a4277175ef3e9c4ccf944cafe17cab03afb6f8faa8c25bc20b18  src/protocol.ts
+dd2b2c23020b91864eca59dcf653c121a1d22dc92b3a7d95630e8c96e9eeb7bf  src/pure.ts
+20b2ea2cf04afd84578d1716f04ff8b223f6601c6b3ce1195db6fce75cb9b92b  src/store.ts

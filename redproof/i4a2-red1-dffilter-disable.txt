@@ -1,0 +1,224 @@
+✖ I4a.2 资格过滤：覆盖率 95.8% 的标签被剔除，合格集合里 df 最高的三个才是锚点 (13.209375ms)
+✖ I4a.2 红证形态（双侧钉死）：同一份库把 maxDfRatio 放到 1（=关掉过滤）⇒ 最高频标签立刻被选中 (0.978385ms)
+✖ I4a.2 边界：出现率恰好等于上限的标签**保留**（剔除条件是严格大于） (0.433854ms)
+✔ I4a.2 df 口径是「记录数」：一条记录内重复写同一标签只计一次 (0.298281ms)
+✖ I4a.2 合格锚点不足 N 个 ⇒ 如实少给，绝不补位、绝不回落到超频标签 (20.829739ms)
+✖ I4a.2 一个合格锚点都没有 ⇒ 那行如实写「无可区分锚点」，绝不回落到最高频标签 (18.735365ms)
+✖ I4a.2 确定性：记录顺序打乱、重复取值、换缓存实例，锚点与那一行逐字节相同 (18.866614ms)
+✔ I4a.2 长度上限：带锚点行与「无可区分锚点」降级行在任意 maxChars 下都 ≤ 上限 (101.825156ms)
+✔ I4a.2 口径解析：anchorMaxDfRatio 夹到 0..1、非有限值回落默认（绝不静默变成「不过滤」） (0.678907ms)
+✖ I4a.2 可配置：放宽到 0.1 会换掉锚点集合；收紧到 0 等于「不要锚点」 (17.347395ms)
+✖ I4a.2 端到端：apply 注册的 agent-memory 那行与 buildInjectionIndex 完全一致（含降级形状） (28.176927ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 3
+ℹ fail 8
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 243.730885
+
+✖ failing tests:
+
+test at test/anchor.test.mjs:58:1
+✖ I4a.2 资格过滤：覆盖率 95.8% 的标签被剔除，合格集合里 df 最高的三个才是锚点 (13.209375ms)
+  AssertionError [ERR_ASSERTION]: 必须是合格集合里 df 最高的三个
+  + actual - expected
+  
+    [
+  +   '坑位',
+      '判据',
+      '快照',
+  -   '测试'
+    ]
+  
+      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/anchor.test.mjs:64:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.start (node:internal/test_runner/test:1191:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [Array],
+    expected: [Array],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at test/anchor.test.mjs:80:1
+✖ I4a.2 红证形态（双侧钉死）：同一份库把 maxDfRatio 放到 1（=关掉过滤）⇒ 最高频标签立刻被选中 (0.978385ms)
+  AssertionError [ERR_ASSERTION]: Expected "actual" not to be strictly deep-equal to:
+  
+  [
+    '坑位',
+    '判据',
+    '快照'
+  ]
+  
+      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/anchor.test.mjs:86:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [Array],
+    expected: [Array],
+    operator: 'notDeepStrictEqual',
+    diff: 'simple'
+  }
+
+test at test/anchor.test.mjs:89:1
+✖ I4a.2 边界：出现率恰好等于上限的标签**保留**（剔除条件是严格大于） (0.433854ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+  +   '超界',
+      '边界'
+    ]
+  
+      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/anchor.test.mjs:98:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [Array],
+    expected: [Array],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at test/anchor.test.mjs:114:1
+✖ I4a.2 合格锚点不足 N 个 ⇒ 如实少给，绝不补位、绝不回落到超频标签 (20.829739ms)
+  AssertionError [ERR_ASSERTION]: 只有 2 个合格 ⇒ 如实少给
+  + actual - expected
+  
+    [
+  +   '宽标签',
+      '窄甲',
+      '窄乙'
+    ]
+  
+      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/anchor.test.mjs:126:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [Array],
+    expected: [Array],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at test/anchor.test.mjs:133:1
+✖ I4a.2 一个合格锚点都没有 ⇒ 那行如实写「无可区分锚点」，绝不回落到最高频标签 (18.735365ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + [
+  +   '坑位'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/anchor.test.mjs:140:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [Array],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at test/anchor.test.mjs:160:1
+✖ I4a.2 确定性：记录顺序打乱、重复取值、换缓存实例，锚点与那一行逐字节相同 (18.866614ms)
+  AssertionError [ERR_ASSERTION]: 锚点不得依赖记录书写顺序
+  + actual - expected
+  
+    [
+  +   '坑位',
+      '判据',
+      '快照',
+  -   '测试'
+    ]
+  
+      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/anchor.test.mjs:166:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [Array],
+    expected: [Array],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at test/anchor.test.mjs:233:1
+✖ I4a.2 可配置：放宽到 0.1 会换掉锚点集合；收紧到 0 等于「不要锚点」 (17.347395ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+  +   '坑位',
+      '判据',
+      '快照',
+  -   '测试'
+    ]
+  
+      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/anchor.test.mjs:239:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [Array],
+    expected: [Array],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at test/anchor.test.mjs:249:1
+✖ I4a.2 端到端：apply 注册的 agent-memory 那行与 buildInjectionIndex 完全一致（含降级形状） (28.176927ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + '记忆 120 条（上限 2000）｜标签锚点：坑位 / 判据 / 快照｜细则用 memory_recall'
+  - '记忆 120 条（上限 2000）｜标签锚点：判据 / 快照 / 测试｜细则用 memory_recall'
+  
+      at TestContext.<anonymous> (file:///storage/emulated/0/deepseek/dsh-agent-memory/test/anchor.test.mjs:255:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '记忆 120 条（上限 2000）｜标签锚点：坑位 / 判据 / 快照｜细则用 memory_recall',
+    expected: '记忆 120 条（上限 2000）｜标签锚点：判据 / 快照 / 测试｜细则用 memory_recall',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

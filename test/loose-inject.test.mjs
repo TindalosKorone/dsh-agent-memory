@@ -212,7 +212,13 @@ test('I4a.1 反向断言：有 systemPrompt 时注入确实注册（context 存�
   })
 
   const home = freshHome('i4a1-reverse')
-  seed(home, [record('mem_r1', T0, { tags: ['松耦合'] })])
+  // 【I4a.2 契约变更】原来只有 1 条记录，任何标签的出现率都是 100% ⇒ 会被锚点资格过滤掉，
+  // 那一行会退化成「无可区分锚点」（文本仍非空，但本用例要断言带锚点的完整行）。
+  // 这里补 9 条共用一个超频标签的记录（9/10 = 0.9 > 0.3 ⇒ 该标签被剔除，不抢锚点），
+  // 于是 `松耦合`（1/10 = 0.1）如实成为唯一锚点；降级口径由 test/anchor.test.mjs 覆盖。
+  const filler = []
+  for (let i = 0; i < 9; i += 1) filler.push(record(`mem_f${i}`, T0 + (i + 1) * DAY, { tags: ['调试填充'] }))
+  seed(home, [record('mem_r1', T0, { tags: ['松耦合'] }), ...filler])
 
   const fiber = root.plugin(realPlugin, { home })
   await tick()
@@ -231,7 +237,7 @@ test('I4a.1 反向断言：有 systemPrompt 时注入确实注册（context 存�
   assert.ok(mine[0].text.length > 0, '文本必须非空（功能没被改坏）')
   assert.ok(mine[0].text.length <= DEFAULT_INJECTION_MAX_CHARS, `文本长度 ${mine[0].text.length} 必须 <= 240`)
   assert.ok(mine[0].text.includes('memory_recall'), '指路尾巴照旧')
-  assert.equal(mine[0].text, '记忆 1 条（上限 2000）｜标签锚点：松耦合｜细则用 memory_recall')
+  assert.equal(mine[0].text, '记忆 10 条（上限 2000）｜标签锚点：松耦合｜细则用 memory_recall')
 })
 
 // ── 4. 迟到依赖：加载顺序不再决定注入生死 ─────────────────────────────────

@@ -1,0 +1,27 @@
+# I4a.2 两条红证汇总（改源码 -> 判红 -> 还原 -> 哈希逐字节复原）
+# 驱动方式：手工 patch src/inject.ts + `node node_modules/typescript/bin/tsc -p .` + 直跑用例
+# 证据文件：i4a2-red1-dffilter-{disable,restored}.txt / i4a2-red2-fallback-{disable,restored}.txt
+#
+# 源码基线哈希（恢复后必须逐字节相同）：
+#   src/inject.ts  52e20a2dfec01839a492987ecab5269cd6261c52fd1ccb8a92ded847ef91c2b3
+#   lib/inject.js  b2ba2aab5660bef19f1dd05ac4ce6e79c6a859eec5827b48934ef43a7123ed58
+#   （其余 src/*.ts 见 i4a2-final-full-suite.txt；src/store.ts 只改了 injection 那段文档注释）
+#
+# 红证 1（关掉资格过滤：`if (entry[1] / total > limit) continue` -> `if (false && ...)`）
+#   判红断言（test/anchor.test.mjs:64）：
+#     assert.deepEqual(plan.anchors, ['判据', '快照', '测试'], '必须是合格集合里 df 最高的三个')
+#   判红实测：actual = ['坑位', '判据', '快照'] —— 覆盖 115/120 的标签立刻被选中，断言变红。
+#   结果：anchor 用例 3 pass / 8 fail（含「无合格锚点时如实降级」也被污染）；
+#         还原后 11 pass / 0 fail，src/inject.ts 哈希复原为 52e20a2d...
+#
+# 红证 2（加「回落取最高频」兜底：qualified 为空时把全库 df 最高的标签塞进去）
+#   判红断言（test/anchor.test.mjs:140）：
+#     assert.deepEqual(r.diag.anchors, [])  （库里只有覆盖率 100% 的 `坑位` 时）
+#     + assert.equal(r.text, `记忆 5 条（上限 2000）｜无可区分锚点｜细则用 memory_recall`)
+#   判红实测：actual = ['坑位']（`r.text` 也随之不再写「无可区分锚点」），断言变红。
+#   结果：anchor 用例 8 pass / 3 fail（降级用例 + ratio=0 可配置用例 + 端到端降级形状）；
+#         还原后 11 pass / 0 fail，src/inject.ts 哈希复原为 52e20a2d...
+#
+# 注意（防假绿）：红证 1 必须改「过滤行为」而不是改 ANCHOR_MAX_DF_RATIO 常量 ——
+#   把常量从 0.3 改成 1 会让断言里的期望值跟着漂移（且默认值断言 `ANCHOR_MAX_DF_RATIO === 0.3` 也会红），
+#   那测的是「常量是不是 0.3」，不是「过滤有没有生效」。
