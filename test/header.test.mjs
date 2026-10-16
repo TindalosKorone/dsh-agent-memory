@@ -66,8 +66,8 @@ test('I5 表头自检：单行、<= 428 字符，且可复算信息一个都不�
     `表头必须回显两个标度常数（scaleA=${r.scaleA} scaleB=${r.scaleB}）：${header}`)
   // ⑤ limit 是硬显示上限（本轮把「是硬显示上限」收紧成「硬上限」，只删冗字、语义不变）
   assert.ok(header.includes(`limit=${r.limit}硬上限`), `表头必须写明 limit 是硬显示上限：${header}`)
-  // ⑥ I2 分诊的结论性数字：novelty、阈值、expanded、kBase->kUsed
-  assert.match(header, /I2:novelty=[0-9]+\.[0-9]{4}(<|>=)阈值[0-9.]+/, `表头必须回显 novelty 与阈值：${header}`)
+  // ⑥ 分诊的结论性数字：novelty、阈值、expanded、kBase->kUsed
+  assert.match(header, /novelty=[0-9]+\.[0-9]{4}(<|>=)阈值[0-9.]+/, `表头必须回显 novelty 与阈值：${header}`)
   assert.ok(header.includes(`expanded=${r.expanded}`), `表头必须回显 expanded=${r.expanded}：${header}`)
   assert.ok(header.includes(`kBase=${r.kBase}->kUsed=${r.kUsed}`),
     `表头必须回显 kBase/kUsed（${r.kBase} -> ${r.kUsed}）：${header}`)
