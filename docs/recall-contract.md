@@ -48,14 +48,14 @@ id | kind | title | tags | graph | via | rel | cov | match | score
 | `kind` | `fact` / `lesson` / `preference` / `pointer` |
 | `title` | 标题 |
 | `tags` | 逗号连接的有序标签 |
-| `graph` | I3 标签共现图传播给的**辅助**奖励（已应用硬上限 `GRAPH_BONUS_CAP`；无图证据恰好为 0） |
+| `graph` | 标签共现图传播给的**辅助**奖励（已应用硬上限 `GRAPH_BONUS_CAP`；无图证据恰好为 0） |
 | `via` | 来源标记：`direct`（词法直接命中）或 `tag:<标签>`（由标签图传播到达） |
 | `rel` | **BM25 原始相关度**（绝对标度，不随批次归一化）—— **`match` 的判定依据之一**（另一个是内容量闸门，见 §5） |
 | `cov` | 标签覆盖率（**仅诊断**，不门控、不整批否决） |
 | `match` | 绝对判定 `none` / `weak` / `strong`（`rel` + 两个阈值 + **内容量闸门**共同决定，见 §5） |
 | `score` | `disp(final)` 映射到 0..1 的**展示分**（仅用于排序展示，与 `rel` 不同标度） |
 
-**列序不可随手挪**（三步试错结论）：`score` 恒在末位；`rel` / `cov` / `match` 的行尾相对下标（-4 / -3 / -2）不变；前四列 `id` / `kind` / `title` / `tags` 不动。I3 的两列 `graph | via` 因此**只能**插在 `tags` 与 `rel` 之间。
+**列序不可随手挪**（三步试错结论）：`score` 恒在末位；`rel` / `cov` / `match` 的行尾相对下标（-4 / -3 / -2）不变；前四列 `id` / `kind` / `title` / `tags` 不动。图的两列 `graph | via` 因此**只能**插在 `tags` 与 `rel` 之间。
 
 ## 5. 可复算铁律
 
@@ -102,7 +102,7 @@ id | kind | title | tags | graph | via | rel | cov | match | score
 ## 7. `limit` 是硬显示上限
 
 - 返回行数恒为 `min(limit, 可用候选数)`。
-- 内部扩召回（I2 分诊的 `kBase -> kUsed`）**只放大内部预算**（给金字塔取更大的基、给多样性更大的候选池），**绝不增加返回行数**。
+- 内部扩召回（残差金字塔分诊的 `kBase -> kUsed`）**只放大内部预算**（给金字塔取更大的基、给多样性更大的候选池），**绝不增加返回行数**。
 - 把「内部候选池预算」误读成「显示上限」是明确的误用。
 
 ## 7b. `scope`（项目/工作区维度）
@@ -111,12 +111,12 @@ id | kind | title | tags | graph | via | rel | cov | match | score
 - **召回**：`memory_recall` 的 `scope` 可选。**不传 ⇒ 不过滤**（与过去逐字一致）；**传了 ⇒ 只返回 `scope == 该值` 或 `scope == global` 的记录** —— `global` 永远包含，因为跨项目经验本来就通用。只读路径对参数做宽松净化（剥换行、`{{}}` 降级、截断到 64），保证表头不被坏参数破坏。
 - **打印契约不破**：打印行**仍是 10 列**（`RECALL_COLUMNS` 不动，`score` 仍在行尾）；过滤结果在**表头**回显 `;scope=<值>`（超长按剩余预算截断并标 `…`，放不下则整段省略），并在**结构化 rows** 里每行带 `scope` 字段（键序 = `RECALL_COLUMNS` + `scope`，由 `test/columns.test.mjs` 钉住）。
 - **结构化**：返回体带 `scope`（本次生效的过滤值，空串 = 未过滤）与 `scopeRecords`（过滤后参与召回的条数）；`total` 仍是**库容量**，不因过滤而变。
-- **约定怎么传达给模型**：这条约定（项目专属写 `project:<名>`、跨项目通用用默认 `global`）**通过稳定规则段**传达 —— I4a.3 的那条 `agent-memory-habit` 稳定段（每步都在的 system prompt 正文段）里逐字写了它，`test/inject.test.mjs` 的「I4a.4」用例钉住。放这里的理由：它是**行为约定**（什么时候写、写成什么），与「遇到排查类问题先 recall」同属规则、属于稳定前缀；尾部索引随库变动，`memory_recall` 描述有 300 字符硬上限（`test/description.test.mjs`），都不适合承载。
+- **约定怎么传达给模型**：这条约定（项目专属写 `project:<名>`、跨项目通用用默认 `global`）**通过稳定规则段**传达 —— `agent-memory-habit` 稳定段（每步都在的 system prompt 正文段）里逐字写了它，`test/inject.test.mjs` 的「稳定段写入 scope 约定」用例钉住。放这里的理由：它是**行为约定**（什么时候写、写成什么），与「遇到排查类问题先 recall」同属规则、属于稳定前缀；尾部索引随库变动，`memory_recall` 描述有 300 字符硬上限（`test/description.test.mjs`），都不适合承载。
 - **不做「当前工作区」自动推断**：运行时**拿得到**会话 cwd（`execute(args, exec)` 的 `exec.agent.id` → `sessions.get(id).header.cwd`，见 `src/index.ts` scope 处的源码行号注释），但用它当默认会**改变默认行为**、需要给插件加可选服务依赖，且「cwd → scope 名」只是**自造约定** —— 所以插件只提供**纯显式** scope，不做工作区自动推断，约定本身走上面那条稳定规则；默认值一事留待使用者拍板。
 
 ## 8. 分诊与低置信
 
-- **I2 分诊**：以候选标签向量为基、在标签 idf 词法空间做 Gram-Schmidt 残差金字塔，得到 novelty = `0.7×残差能量比 + 0.3×方向一致性`，据此决定是否扩召回（`novelty >= noveltyThreshold`，默认 0.5）。
+- **残差金字塔分诊**：以候选标签向量为基、在标签 idf 词法空间做 Gram-Schmidt 残差金字塔，得到 novelty = `0.7×残差能量比 + 0.3×方向一致性`，据此决定是否扩召回（`novelty >= noveltyThreshold`，默认 0.5）。
 - **空查询不分诊**：查询无词元能量（`‖q‖²≈0`）时 `novelty=0`、`expanded=false`、`kUsed=kBase`，`explainedRatio` / `residualRatio` 如实回显 `0/0`（未定义）。
 - **低置信只报告**：`activationThreshold`（默认 0.05）下 `cov_max` 偏低只置 `lowConfidence`，**绝不返回空、绝不整批否决**。
 - **`cov` 是诊断列，不是质量保证**：高 `cov` 不等于高相关，它不门控任何结果。
@@ -125,16 +125,16 @@ id | kind | title | tags | graph | via | rel | cov | match | score
 
 表头是**单行**的，总长上界为 `HEADER_MAX_CHARS = 448` 字符。这个上界由**构造**保证，与查询串多长无关：
 
-- **固定部分**（与查询无关）：列序 / `rel` 语义与 `match` 依据 / 两个阈值 / **内容量闸门输入与规则，按分支回显**（贴线封顶支 `内容量qTok=<N><<min>且rel<<M>×strong⇒strong封顶weak`，例外放行支 `内容量qTok=<N><<min>但rel≥<M>×strong⇒不压级`，闸门未生效支 `内容量qTok=<N>≥<min>⇒闸门未生效`）/ `disp(final)` 公式与两个标度常数 / `limit` 是硬上限 / I2 结论 / 低置信 / I3 结论。其中标度常数经 `formatHeaderConstant()` **定宽回显**（宽度上限 `HEADER_CONST_MAX_CHARS = 9`）：放得下就精确回显，放不下就用 `≈` 标注为**近似值**并降精度（精确值仍逐字在结构化字段 `scaleA`/`scaleB`/`weakThreshold`/`strongThreshold` 上）。
+- **固定部分**（与查询无关）：列序 / `rel` 语义与 `match` 依据 / 两个阈值 / **内容量闸门输入与规则，按分支回显**（贴线封顶支 `内容量qTok=<N><<min>且rel<<M>×strong⇒strong封顶weak`，例外放行支 `内容量qTok=<N><<min>但rel≥<M>×strong⇒不压级`，闸门未生效支 `内容量qTok=<N>≥<min>⇒闸门未生效`）/ `disp(final)` 公式与两个标度常数 / `limit` 是硬上限 / 分诊结论 / 低置信 / 图结论。其中标度常数经 `formatHeaderConstant()` **定宽回显**（宽度上限 `HEADER_CONST_MAX_CHARS = 9`）：放得下就精确回显，放不下就用 `≈` 标注为**近似值**并降精度（精确值仍逐字在结构化字段 `scaleA`/`scaleB`/`weakThreshold`/`strongThreshold` 上）。
 - **有界的 `query=` 回显**：回显预算 = `HEADER_MAX_CHARS` 减去固定部分**现算**；先按**码点**截断原始查询串，**再**做 JSON 转义（顺序不能反，否则会切断 `\"`、`\\`、`\n`、`\u00XX` 这类转义序列），放不下就继续缩短并如实标注 `…(截断)`。转义后一定单行。**完整查询串永远原样在结构化字段 `query` 上**，回显只是给人看的短标识。
 - **标定漂移提示（条件性，只在超出阈值时出现）**：标定时的库规模与日期记在 `src/pure.ts` 的机器可读行（`CALIBRATION_RECORDS` / `CALIBRATION_DATE`）。`memory_recall` 每次拿**当前库条数**与标定点比一次：相对偏差 `|drift| / calibrationRecords > calibrationDriftRel`（默认 `0.2`）**或**绝对差 `|drift| > calibrationDriftAbs`（默认 `100` 条），**取先到者** ⇒ 表头加一句 `标定<204>条@<date>,现值<N>条,建议重跑calibrate --write`。结构化字段 `calibratedAt` / `calibrationRecords` / `calibrationDrift`（有符号差）/ `calibrationDriftRel` / `calibrationDriftAbs` / `calibrationDriftExceeded` 让 `exceeded` 恒可复算。**这条提示只进 `memory_recall` 的表头，绝不进自动注入那行** —— 注入文本必须稳定，否则每次写库都会改写提示词。
-- **回显位宽代价（历次改动，后人注意）**：内容量闸门那次回显把「默认标度 + 3 条库」的固定部分从 384 顶到 404；闸门例外（贴线封顶支多出 `且rel<M×strong`）把该支顶到 37 字符；标定漂移段再加约 47 字符。为腾字符，把表头里**非复算必需**的冗字收紧（`limit 是硬显示上限`→`limit硬上限`、I2 段的空格、`match:` 前缀、`开时不可由 rel/graph 复算`→`开时score不可复算`、`枢纽被压`→`枢纽压`、`reachable=`→`可达=`、`候选>5时启用`→`候选>5启用`、`graph硬上限`→`graph上限`、低置信段两处空格），**一个复算必需项都没动**（数值、公式、阈值、列序全在）。收紧后本机实测最坏表头 **448 / 448**（`Number.MAX_VALUE` 常数 + 240 字符边界查询 + 60 条库 + 漂移段必现），最坏固定部分 434。**往表头再加文本前，必须先跑 `test/header.test.mjs` 的两条最坏情况用例。**
+- **回显位宽代价（历次改动，后人注意）**：内容量闸门那次回显把「默认标度 + 3 条库」的固定部分从 384 顶到 404；闸门例外（贴线封顶支多出 `且rel<M×strong`）把该支顶到 37 字符；标定漂移段再加约 47 字符。为腾字符，把表头里**非复算必需**的冗字收紧（`limit 是硬显示上限`→`limit硬上限`、分诊段的空格、`match:` 前缀、`开时不可由 rel/graph 复算`→`开时score不可复算`、`枢纽被压`→`枢纽压`、`reachable=`→`可达=`、`候选>5时启用`→`候选>5启用`、`graph硬上限`→`graph上限`、低置信段两处空格），**一个复算必需项都没动**（数值、公式、阈值、列序全在）。收紧后本机实测最坏表头 **448 / 448**（`Number.MAX_VALUE` 常数 + 240 字符边界查询 + 60 条库 + 漂移段必现），最坏固定部分 434。**往表头再加文本前，必须先跑 `test/header.test.mjs` 的两条最坏情况用例。**
 
 > 历史坑：旧文档/旧注释写的是「单行、<= 400 字符」。那个数字只在 3 个短查询夹具（388~399）上量过，从未覆盖最坏情况 —— 200 字符含边界字符的查询实测表头 742 字符、360 字符的查询 932 字符；换一组回显更宽的标度常数（22 位小数）也能把固定部分顶到 413。现在两条路径分别由上面的定宽回显与有界回显堵死，并由 `test/header.test.mjs` 的最坏情况用例（长边界查询 + `Number.MAX_VALUE` 常数 + 三位数库规模统计）钉住。**本次构造后的真正上界是 `HEADER_MAX_CHARS = 448`（旧的 `<= 400` 口径已废弃）**；`test/header.test.mjs` 里那个更紧的「常配短查询 <= 428」只是收紧位（闸门回显前是 400），不是总量上界。
 
 非结论性诊断（`basisSize`、`layers`、`logicalDepth`、`explainedRatio`+`residualRatio` 守恒、传播上限与 `gamma`/`rho`、种子与到达计数、多样性 β）不回显在表头，但**一个都没删**，仍逐字在结构化返回字段里。
 
-## 10. 工具描述瘦身（修正 2）：细则都在这里
+## 10. 工具描述瘦身与描述/文档对账：细则都在这里
 
 `memory_recall` 的工具描述只留模型**每次调用都要用**的五件事（10 列清单 / `rel`-`match`-`score` 语义 / `limit` 是硬显示上限 / 绝不返回 body / 指向本文件），已从 **1182 字符压到 <= 300 字符**。
 
@@ -144,7 +144,7 @@ id | kind | title | tags | graph | via | rel | cov | match | score
 - `final=(rel+graph)×多样性因子`；因子 `= 1-β×maxSim`（`β 默认 0.3`，`maxSim` 是该行与已选行的最大标签 Jaccard 相似度）。
 - 多样性因子**仅当候选数 > 5 时施加**；**是否施加见结构化字段 `diversityApplied`**。
 - 因此多样性被启用时，`score` **无法仅由打印出的 rel/graph 精确复算**（β 与 maxSim 都不在打印列里）；而 `match` **始终可由打印的 rel + 表头阈值 + 表头回显的内容量闸门输入（`contentTokens`/`contentTokenMin`/`gateMargin`）复算**。
-- **内容量闸门（本次新增；i11 起加例外倍数 `GATE_MARGIN`）**：`match = 无内容量(qTok=0) ? none : (qTok < contentTokenMin ? (base=strong 且 rel < gateMargin×strong ? strong 封顶 weak : base) : 阈值判定)`；`qTok` = 去重查询词元里在库内任一分词字段出现过的个数，默认阈值 `CONTENT_TOKEN_MIN = 2`，可用配置 `score.contentTokenMin` 覆盖（设 1 即关闸门）。它**只封顶 strong**：短查询照样返回行、照样能判 weak，**绝不整批否决**；`rel` 的语义与四个已标定常数一个字都不动。
+- **内容量闸门（本次新增；自该版起加例外倍数 `GATE_MARGIN`）**：`match = 无内容量(qTok=0) ? none : (qTok < contentTokenMin ? (base=strong 且 rel < gateMargin×strong ? strong 封顶 weak : base) : 阈值判定)`；`qTok` = 去重查询词元里在库内任一分词字段出现过的个数，默认阈值 `CONTENT_TOKEN_MIN = 2`，可用配置 `score.contentTokenMin` 覆盖（设 1 即关闸门）。它**只封顶 strong**：短查询照样返回行、照样能判 weak，**绝不整批否决**；`rel` 的语义与四个已标定常数一个字都不动。
 - **表头回显（按分支给，绝不写无条件样板，三支）**：贴线封顶支 `内容量qTok=<N><<min>且rel<<M>×strong⇒strong封顶weak`、例外放行支 `内容量qTok=<N><<min>但rel≥<M>×strong⇒不压级`、闸门未生效支 `内容量qTok=<N>≥<min>⇒闸门未生效`。（判红点：删掉这段、只回显一半，或把不封顶支改回无条件样板 ⇒ `test/header.test.mjs` 与 `test/scoring.test.mjs` 变红；真机缺陷出处 `redproof/i10-*`。）
 - `graph` 是标签图传播给的**辅助**奖励（有硬上限 `graphBonusCap`，**不会压过词法相关度**）。
 - `via` 是该行来源：`direct`（词法直接命中）或 `tag:<标签>`（由该标签的图传播到达）。

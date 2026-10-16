@@ -14,7 +14,7 @@
 
 - 看 profile `package.json` 的 `dsh.profile.bundles` 里有没有 `@dsh-agent/dsh-agent-memory`（没有 ⇒ 这个包没被登记为 bundle）。
 - `inject: ['tools']` 是**必需**依赖：缺 `tools` 会让 fiber **静默**停在 `PENDING`，不报错也不可用。
-- 注入（`systemPrompt`）是**条件**依赖：缺 `systemPrompt` 只损失注入那一行，四个工具**照常注册**（I4a.1 起如此）。
+- 注入（`systemPrompt`）是**条件**依赖：缺 `systemPrompt` 只损失注入那一行，四个工具**照常注册**（自该版起如此）。
 
 ## 3. `lib/` 没构建
 

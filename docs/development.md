@@ -49,8 +49,8 @@ bash redproof/run-all.sh 证据路径   # 自定义输出；有 fail 时退出�
 | `measure-header.mjs` | `node redproof/measure-header.mjs`，量两处夹具的表头长度，确认「单行」 |
 | `lineformat-probe.mjs` | `node redproof/lineformat-probe.mjs <lib/index.js 路径> <home 子目录名>`，用同一份固定语料 + 同一批查询对比改动前后的 L1 输出 |
 | `draft-header-lengths.mjs` | `node redproof/draft-header-lengths.mjs`，试算表头草稿长度，找最短可行措辞组合 |
-| `i7a-header-after-measure.mjs` | `node redproof/i7a-header-after-measure.mjs`，量「修正 1」后的表头长度：短查询 / 240 字符边界查询 / `Number.MAX_VALUE` 常数，全部必须 `<= HEADER_MAX_CHARS` |
-| `i7c-desc-lengths.mjs` | `node redproof/i7c-desc-lengths.mjs`，量 4 个工具描述的字符数（修正 2 的前后对照） |
+| `i7a-header-after-measure.mjs` | `node redproof/i7a-header-after-measure.mjs`，量「表头上界修正」后的表头长度：短查询 / 240 字符边界查询 / `Number.MAX_VALUE` 常数，全部必须 `<= HEADER_MAX_CHARS` |
+| `i7c-desc-lengths.mjs` | `node redproof/i7c-desc-lengths.mjs`，量 4 个工具描述的字符数（工具描述瘦身的前后对照） |
 | `i7e-band-search.mjs` | `node redproof/i7e-band-search.mjs`，扫合成语料，为每个常数找「rel 落在新旧值之间」的边界夹具参数 |
 | `i7e-band-verify.mjs` | `node redproof/i7e-band-verify.mjs`，把上一步找到的四组夹具参数喂给真工具，打印 rel / match / score |
 | `i7e-revert-const.mjs` | `node redproof/i7e-revert-const.mjs <NAME> <值>`，把 `src/pure.ts` 的某个常数**连同「落地值：」行**一起改到指定值（红证用；不改注释行会连带弄红「注释↔常数一致性」用例，那样就孤立不出边界用例） |
@@ -60,8 +60,8 @@ bash redproof/run-all.sh 证据路径   # 自定义输出；有 fail 时退出�
 
 1. 先确保对应用例在正常状态下**绿**（跑一遍该文件）。
 2. 用 `node redproof/patch-src.mjs "<原串>" "<新串>"` 关掉该机制（改的是 `src/index.ts`），重建 `tsc -p .`。
-3. 跑该用例，把失败输出**原文**存为 `redproof/<增量>-<机制>-disable.txt`；确认它是**红**的（不是偶然跳过）。
-4. 用 `patch-src.mjs` 反向还原（或 `git checkout -- src/index.ts`），重建，把绿输出存为 `redproof/<增量>-<机制>-restored.txt`。
+3. 跑该用例，把失败输出**原文**存为 `redproof/<机制编号>-<机制>-disable.txt`；确认它是**红**的（不是偶然跳过）。
+4. 用 `patch-src.mjs` 反向还原（或 `git checkout -- src/index.ts`），重建，把绿输出存为 `redproof/<机制编号>-<机制>-restored.txt`。
 5. 确认 `git status` 里 `src/` 已还原干净，再提交。
 
 ## 4. `scripts/` 用法
