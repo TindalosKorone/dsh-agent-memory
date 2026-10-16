@@ -2,7 +2,7 @@
 
 本文件写给**改代码、跑测试、加红证的人**：构建、测试纪律、红证目录、脚本用法与本机环境事实。
 
-安装与使用见 [../README.md](../README.md)；设计主张见 [design.md](design.md)。
+安装见 [install.md](install.md)、故障排查见 [troubleshooting.md](troubleshooting.md)、使用见 [../README.md](../README.md)；设计主张见 [design.md](design.md)。
 
 ## 1. 构建
 
@@ -105,7 +105,7 @@ node scripts/import-gotchas.mjs --source gotchas.md --write  # 落盘（先备�
 | `test/*.mjs` | 19 个测试文件（197 pass / 0 fail，2026-10-09 实测）；另有 `helpers.mjs` 与 `isolation-probe.mjs` 两个非测试文件 |
 | `scripts/*.mjs` | 5 个脚本（标定 / 导入 / 负样本 / 注入实测 / 松耦合探针） |
 | `redproof/` | 228 个被跟踪红证取证文件（204 个 `.txt` + 17 个探针 `.mjs` + 2 个 `.sh` + 5 个 `.json`） |
-| `docs/` | 4 个工程文档（设计 / 召回契约 / 开发 / 局限） |
+| `docs/` | 6 个工程文档（安装 / 故障排查 / 设计 / 召回契约 / 开发 / 局限） |
 | `package.json` / `tsconfig.json` | 包与编译配置 |
 | `cordis.patch.yml` | 本包的 bundle patch（`package.json` 的 `dsh.bundle.patch` 指向它；官方安装后由它挂载插件，不需要手改 profile 的 patch） |
 | `LICENSE` / `NOTICE` / `README.md` | 许可 / 署名 / 门面文档 |

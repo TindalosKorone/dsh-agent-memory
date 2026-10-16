@@ -11,9 +11,35 @@
 
 ## 安装
 
-```bash
-dsh plugin --profile web add github:TindalosKorone/dsh-agent-memory
-```
+按 **1 → 2 → 3** 走：clone 到本地 → 构建产物 → 用命令装进 profile。
+
+1. **克隆到本地**
+
+   ```bash
+   git clone https://github.com/TindalosKorone/dsh-agent-memory.git
+   cd dsh-agent-memory
+   ```
+
+2. **构建产物**
+
+   ```bash
+   pnpm install        # 取 TypeScript 等 devDependencies（本包运行时零依赖）
+   pnpm run build      # 等价 node node_modules/typescript/bin/tsc -p .
+   ```
+
+   `lib/` 是 tsc 产物且**已随包入库**；只安装、不改源码时，这一步可跳过。
+
+3. **安装进 profile**
+
+   ```bash
+   dsh plugin --profile <profile> add /绝对路径/dsh-agent-memory
+   ```
+
+   把 `<profile>` 换成目标 profile（如 `web`）。装完**重启 DSH** —— 插件在 boot 时载入，不重启不会出现。
+
+只想用、不打算改代码的话，也可以跳过 clone 直接一行装远端：`dsh plugin --profile <profile> add github:TindalosKorone/dsh-agent-memory`。
+
+**或者，让你的 agent 按 [docs/install.md](docs/install.md) 安装** —— 那份文档写全了三种方式、profile 侧软链、路径与验证步骤。
 
 ## 怎么用
 
@@ -29,13 +55,7 @@ dsh plugin --profile web add github:TindalosKorone/dsh-agent-memory
 
 ## 故障排查
 
-- **工具没出现**：插件是 boot 时载入的 ⇒ 装完或改完配置 **必须重启 DSH**。
-- **插件卡在 PENDING、工具一直不来**：先确认本包确实是 profile 的一层 —— 看 profile `package.json` 的 `dsh.profile.bundles` 里有没有 `@dsh-agent/dsh-agent-memory`（没有就说明这个包没被登记为 bundle）。`inject: ['tools']` 是必需依赖，缺 `tools` 会**静默**停在 PENDING，不报错也不可用。
-- **`node --test` 报 `expected absolute path`**：本机 `process.execPath` 指向安卓 linker64，测试运行器 spawn 失败。绕过办法：逐文件直跑 `node test/x.test.mjs`；脚本里 spawn node 用 `process.argv0`。
-- **`lib/` 没构建**：官方安装下来的包自带入库的 `lib/`，不需要构建；只有从源码或 `file:` 用本仓时才要先 `tsc -p .`（见「安装」）。
-- **注入那行为什么不变**：它只由**库内容**决定，库不变则逐字节相同（引擎只在快照文本变化时才产出消息）。库变了才会变；`injection.enabled: false` 则完全不注入。
-- **库在哪 / 怎么备份 / 上限**：`$DSH_HOME/agent-memory/memory.ndjson`，NDJSON 纯文本，直接 `cp` 就是备份。默认 2000 条 / 4 MiB，单条默认 ≤ maxBytes 的 10%。
-- 更多本机坑（`<external-storage>` 不能建软链、`/tmp` 不可写但 `cd /tmp` 会成功）见 [docs/development.md](docs/development.md)。
+装完工具不出现、插件卡在 PENDING、`lib/` 没构建、注入行为不变、库在哪与怎么备份 —— 这些排查步骤已移到 **[docs/troubleshooting.md](docs/troubleshooting.md)**。
 
 ## 安全
 
@@ -49,9 +69,11 @@ dsh plugin --profile web add github:TindalosKorone/dsh-agent-memory
 
 ## 链接
 
+- [docs/install.md](docs/install.md) — 三种安装方式（远端一行 / 本地 clone + 构建 / 交给 agent）、重启与验证
+- [docs/troubleshooting.md](docs/troubleshooting.md) — 故障排查（工具不出现、卡 PENDING、注入不变、库位置与备份）
 - [docs/design.md](docs/design.md) — 分期实现、7 条硬不变量、两条注入机制、为什么不自动召回
 - [docs/recall-contract.md](docs/recall-contract.md) — 10 列逐列含义、打分常数、写入协议与 fail-closed 闸门
 - [docs/development.md](docs/development.md) — 构建、测试纪律与红证、脚本、环境事实
 - [docs/limitations.md](docs/limitations.md) — 9 条诚实局限、标定出处、发布注意
-- [redproof/](redproof/) — 红证取证目录（每条机制一份「能判红」的证据）
+- [redproof/](https://github.com/TindalosKorone/dsh-agent-memory/tree/main/redproof) — 红证取证目录（每条机制一份「能判红」的证据）
 - [NOTICE](NOTICE) / [LICENSE](LICENSE)
