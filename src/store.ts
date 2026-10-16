@@ -7,7 +7,7 @@
  *   DSH_AGENT_MEMORY_MAX_RECORDS / DSH_AGENT_MEMORY_MAX_BYTES
  * 淘汰：超限时按 score = decay(ts) * (1 + hits) 从低到高淘汰，**绝不无限增长**。
  *
- * I1.1 小修补的三道失败关闭闸门（都可判红）：
+ * 写入协议的三道失败关闭闸门（都可变红）：
  *  1) 单条上限（record-too-large）：淘汰是按字节数做的，允许一条超大记录进来会把**整库挤空**；
  *     所以写入前先量这一条序列化后的字节数，超过上限（默认 maxBytes 的 10%）即拒收且不落盘。
  *  2) 外部改动守卫（store-changed-externally）：只有进程内串行队列、没有跨进程写锁，
@@ -51,7 +51,7 @@ export interface StoreStamp {
   mtimeMs: number
 }
 
-/** 文件系统接缝：默认走 node:fs，测试可注入以做故障注入（红证 / 原子写断言 / 并发度观测）。 */
+/** 文件系统接缝：默认走 node:fs，测试可注入以做故障注入（失败证据 / 原子写断言 / 并发度观测）。 */
 export interface FsOps {
   existsSync(path: string): boolean
   mkdirSync(path: string): void
@@ -92,13 +92,13 @@ export interface MemoryConfig {
   /** id 生成器注入（测试用确定性 id）。 */
   newId?: (now: number) => string
   /**
-   * 打分口径覆盖（I1.2）：展示分绝对标度常数 SCALE_A / SCALE_B、绝对阈值 WEAK / STRONG、
+   * 打分口径覆盖：展示分绝对标度常数 SCALE_A / SCALE_B、绝对阈值 WEAK / STRONG、
    * 多样性惩罚系数 β。缺省一律用 pure.ts 里的模块级默认常数（见 resolveScoreOptions）。
    * 注意：这里只放常数，**没有任何批次相关量**——展示分禁用批内归一化。
    */
   score?: ScoreOptions
   /**
-   * 分诊口径覆盖（I2）：noveltyThreshold（默认 0.5，novelty >= 它 ⇒ 扩检索）、
+   * 分诊口径覆盖：noveltyThreshold（默认 0.5，novelty >= 它 ⇒ 扩检索）、
    * activationThreshold（默认 0.05，cov_max < 它 ⇒ lowConfidence，**只如实报告不否决**）、
    * maxBasis（默认 6）、maxLayers（默认 3）、residualStop（默认 0.1）。
    * 缺省一律用 pure.ts 的模块级默认常数（见 resolveTriageOptions）。
@@ -107,7 +107,7 @@ export interface MemoryConfig {
    */
   triage?: TriageOptions
   /**
-   * I3 图与传播口径覆盖：lambda（log 压缩 λ，默认 1）、outBudget（出流预算 m_out，默认 1）、
+   * 图与传播口径覆盖：lambda（log 压缩 λ，默认 1）、outBudget（出流预算 m_out，默认 1）、
    * hubEta（枢纽抑制指数 η，默认 0.5）、maxHops（默认 2；0 = 关掉传播）、
    * maxStates（默认 64；0 = 关掉传播）、maxFieldNeighbors（默认 4）、decay（γ，默认 0.6）、
    * backflowRho（ρ，默认 0.15）、bonusCap（图奖励硬上限，默认 0.018）、
@@ -117,9 +117,9 @@ export interface MemoryConfig {
    */
   graph?: GraphOptions
   /**
-   * I4a：稳定记忆索引注入开关与预算
+   * 稳定记忆索引注入开关与预算
    * （默认 enabled=true / maxChars=240 / topTags=3 / anchorMaxDfRatio=0.3）。
-   * I4a.2 起锚点先过**出现率资格过滤**（含该标签的记录数 / 总记录数 > anchorMaxDfRatio 的标签
+   * 锚点先过**出现率资格过滤**（含该标签的记录数 / 总记录数 > anchorMaxDfRatio 的标签
    * 不参与），避免覆盖全库的公共标签（例如「坑位」）霸占每一步的上下文；
    * 合格锚点不足就如实少给，一个都没有就写「无可区分锚点」，**绝不回落到全库最高频标签**。
    * 只影响「往 prompt 尾部动态块注入的那一行」，**不改变任何写入/召回契约**。
@@ -285,7 +285,7 @@ export function loadRecords(cfg: MemoryConfig = {}): MemoryRecord[] {
 
 /**
  * 便宜的文件身份探测（只 stat、**不读内容**）：文件不存在或无法 stat 时返回 undefined。
- * I4a 的只读缓存用它做 `{path, size, mtimeMs}` 的命中判定 —— 与上面的外部改动守卫
+ * 注入的只读缓存用它做 `{path, size, mtimeMs}` 的命中判定 —— 与上面的外部改动守卫
  * 共用同一套身份口径（StoreStamp），所以缓存不会比库自己的判据更乐观。
  */
 export function statStamp(cfg: MemoryConfig = {}): StoreStamp | undefined {

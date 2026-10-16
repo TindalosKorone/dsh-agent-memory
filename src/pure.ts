@@ -5,7 +5,7 @@
  * （排序一律带 id 字典序做最终决胜，杜绝 V8 排序实现差异带来的不确定性）。
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * 【纪律（I1.2 第三方设计审计点名，后人不要误改回去）】
+ * 【纪律（打分口径的第三方设计审计点名，后人不要误改回去）】
  *
  * 「按批内极值归一化」在「查询场能量 / 传播预算」这类**作用对象**上是被允许的：
  * 那类量的语义本来就是「相对本次查询的预算分配」，归一化后比较才有意义。
@@ -234,7 +234,7 @@ export const SCALE_A = 0.0199
 
 /**
  * 展示分绝对区间映射的上界（raw 达到它即展示 1.0000），默认 0.3666 = p95(正样本)。
- * 旧值 0.45 是 offline 自语料夹具推出来的临时值（(3+2+1)·idf·sat 恒等式），已按真实语料替换；
+ * 旧值 0.45 是 offline 自语料测试样本推出来的临时值（(3+2+1)·idf·sat 恒等式），已按真实语料替换；
  * 标定出处与分位数语义见上方「真实语料标定（2026-10-09，第二次落地）」块。
  */
 export const SCALE_B = 0.3666
@@ -245,7 +245,7 @@ export const SCALE_B = 0.3666
  * 更早的 0.06 只来自第三方审计的量级；在 240 个负样本上 p95 实测 0.0363 ⇒ 噪声上界下调，
  * 落在 (0.0363, 0.06) 的真相关记录从 none 变成 weak。本次（204 条库）再抬到 0.0382，
  * 于是又有一批 rel 落在 (0.0363, 0.0382) 的记录从 weak 落回 none ——
- * 两条边界红证都见 test/scoring.test.mjs（两条都能判红：改回旧值即红）。
+ * 两条边界失败证据都见 test/scoring.test.mjs（两条都能变红：改回旧值即红）。
  */
 export const WEAK_THRESHOLD = 0.0382
 /** 见 WEAK_THRESHOLD。默认 0.1507 = p10(正样本)，正样本低分位。 */
@@ -259,7 +259,7 @@ export const DEFAULT_DIVERSITY_BETA = 0.3
 
 /** BM25 词频饱和参数（第三方给定口径，不要手改）。 */
 export const BM25_K1 = 1.2
-/** BM25 文档长度归一参数（第三方给定口径）；b=0 即关掉长度归一（红证用）。 */
+/** BM25 文档长度归一参数（第三方给定口径）；b=0 即关掉长度归一（失败验证用）。 */
 export const BM25_B = 0.75
 
 /** 打分字段（标签 / 标题 / 正文）。 */
@@ -285,7 +285,7 @@ export type MatchLevel = 'none' | 'weak' | 'strong'
  * 判据：**内容词元数 qTok** = 去重后的查询词元里、**在本库任一分词字段（tags/title/body）
  * 至少出现过一次**（df>0）的个数。取这个量而不是字符数：
  *   - `虚拟屏` 只有 3 个字符却切出 5 个内容词元（虚/虚拟/拟/拟屏/屏）⇒ 不被封顶；
- *   - `ok`/`做`/`b` 各只有 1 个 ⇒ 被封顶。字符数闸门会把前者一起压掉（红证 i9-red2）。
+ *   - `ok`/`做`/`b` 各只有 1 个 ⇒ 被封顶。字符数闸门会把前者一起压掉（失败证据 i9-red2）。
  *
  * 为什么**不**用 idf 质量/最高 idf 当闸门（实测过的反例，别改回去）：
  *   - 本库上噪声 `好的` 的 idf 质量 qIdf=6.49 **高于**真话题 `快照`=3.90、`注入`=2.93、`判据`=2.57；
@@ -295,7 +295,7 @@ export type MatchLevel = 'none' | 'weak' | 'strong'
  * 阈值标定（2026-10-09，真实 204 条库；证据 redproof/i9-*.txt）：
  *   - 噪声侧：`ok`/`做`/`b` 的 qTok 全是 1；
  *   - 话题侧：`虚拟屏` qTok=5、`虚拟屏不能用吗？` qTok=11（该库全部真话题查询 qTok>=3）；
- *   - 取**能判红的最小值 2**：任何更大的阈值都会开始封顶 qTok=3 的真短话题
+ *   - 取**能使断言变红的最小值 2**：任何更大的阈值都会开始封顶 qTok=3 的真短话题
  *     （`快照`/`门禁`/`注入` 实测 qTok 均为 3，rel≈0.5 判 strong，不该被封顶）。
  *   代价（如实声明）：单内容词元的查询（如英文单标签 `adb`/`ci`）从此最多 weak；
  *   本库 795 个正样本里 83 个（10.4%）落在这一档 —— 方向是**保守**的（宁可不吹 strong，也不误伤真话题）。
@@ -315,7 +315,7 @@ export type MatchLevel = 'none' | 'weak' | 'strong'
  * 闸门余量 GATE_MARGIN = 2.0
  * 依据：噪声侧实测 1.13~1.23 倍、真话题侧实测 4.35 倍，2.0 落在两者之间（保守取值：
  * 优先不误杀真话题，代价是 `ci` 这类 1.77 倍的单内容词元查询仍被封顶）。
- * 该值可经 `score.gateMargin` 覆盖；传 0 表示**永不封顶**（红证用），非法值一律回落 2.0。
+ * 该值可经 `score.gateMargin` 覆盖；传 0 表示**永不封顶**（失败验证用），非法值一律回落 2.0。
  *
  * 语义（表头按分支逐字回显，读者可用打印量复算 match）：
  *   match = 无内容量(qTok=0) ? none
@@ -340,9 +340,9 @@ export interface ScoreOptions {
   weakThreshold?: number
   strongThreshold?: number
   diversityBeta?: number
-  /** 内容量闸门阈值（内容词元数下限），默认 CONTENT_TOKEN_MIN=2；设 1 等价于关掉闸门（红证用）。 */
+  /** 内容量闸门阈值（内容词元数下限），默认 CONTENT_TOKEN_MIN=2；设 1 等价于关掉闸门（失败验证用）。 */
   contentTokenMin?: number
-  /** 闸门例外倍数，默认 GATE_MARGIN=2.0；0 = 永不封顶（红证用），非法值回落默认。 */
+  /** 闸门例外倍数，默认 GATE_MARGIN=2.0；0 = 永不封顶（失败验证用），非法值回落默认。 */
   gateMargin?: number
   /** 标定漂移的相对偏差阈值（默认 CALIBRATION_DRIFT_REL=0.2）。 */
   calibrationDriftRel?: number
@@ -390,7 +390,7 @@ export function resolveScoreOptions(opts?: ScoreOptions): ResolvedScoreOptions {
   // 非法（非有限/小于 1）一律回落默认值，绝不因为一个坏配置把闸门静默关掉。
   const rawMin = finiteOr(o.contentTokenMin, CONTENT_TOKEN_MIN)
   const contentTokenMin = rawMin >= 1 ? Math.floor(rawMin) : CONTENT_TOKEN_MIN
-  // 闸门例外倍数：**0 是合法值**（表示永不封顶，红证用），所以判据是 >= 0 而不是 > 0；
+  // 闸门例外倍数：**0 是合法值**（表示永不封顶，失败验证用），所以判据是 >= 0 而不是 > 0；
   // 负数 / 非有限一律回落默认（绝不因为一个坏配置把闸门方向调反）。
   const rawMargin = finiteOr(o.gateMargin, GATE_MARGIN)
   const gateMargin = rawMargin >= 0 ? rawMargin : GATE_MARGIN
@@ -470,7 +470,7 @@ export function queryContentTokens(query: unknown, stats: CorpusStats): number {
  * 单调性：weak > strong 被交换的配置（resolveScoreOptions）下 `base='strong'` 仍是最高档，
  * 封顶到 weak 依然单调；非有限 qTok 一律保守（NaN/-Infinity 当 0，只有缺省 +Infinity 表示「不封顶」），
  * 阈值非法一律回落 CONTENT_TOKEN_MIN；倍数非法（负数/非有限）回落 GATE_MARGIN，**0 是合法值**
- * （表示永不封顶，判红点用）。
+ * （表示永不封顶，供断言变红用）。
  */
 export function matchLevelGated(
   raw: number,
@@ -626,7 +626,7 @@ export function corpusStats(records: ReadonlyArray<LexicalRecord | null | undefi
   return { total, fields, tagDf, tagN }
 }
 
-/** BM25 单次打分的可覆盖参数（红证用 b=0 关掉长度归一）。 */
+/** BM25 单次打分的可覆盖参数（失败验证用 b=0 关掉长度归一）。 */
 export interface Bm25Options {
   k1?: number
   b?: number
@@ -689,11 +689,11 @@ export function bm25Relevance(
 /**
  * 词法相关度（主分）：BM25 + 字段权重 + 0..1 绝对标度。
  *
- * 契约（I1.2 起，与 I1.1 的「Σ(字段权重×命中词元数)/(6×查询词元数)」不同，已在用例里同步更新）：
+ * 契约（打分口径起，与旧口径「Σ(字段权重×命中词元数)/(6×查询词元数)」不同，已在用例里同步更新）：
  *   rel = Σ_f w_f · Σ_w idf_f(w)·sat_f(w,D) / Σ_f w_f · Σ_w idf_f(w)·(k1+1)，w = tags:3 / title:2 / body:1
  * 性质：tags > title > body（同 tf 时严格按 3:2:1）；长文档被长度归一压低；无关查询为 0。
  *
- * 省略 stats 时用「自语料」（只含这一条记录）现算 —— 仅供单条调用/夹具使用；
+ * 省略 stats 时用「自语料」（只含这一条记录）现算 —— 仅供单条调用/测试样本使用；
  * 召回路径必须传入整库 corpusStats（否则 df/avgdl 退化为单条，失去 idf 与长度归一的意义）。
  */
 export function lexicalScore(
@@ -736,7 +736,7 @@ export function tagHitsQuery(tag: string, queryTokens: ReadonlySet<string>): boo
  * VCP 式覆盖率：cov = Σ(命中标签的权重) / Σ(候选全部标签的权重)。
  *
  * 作用：长文档的外围公共标签只能**稀释**（进分母）不能加分 —— 权重低 + 不算命中。
- * I1.2 里 cov **只作诊断列，不做门控**（低覆盖不得否决整批、不得返回空，第三方回退过这种做法）。
+ * 打分口径里 cov **只作诊断列，不做门控**（低覆盖不得否决整批、不得返回空，第三方回退过这种做法）。
  */
 export function tagCoverage(
   query: unknown,
@@ -773,7 +773,7 @@ export interface DiversifyRecord {
 export type DiversifiedRecord<T extends DiversifyRecord> = T & {
   /**
    * 选中时刻的最终分：final = score × (1 − β·maxSimToSelected)。
-   * 列表就是按它降序的 ⇒ 打印这一列天然单调不增（I1.2 修 C 的要害）。
+   * 列表就是按它降序的 ⇒ 打印这一列天然单调不增（打分口径的要害）。
    */
   final: number
 }
@@ -781,7 +781,7 @@ export type DiversifiedRecord<T extends DiversifyRecord> = T & {
 export interface DiversifyOptions {
   /** 多样性惩罚系数 β（优先于 lambda）。默认 DEFAULT_DIVERSITY_BETA = 0.3。 */
   beta?: number
-  /** I1.1 旧口径兼容：λ = 1 − β（lambda=1 ⇒ β=0 退化为纯按分数）。 */
+  /** 旧口径兼容：λ = 1 − β（lambda=1 ⇒ β=0 退化为纯按分数）。 */
   lambda?: number
   /** 取回条数上限。 */
   limit?: number
@@ -804,11 +804,11 @@ function resolveBeta(opts: DiversifyOptions): number {
 }
 
 /**
- * 把多样性**乘进同一个分数**后按该分数降序输出（I1.2 修 C）。
+ * 把多样性**乘进同一个分数**后按该分数降序输出（打分口径）。
  *
  *   final = (rel + graph) × (1 − β·maxSimToSelected)，β 默认 0.3。
  *
- * 为什么这样就不会再出现「0.9763 排在 0.9785 前面」：I1.1 是「先归一化 → MMR 只改顺序 →
+ * 为什么这样就不会再出现「0.9763 排在 0.9785 前面」：旧口径是「先归一化 → MMR 只改顺序 →
  * 仍打印归一化分」，于是打印列与列表顺序脱钩。现在顺序与打印列是同一个数（final），
  * 且贪心选择序列本身单调不增（每选一个，剩余候选的 maxSim 只增不减）⇒ 打印天然单调。
  *
@@ -875,7 +875,7 @@ export function diversify<T extends DiversifyRecord>(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// I2：残差金字塔式分诊（词法空间里的 Gram-Schmidt）
+// 残差金字塔式分诊（词法空间里的 Gram-Schmidt）
 //
 // 没有 embedding，就用**词法向量空间**：维度 = 标签语料里的词元，权重 = 标签 idf
 // （走 tagWeight 的 idf 口径）。df=0 的词元取 idf 上界 ⇒ 与库完全无关的查询词也有非零能量，
@@ -887,7 +887,7 @@ export function diversify<T extends DiversifyRecord>(
 // 不是候选集合 —— 与文件顶部纪律一致。**绝不**把这里的任何归一化用到候选展示分上：
 // 展示分只走 absoluteDisp 的固定绝对区间，（禁止 `disp = raw / max(raw over 本批)`）。
 //
-// 【I2 红线：请求级隔离 —— 后人不要为了「性能」把状态提到模块级】
+// 【分诊红线：请求级隔离 —— 后人不要为了「性能」把状态提到模块级】
 // 第三方先判「JS 单线程 ⇒ 无竞态」，后被推翻。一次召回是 async 的（要读文件、宿主会在
 // await 点让出）；只要有**任何模块级的**「最近一次的能量场 / 基 / 残差 / 上一次查询」，
 // 第二个请求的分诊结论就取决于第一个请求有没有刚好插在中间 —— 这是真竞态，不是理论问题。
@@ -896,7 +896,7 @@ export function diversify<T extends DiversifyRecord>(
 // 语料统计 corpusStats 每次调用现算（本来就是这样，保持一致）。
 // 想优化就优化单次调用的常数因子（比如下面的稀疏点积只遍历较短的一侧），**不要**把状态
 // 提到模块级：test/triage.test.mjs 的「请求级隔离」用例会在两次不同查询之间注入一次事件
-// 循环让出，并与「单独只跑第二次（全新进程）」的结果逐字段比对；提回模块级必然判红。
+// 循环让出，并与「单独只跑第二次（全新进程）」的结果逐字段比对；提回模块级必然变红。
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** 基的规模上限（参与 Gram-Schmidt 的候选标签向量个数）。 */
@@ -1125,7 +1125,7 @@ export interface PyramidResult {
   /** 是否扩检索：novelty >= noveltyThreshold。**与 lowConfidence 无关**（低置信不否决）。 */
   expanded: boolean
   /**
-   * 查询是否**没有**词元能量（‖q‖² ≈ 0，I2.1 修 2）。
+   * 查询是否**没有**词元能量（‖q‖² ≈ 0，空查询不做分诊）。
    * true ⇒ 本查询**未做分诊**：novelty=0、expanded=false、explainedRatio/residualRatio
    * 回显 0/0（未定义）。上层必须在表头如实写明「无词元能量，未分诊」，不许假装算过。
    */
@@ -1157,7 +1157,7 @@ export interface PyramidResult {
  *     （残差按构造与本基子空间正交，确实是新方向）；
  *   - 一个基向量都没有（basisSize = 0）而 R ≠ 0 ⇒ 同样 1（没有任何方向能解释它）。
  *
- * I2.1 修 2（空查询不做分诊）：‖q‖² ≈ 0 时**直接短路返回**（见函数体），
+ * 空查询不做分诊：‖q‖² ≈ 0 时**直接短路返回**（见函数体），
  * novelty=0、expanded=false、explainedRatio=residualRatio=0（0/0 未定义，见那里的长注释）。
  */
 export function residualPyramid(
@@ -1182,7 +1182,7 @@ export function residualPyramid(
   }
   const ortho = gramSchmidt(raw)
 
-  // ── I2.1 修 2：查询无词元能量 ⇒ **不做分诊**（显式短路）────────────────────
+  // ── 查询无词元能量 ⇒ **不做分诊**（显式短路）────────────────────
   // ‖q‖² ≈ 0 时投影、残差、explained/residual 全是 0/0，没有「能量」可分：
   // 旧实现按公式走 explained=0、residual=1 ⇒ novelty = 0.7×1 + 0.3×0 = 0.7
   // ⇒ expanded=true，语义荒谬（「什么都没问」≙「最新颖」，实测 novelty=0.7）。
@@ -1260,7 +1260,7 @@ export function residualPyramid(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// I3：有序双向标签共现图 + 有界脉冲传播（浪潮）
+// 图奖励：有序双向标签共现图 + 有界脉冲传播（浪潮）
 //
 // 目标：让「与查询无任何词法重合、但与某条命中记录共享标签」的记忆也能被召回，
 // 同时**绝不让高频「万能标签」把候选边界污染掉**。
@@ -1277,8 +1277,8 @@ export function residualPyramid(
 // 【纪律 2：图是「当前记忆库」的纯函数】
 //   每次调用从 records 现建，**没有任何模块级可变状态**。
 //   如果将来为了性能想缓存它，缓存键必须严格是 {path, size, mtimeMs}（幂等只读），
-//   与 I4a 注入缓存同类；**禁止**像 I2 残差金字塔那样把「请求级中间状态」提到模块级
-//   （见本文件顶部 I2 红线）：那是跨请求污染，这里说的是「同一份文件内容的纯函数结果」，
+//   与注入缓存同类；**禁止**像残差金字塔那样把「请求级中间状态」提到模块级
+//   （见本文件顶部分诊红线）：那是跨请求污染，这里说的是「同一份文件内容的纯函数结果」，
 //   两者不是一类东西，不要互相套用。
 //
 // 【纪律 3：传播必须有界且确定】
@@ -1335,7 +1335,7 @@ export const GRAPH_ACTIVATION_MIN = 0.05
 /** 传播/图算术的零判定阈值。 */
 export const GRAPH_EPS = 1e-12
 
-/** I3 图与传播口径（全部有模块级默认常数，可经工具配置覆盖）。 */
+/** 图与传播口径（全部有模块级默认常数，可经工具配置覆盖）。 */
 export interface GraphOptions {
   /** log 压缩系数 λ。 */
   lambda?: number
@@ -1480,11 +1480,11 @@ function pairKey(a: string, b: string): string {
  *      `weight(u->v) = p(u->v) · α(u)`（先预算、后枢纽 ⇒ 预算恒成立，枢纽只在其内再分配）。
  *      【为什么不用「入度 > 中位数」】：标签少的小库常常 median = 1，那时任何入度 2 的普通
  *      标签都会被误判成枢纽并被压到 0.7 倍 —— 实测这会连带压低「普通节点」的传播
- *      （calib4 夹具里 alpha 被误压，万能标签的激活反而更小）。加 1 的门槛把「比多数标签
+ *      （calib4 测试样本里 alpha 被误压，万能标签的激活反而更小）。加 1 的门槛把「比多数标签
  *      都更常见」和「稍微常见一点」分开，只有真正的万能标签才落入抑制区间。
  *
  * memo 是**调用级**（构建过程中）的临时缓存，直接建在节点对象上；它不跨调用存活，
- * 也不依赖任何模块级变量 —— 与 I2 禁止的「请求级状态提模块级」不是一回事。
+ * 也不依赖任何模块级变量 —— 与分诊禁止的「请求级状态提模块级」不是一回事。
  */
 export function tagGraphIndex(records: ReadonlyArray<{ tags?: unknown } | null | undefined>, opts?: GraphOptions): TagGraphIndex {
   const cfg = resolveGraphOptions(opts)
