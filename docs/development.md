@@ -2,7 +2,7 @@
 
 本文件写给**改代码、跑测试、加红证的人**：构建、测试纪律、红证目录、脚本用法与本机环境事实。
 
-安装见 [install.md](install.md)、故障排查见 [troubleshooting.md](troubleshooting.md)、使用见 [../README.md](../README.md)；设计主张见 [design.md](design.md)。
+术语见 [glossary.md](glossary.md)、安装见 [install.md](install.md)、故障排查见 [troubleshooting.md](troubleshooting.md)、使用见 [../README.md](../README.md)；设计主张见 [design.md](design.md)。
 
 ## 1. 构建
 

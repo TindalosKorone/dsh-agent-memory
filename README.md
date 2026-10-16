@@ -69,6 +69,7 @@
 
 ## 链接
 
+- [docs/glossary.md](docs/glossary.md) — 术语表（`rel`/`cov`/`match`/`qTok`/`L1`/`L2` 等符号的唯一定义）
 - [docs/install.md](docs/install.md) — 三种安装方式（远端一行 / 本地 clone + 构建 / 交给 agent）、重启与验证
 - [docs/troubleshooting.md](docs/troubleshooting.md) — 故障排查（工具不出现、卡 PENDING、注入不变、库位置与备份）
 - [docs/design.md](docs/design.md) — 分期实现、7 条硬不变量、两条注入机制、为什么不自动召回

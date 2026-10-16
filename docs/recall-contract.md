@@ -2,7 +2,7 @@
 
 本文件写给**读输出、写记忆、或依赖这些字段做判断的人**：4 个工具的约定、`memory_recall` 的 10 列、打分常数、写入协议与 fail-closed 闸门。
 
-最短上手见 [../README.md](../README.md)；工程主张见 [design.md](design.md)。
+最短上手见 [../README.md](../README.md)；术语见 [glossary.md](glossary.md)；工程主张见 [design.md](design.md)。
 
 ## 1. 四个工具
 

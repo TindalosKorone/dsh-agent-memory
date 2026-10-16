@@ -2,7 +2,7 @@
 
 本文件写给**要把本插件装进一个 DSH profile 的人或 agent**：三种安装方式、装完的验证，以及每条路各自的前置条件。
 
-使用与工具说明见 [../README.md](../README.md)；装完出问题见 [troubleshooting.md](troubleshooting.md)。
+使用与工具说明见 [../README.md](../README.md)；术语见 [glossary.md](glossary.md)；装完出问题见 [troubleshooting.md](troubleshooting.md)。
 
 ## 0. 前置
 

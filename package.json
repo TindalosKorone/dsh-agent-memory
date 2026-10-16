@@ -17,6 +17,8 @@
     "docs/design.md",
     "docs/development.md",
     "docs/limitations.md",
+    "docs/glossary.md",
+    "docs/decisions/increment-codes.md",
     "docs/recall-contract.md"
   ],
   "license": "CC-BY-NC-SA-4.0",

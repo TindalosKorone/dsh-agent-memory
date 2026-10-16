@@ -2,7 +2,7 @@
 
 本文件写给**评估这个插件能不能用、以及准备公开它的人**：不粉饰的已知弱点、标定口径的出处，以及发布前必须知道的留痕情况。
 
-使用见 [../README.md](../README.md)；契约见 [recall-contract.md](recall-contract.md)。
+使用见 [../README.md](../README.md)；术语见 [glossary.md](glossary.md)；契约见 [recall-contract.md](recall-contract.md)。
 
 ## 1. 九条诚实的局限
 

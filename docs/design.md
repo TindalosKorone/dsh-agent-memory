@@ -2,7 +2,7 @@
 
 本文件写给**改这个插件的人**：分期实现、硬不变量、两条注入机制，以及为什么不做动态召回。
 
-面向使用者的最短说明见 [../README.md](../README.md)；召回输出契约见 [recall-contract.md](recall-contract.md)。
+面向使用者的最短说明见 [../README.md](../README.md)；术语见 [glossary.md](glossary.md)；召回输出契约见 [recall-contract.md](recall-contract.md)。
 
 ## 1. 分期实现
 
