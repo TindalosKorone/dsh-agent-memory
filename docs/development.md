@@ -31,6 +31,8 @@ bash redproof/run-all.sh 证据路径   # 自定义输出；有 fail 时退出�
 
 **为什么不是 `node --test`**：本机 `node --test` **坏**（见第 5 节第 1 条），所以测试全部按文件逐个直跑。这是本机环境事实，不是设计选择。
 
+**注意 `&&` 会截断**：`npm test` 的脚本用 `&&` 串联 19 个文件，**任一文件失败都会停在那里**，后面的文件根本不跑 —— 而 `ℹ pass` 汇总看上去仍像「跑完了」。例如只跑到第 11 个文件时是 137 pass，全量才是 197。红了要先确认截断点，别把局部汇总当全量。
+
 **红证要求（重要）**：新增或改动一条机制时，**必须有「能判红」的证据** —— 先把机制人为禁用 / 改坏，确认相关测试**确实变红**；再恢复，确认**变绿**。只有「测试通过」不算证据：那可能是测试永远绿。红证成对落在 `redproof/`，命名 `…-disable.txt` / `…-restored.txt`。
 
 ## 3. `redproof/` 是什么
@@ -94,7 +96,7 @@ node scripts/import-gotchas.mjs --source gotchas.md --write  # 落盘（先备�
 3. **`/tmp` 不可写，但 `cd /tmp` 会成功**（本机实测：`/tmp` 权限是 `drwxrwx--x` —— 对 others 有 `x` 无 `w`）。所以 `cd /tmp && pwd` 会顺利打印 `/tmp`，**看起来可用**，而任何写入都 `Permission denied`。别用 `cd /tmp` 去探测可写性，要探测就直接写一个文件。临时文件应落在别处（测试用 `.tmp-test/` 建临时 `DSH_HOME`，每次跑测试都会重建；已在 `.gitignore` 里）。
 4. **`lib/` 是构建产物、但已入库**：改完 `src/` 必须 `tsc` 重建并提交，否则测试与官方安装下来的包跑的都是旧产物。见第 1 节。
 5. **真实记忆库不在仓里**。真实记忆在 `$DSH_HOME` 下：`<DSH_HOME>/agent-memory/memory.ndjson`。`DSH_HOME` 未设时 `DEFAULT_HOME` 取 `$HOME/.dsh`（可移植推导，不再硬编码本机路径；见 `src/store.ts` 与 [limitations.md](limitations.md) 的路径规范化说明）。`.gitignore` 不包含它 —— 它**物理上就不在仓目录内**。
-6. **零运行时依赖**。`peerDependencies` 只有 cordis 与 dsh-tools，且用**语义化范围**（`^4.0.4` / `^0.2.0-rc.2`）而不是精确版本 —— 精确版本会让宿主装不进任何别的小版本，`^` 允许向后兼容的 minor/patch、同时挡掉下一个大版本。`devDependencies` 是 typescript、`@types/node`，外加把上述两个 peer 依赖**按精确版本**再装一份（仅供本地构建 / 测试，故意钉死以保证可复现；运行时仍只吃宿主提供的 peer —— 所以 peer 放宽、dev 钉死，两者目的不同，不需要同步）。
+6. **零运行时依赖**。`peerDependencies` 只有 cordis 与 dsh-tools，且用**语义化范围**（`^4.0.4` / `^0.2.0-rc.2`）而不是精确版本 —— 精确版本会让宿主装不进任何别的小版本，`^` 允许向后兼容的 minor/patch、同时挡掉下一个大版本。`devDependencies` 是 typescript、`@types/node`，外加把上述两个 peer 依赖**按精确版本**再装一份（仅供本地构建 / 测试，故意钉死以保证可复现；运行时仍只吃宿主提供的 peer —— 所以 peer 放宽、dev 钉死，两者目的不同，不需要同步）。此外还有 `@deepseek-ai/dsh-system-prompt`（同样钉 `0.2.0-rc.2`）：它是 `dsh-tools` 的**传递依赖**，但 `test/loose-inject.test.mjs` 的反向断言要**直接** `import` 真引擎服务，而 pnpm 默认的隔离式链接不会把传递依赖提到顶层 `node_modules` —— 不显式声明，干净 clone 上就是 `ERR_MODULE_NOT_FOUND`，那两条用例必红，并因上面的 `&&` 截断而掩盖掉后 8 个文件。
 
 ## 6. 仓库内容
 
