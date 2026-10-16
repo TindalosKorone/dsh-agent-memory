@@ -435,7 +435,7 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
         + `- 库内：${result.countBefore} -> ${result.countAfter} 条，占用 ${result.bytes} / ${result.maxBytes} 字节（条数上限 ${result.maxRecords}）\n`
         + `- 落盘文件：${result.path}\n`
         + (evictedIds.length > 0
-          ? `- 触发上限淘汰 ${evictedIds.length} 条（按 score=recency*(1+hits) 最低者）：${evictedIds.join(', ')}`
+          ? `- 触发上限淘汰 ${evictedIds.length} 条（按 pruneScore=recency*(1+hits) 最低者）：${evictedIds.join(', ')}`
           : '- 未触发上限淘汰')
       return prune({
         ok: true,
@@ -774,7 +774,7 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
       const expanded = triage.expanded
       const kUsed = expanded ? kExpanded : kBase
 
-      // 多样性乘进同一个分数：final = rel × (1 − β·maxSim)；列表按 final 降序 ⇒ 打印天然单调。
+      // 多样性乘进同一个分数：final = (rel + graph) × (1 − β·maxSim)；列表按 final 降序 ⇒ 打印天然单调。
       // ── I2.1 修 1：limit 是**硬显示上限** ─────────────────────────────────
       // 显示行数恒为 min(limit, 可用候选数)。扩检索只放大**内部**预算 kUsed（给金字塔取基、
       // 给多样性一个更大的候选池），**绝不**改变返回行数：旧实现把 limit 直接换成 kUsed 交给
@@ -954,7 +954,7 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
         + (driftSeg === '' ? '' : `${driftSeg};`)
         + `${triageSeg};`
         + `${lowConfSeg};`
-        + `I3:final=rel+graph×多样性,候选>5启用,开时score不可复算,graph上限<=${graphCfg.bonusCap}，图${graphSize.nodes}节点/${graphSize.edges}边，`
+        + `final=(rel+graph)×多样性,候选>5启用,开时score不可复算,graph上限<=${graphCfg.bonusCap}，图${graphSize.nodes}节点/${graphSize.edges}边，`
         + `枢纽压${hubSuppressedCount}，可达=${reachable}`
       // ── scope 回显（本次新增；**只有传了 scope 才出现**，所以不传时表头逐字不变）──────
       // 它也和 query 回显共享同一个总预算：`;scope=<值>` 的长度**按剩余预算现算**，
@@ -984,7 +984,7 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
       const text = allRecords.length === 0
         ? `${header}\n(记忆库为空：请先用 memory_remember 写入)`
         : records.length === 0
-          ? `${header}\n(该 scope 下没有记忆：库内 ${allRecords.length} 条，但 scope=${scopeFilter} 且非 ${DEFAULT_SCOPE} 的记录为 0 条；换 scope 或省略 scope)`
+          ? `${header}\n(该 scope 下没有记忆：库内 ${allRecords.length} 条，但没有 scope=${scopeFilter} 或 ${DEFAULT_SCOPE} 的记录；换 scope 或省略 scope)`
           : fitted.text
 
       return prune({
@@ -1191,7 +1191,7 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
   host.tools.register(defineTool({
     name: 'memory_prune',
     description: `按规则淘汰/合并记忆：同 kind 同标题者合并（保留最新，累加 hits，标签取有序并集），`
-      + `再按 score=recency*(1+hits) 从低到高淘汰至上限内。dryRun 默认 true（只报告将要删什么，不动磁盘），显式传 false 才真删。`,
+      + `再按 pruneScore=recency*(1+hits) 从低到高淘汰至上限内。dryRun 默认 true（只报告将要删什么，不动磁盘），显式传 false 才真删。`,
     parameters: {
       dryRun: { type: 'boolean', default: true, description: '默认 true：只报告将要删/合并什么；传 false 才真正落盘' },
     },
@@ -1243,7 +1243,7 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
         + `- 条数：${plan.countBefore} -> ${plan.countAfter}（上限 ${plan.maxRecords}）\n`
         + `- 占用：${plan.bytesBefore} -> ${plan.bytesAfter} / ${plan.maxBytes} 字节\n`
         + `- 合并 ${mergedGroups.length} 组${mergedGroups.length > 0 ? '：' + mergedGroups.join(' ; ') : ''}\n`
-        + `- 淘汰 ${evictedIds.length} 条（score=recency*(1+hits) 最低者）${evictedIds.length > 0 ? '：' + evictedIds.join(', ') : ''}\n`
+        + `- 淘汰 ${evictedIds.length} 条（pruneScore=recency*(1+hits) 最低者）${evictedIds.length > 0 ? '：' + evictedIds.join(', ') : ''}\n`
         + (writeError !== undefined ? `${externalChangeText(writeError)}\n` : '')
         + (dryRun && changed ? '- 确认无误后请以 dryRun=false 重试以真正执行' : '- 无需进一步动作')
       void memoryPath(cfg)

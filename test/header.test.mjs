@@ -74,8 +74,8 @@ test('I5 表头自检：单行、<= 428 字符，且可复算信息一个都不�
   // ⑦ 低置信标记：cov_max 与激活阈值
   assert.match(header, /低置信:cov_max=[0-9]+\.[0-9]{4}(<|>=)[0-9.]+/, `表头必须回显 cov_max 与激活阈值：${header}`)
   assert.ok(header.includes(String(r.activationThreshold)), `激活阈值 ${r.activationThreshold} 必须在表头里`)
-  // ⑧ I3 图的结论性数字：final=rel+graph、graph 硬上限、图规模、枢纽被压数量、reachable
-  assert.ok(header.includes('I3:final=rel+graph'), `表头必须写明 final=rel+graph：${header}`)
+  // ⑧ 图的结论性数字：final=(rel+graph)、graph 硬上限、图规模、枢纽被压数量、reachable
+  assert.ok(header.includes('final=(rel+graph)'), `表头必须写明 final=rel+graph：${header}`)
   assert.ok(header.includes(`graph上限<=${r.graphBonusCap}`),
     `表头必须写明 graph 硬上限 ${r.graphBonusCap}：${header}`)
   assert.match(header, /图[0-9]+节点\/[0-9]+边/, `表头必须回显图规模：${header}`)
@@ -84,7 +84,7 @@ test('I5 表头自检：单行、<= 428 字符，且可复算信息一个都不�
   // ⑨ 多样性（对账补上）：final=(rel+graph)×多样性因子、因子只在候选 > 5 时施加，
   //    且必须如实说明「多样性开时 score 无法仅由打印的 rel/graph 复算」——旧表头只写
   //    final=rel+graph，等于向读者承诺 score 恒等于 disp(rel+graph)（判红点：改回旧句 ⇒ 本条变红）。
-  assert.ok(header.includes('final=rel+graph×多样性'),
+  assert.ok(header.includes('final=(rel+graph)×多样性'),
     `表头必须写明 final=(rel+graph)×多样性因子：${header}`)
   assert.ok(header.includes('候选>5启用'),
     `表头必须写明多样性只在候选 > 5 时施加：${header}`)

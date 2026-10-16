@@ -6,7 +6,7 @@
 //  B. 传播（纯函数层）：跳数 / 状态数 / 每节点最强出边三条上限、衰减 γ、立即回流抑制 ρ、
 //     确定性（同输入逐字节同输出）；
 //  C. 图奖励（纯函数层）：硬上限、"无证据恰好为 0"、max 不取和（标签多不得白拿）；
-//  D. 工具层：行内 graph/via 与结构化字段一致、final=rel+graph 可复算、limit 仍是硬上限、
+//  D. 工具层：行内 graph/via 与结构化字段一致、final=(rel+graph) 可复算、limit 仍是硬上限、
 //     空查询图面全静默、2000 条规模下工作量有界（不许 O(n²) 爆炸）；
 //  E. 五条红证（判红点写在用例名里，见文件末尾）；
 //  F. 请求级隔离（与「单独只跑第二次」逐字段比对，探针 test/isolation-probe.mjs）。
@@ -296,7 +296,7 @@ async function seedGraphRecall(home, defs) {
   return { a: a.id, b: b.id, t: t.id }
 }
 
-test('I3 工具层：行内 graph/via 与结构化行一致，final=rel+graph 可用打印值复算，score 仍在行尾', async () => {
+test('I3 工具层：行内 graph/via 与结构化行一致，final=(rel+graph) 可用打印值复算，score 仍在行尾', async () => {
   freshHome('graph-row')
   const defs = tools()
   const ids = await seedGraphRecall(null, defs)
@@ -339,7 +339,7 @@ test('I3 工具层：行内 graph/via 与结构化行一致，final=rel+graph �
   assert.equal(tRow.rel, 0, '这条记忆与查询没有任何词法重合')
   assert.ok(tRow.graph > 0 && tRow.via === 'tag:beta', `它必须由图传播到达：graph=${tRow.graph} via=${tRow.via}`)
   // 排序可复算：final = rel + graph，表头有公式与上限
-  assert.ok(r.text.split('\n')[0].includes('final=rel+graph'), '表头必须写明 final=rel+graph 与硬上限')
+  assert.ok(r.text.split('\n')[0].includes('final=(rel+graph)'), '表头必须写明 final=(rel+graph) 与硬上限')
   assert.ok(r.text.split('\n')[0].includes(String(GRAPH_BONUS_CAP)), '表头必须写明图奖励硬上限')
   assertLossless('I3 行', r)
 })

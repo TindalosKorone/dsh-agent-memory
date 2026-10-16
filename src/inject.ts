@@ -196,7 +196,7 @@ export const INJECTION_SECTION_ORDER = 3200
  *    **改变默认行为**、需要给插件加可选服务依赖，且「cwd → scope 名」只是**自造约定**；所以插件只提供
  *    **纯显式** scope，约定本身靠这条稳定规则传达给模型（详见 docs/recall-contract.md §7b）。
  */
-export const INJECTION_HABIT_TEXT = '遇到排查·为什么·复现·"以前是否踩过"这类问题，先用 memory_recall 查记忆库（跨会话经验教训）；项目专属的结论写入时带上 scope: project:<名>，跨项目通用的用默认（global）。'
+export const INJECTION_HABIT_TEXT = '遇到排查·为什么·复现·"以前是否踩过"这类问题，先用 memory_recall 查记忆库（跨会话经验教训）；项目专属的结论，调 memory_remember 写入时把 scope 传成 project:<你的项目名>，跨项目通用的用默认（global）。'
 
 /** 极端超限时的硬截断标记（本身也算进上限）。 */
 export const HARD_MARK = '（截断）'
