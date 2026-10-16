@@ -342,7 +342,7 @@ export function saveRecords(records: ReadonlyArray<MemoryRecord>, cfg: MemoryCon
   return { path, count: records.length, bytes: byteLength(data) }
 }
 
-/** 淘汰分：recency * (1 + hits)，越小越先被淘汰。 */
+/** 淘汰分：decay(ts) * (1 + hits)，越小越先被淘汰。 */
 export function evictionScore(rec: MemoryRecord, now: number, halfLifeDays = 180): number {
   const hits = Number.isFinite(rec.hits) && rec.hits > 0 ? rec.hits : 0
   return decay(rec.ts, now, halfLifeDays) * (1 + hits)

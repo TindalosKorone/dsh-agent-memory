@@ -11,7 +11,7 @@
 | `memory_remember` | 写入一条长期记忆并落盘 | 写入协议**失败关闭**：任一字段不满足即拒收且**不落盘**，并给出可直接照做的修复指引。返回新 id、当前总数与占用字节 |
 | `memory_recall` | 按查询召回 **L1 索引**（每条一行，10 列） | **绝不返回 body**；要正文请拿 id 调 `memory_expand`。`limit` 默认 5、最大 50，且是**硬显示上限**。`match` 由 `rel` + 两个绝对阈值 + **内容量闸门**共同判定（§5） |
 | `memory_expand` | 按 id 取回 **L2 正文** | 找不到的 id 如实列在 `missing` 里；取回成功会给这些记录累加 `hits`（影响将来的淘汰优先级） |
-| `memory_prune` | 按规则淘汰 / 合并记忆 | 同 kind 同标题者合并（保留最新、累加 hits、标签取有序并集），再按淘汰分 `pruneScore=recency*(1+hits)` 从低到高淘汰至上限内（**与召回 10 列里的 `score` 无关**）。`dryRun` **默认 true**（只报告将要删什么，不动磁盘），显式传 `false` 才真删 |
+| `memory_prune` | 按规则淘汰 / 合并记忆 | 同 kind 同标题者合并（保留最新、累加 hits、标签取有序并集），再按淘汰分 `pruneScore=decay(ts)*(1+hits)` 从低到高淘汰至上限内（**与召回 10 列里的 `score` 无关**）。`dryRun` **默认 true**（只报告将要删什么，不动磁盘），显式传 `false` 才真删 |
 
 **分层披露是设计意图，不是缺陷**：`recall` 只回 L1 索引（10 列，**绝不回 body**），想看全文就必须显式拿 id 调 `expand` —— 也就是**付一次额外的工具调用**来省掉把正文全部注入上下文的 token。
 
@@ -102,7 +102,7 @@ id | kind | title | tags | graph | via | rel | cov | match | score
 ## 7. `limit` 是硬显示上限
 
 - 返回行数恒为 `min(limit, 可用候选数)`。
-- 内部扩检索（I2 分诊的 `kBase -> kUsed`）**只放大内部预算**（给金字塔取更大的基、给多样性更大的候选池），**绝不增加返回行数**。
+- 内部扩召回（I2 分诊的 `kBase -> kUsed`）**只放大内部预算**（给金字塔取更大的基、给多样性更大的候选池），**绝不增加返回行数**。
 - 把「内部候选池预算」误读成「显示上限」是明确的误用。
 
 ## 7b. `scope`（项目/工作区维度）
@@ -116,7 +116,7 @@ id | kind | title | tags | graph | via | rel | cov | match | score
 
 ## 8. 分诊与低置信
 
-- **I2 分诊**：以候选标签向量为基、在标签 idf 词法空间做 Gram-Schmidt 残差金字塔，得到 novelty = `0.7×残差能量比 + 0.3×方向一致性`，据此决定是否扩检索（`novelty >= noveltyThreshold`，默认 0.5）。
+- **I2 分诊**：以候选标签向量为基、在标签 idf 词法空间做 Gram-Schmidt 残差金字塔，得到 novelty = `0.7×残差能量比 + 0.3×方向一致性`，据此决定是否扩召回（`novelty >= noveltyThreshold`，默认 0.5）。
 - **空查询不分诊**：查询无词元能量（`‖q‖²≈0`）时 `novelty=0`、`expanded=false`、`kUsed=kBase`，`explainedRatio` / `residualRatio` 如实回显 `0/0`（未定义）。
 - **低置信只报告**：`activationThreshold`（默认 0.05）下 `cov_max` 偏低只置 `lowConfidence`，**绝不返回空、绝不整批否决**。
 - **`cov` 是诊断列，不是质量保证**：高 `cov` 不等于高相关，它不门控任何结果。
@@ -150,7 +150,7 @@ id | kind | title | tags | graph | via | rel | cov | match | score
 - `via` 是该行来源：`direct`（词法直接命中）或 `tag:<标签>`（由该标签的图传播到达）。
 - `cov` 是标签覆盖率（**仅诊断**，不门控、不整批否决）。
 - **无词法证据时 `rel=0`**；仅由标签图到达的记录 `graph>0`、`via=tag:<标签>`，其 `score` 取决于标度常数（可能为 0 也可能 >0），`match=none`（**只奖不罚，不整批否决**）。
-- **`limit` 是硬显示上限**：扩检索（`kBase -> kUsed`）只放大**内部**召回预算，**不增加返回行数**。
+- **`limit` 是硬显示上限**：扩召回（`kBase -> kUsed`）只放大**内部**召回预算，**不增加返回行数**。
 - 查询无词元能量（`‖q‖²≈0`）时**不做分诊**：`novelty=0`、`expanded=false`、`kUsed=kBase`，`explainedRatio`/`residualRatio` 如实回显 `0/0`（未定义）。
 - 低置信只是**如实报告**：`lowConfidence` 置位时**绝不返回空、绝不整批否决**。
 

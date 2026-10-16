@@ -166,7 +166,7 @@ export interface SaveResult {
  * **绝不覆盖**对方写进去的内容。expect 为 undefined 表示「加载时文件不存在」（首次写入）⇒ 不做判定。
  */
 export declare function saveRecords(records: ReadonlyArray<MemoryRecord>, cfg?: MemoryConfig, expect?: StoreStamp): SaveResult;
-/** 淘汰分：recency * (1 + hits)，越小越先被淘汰。 */
+/** 淘汰分：decay(ts) * (1 + hits)，越小越先被淘汰。 */
 export declare function evictionScore(rec: MemoryRecord, now: number, halfLifeDays?: number): number;
 export interface CapResult {
     records: MemoryRecord[];

@@ -18,7 +18,7 @@
 
 ## 3. `lib/` 没构建
 
-官方 / `github:` 安装下来的包**自带入库的 `lib/`**，不需要构建。只有从源码或 `file:` 用本仓时才要先构建：
+官方 / `github:` 安装下来的包**自带入库的 `lib/`**，不需要构建。只有从源码或本地 `link:` 依赖用本仓时才要先构建：
 
 ```bash
 pnpm install && pnpm run build      # 等价 node node_modules/typescript/bin/tsc -p .
@@ -41,7 +41,7 @@ pnpm install && pnpm run build      # 等价 node node_modules/typescript/bin/ts
 
 - 位置：`$DSH_HOME/agent-memory/memory.ndjson`（`DSH_HOME` 未设时为 `$HOME/.dsh`）。
 - 备份：NDJSON 纯文本，`cp` 一份即可。
-- 上限：默认 **2000 条 / 4 MiB**，单条默认 ≤ 总上限的 10%；写超限直接拒收（不落盘、不触发淘汰）。
+- 上限：默认 **2000 条 / 4 MiB**，单条默认 ≤ 总上限（`maxBytes`，默认 4 MiB）的 10%；写超限直接拒收（不落盘、不触发淘汰）。
 
 ## 7. 更多本机坑
 

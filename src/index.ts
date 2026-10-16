@@ -13,7 +13,7 @@
  *  - **注入松耦合（I4a.1）**：`inject` 只声明 `tools`；`systemPrompt` 走
  *    `ctx.inject(['systemPrompt'], (scope) => ...)` 条件注册 ⇒ 缺 systemPrompt 时
  *    「只少一块注入」，而不是整个插件（含 4 个工具）都不 apply；
- *  - **不无限增长**：maxRecords / maxBytes 硬上限 + 按 recency*(1+hits) 淘汰；
+ *  - **不无限增长**：maxRecords / maxBytes 硬上限 + 按 decay(ts)*(1+hits) 淘汰；
  *  - **输出无损 JSON**：返回值过 prune()；`render` 写在 `output` 内部（同级写等于没给）。
  */
 import type { Context } from '@deepseek-ai/cordis'
@@ -435,7 +435,7 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
         + `- 库内：${result.countBefore} -> ${result.countAfter} 条，占用 ${result.bytes} / ${result.maxBytes} 字节（条数上限 ${result.maxRecords}）\n`
         + `- 落盘文件：${result.path}\n`
         + (evictedIds.length > 0
-          ? `- 触发上限淘汰 ${evictedIds.length} 条（按 pruneScore=recency*(1+hits) 最低者）：${evictedIds.join(', ')}`
+          ? `- 触发上限淘汰 ${evictedIds.length} 条（按 pruneScore=decay(ts)*(1+hits) 最低者）：${evictedIds.join(', ')}`
           : '- 未触发上限淘汰')
       return prune({
         ok: true,
@@ -1191,7 +1191,7 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
   host.tools.register(defineTool({
     name: 'memory_prune',
     description: `按规则淘汰/合并记忆：同 kind 同标题者合并（保留最新，累加 hits，标签取有序并集），`
-      + `再按 pruneScore=recency*(1+hits) 从低到高淘汰至上限内。dryRun 默认 true（只报告将要删什么，不动磁盘），显式传 false 才真删。`,
+      + `再按 pruneScore=decay(ts)*(1+hits) 从低到高淘汰至上限内。dryRun 默认 true（只报告将要删什么，不动磁盘），显式传 false 才真删。`,
     parameters: {
       dryRun: { type: 'boolean', default: true, description: '默认 true：只报告将要删/合并什么；传 false 才真正落盘' },
     },
@@ -1243,7 +1243,7 @@ export function apply(ctx: Context, config: MemoryConfig = {}): void {
         + `- 条数：${plan.countBefore} -> ${plan.countAfter}（上限 ${plan.maxRecords}）\n`
         + `- 占用：${plan.bytesBefore} -> ${plan.bytesAfter} / ${plan.maxBytes} 字节\n`
         + `- 合并 ${mergedGroups.length} 组${mergedGroups.length > 0 ? '：' + mergedGroups.join(' ; ') : ''}\n`
-        + `- 淘汰 ${evictedIds.length} 条（pruneScore=recency*(1+hits) 最低者）${evictedIds.length > 0 ? '：' + evictedIds.join(', ') : ''}\n`
+        + `- 淘汰 ${evictedIds.length} 条（pruneScore=decay(ts)*(1+hits) 最低者）${evictedIds.length > 0 ? '：' + evictedIds.join(', ') : ''}\n`
         + (writeError !== undefined ? `${externalChangeText(writeError)}\n` : '')
         + (dryRun && changed ? '- 确认无误后请以 dryRun=false 重试以真正执行' : '- 无需进一步动作')
       void memoryPath(cfg)

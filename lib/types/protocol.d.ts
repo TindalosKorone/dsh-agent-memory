@@ -15,7 +15,7 @@ export interface MemoryRecord {
     body: string;
     tags: string[];
     source: string;
-    /** 被 expand 取回的次数，参与淘汰分 recency * (1 + hits)。 */
+    /** 被 expand 取回的次数，参与淘汰分 decay(ts) * (1 + hits)。 */
     hits: number;
     /**
      * 作用域（本次新增，向后兼容）：约定 `project:<名>`，缺省/旧记录一律视为 `global`。

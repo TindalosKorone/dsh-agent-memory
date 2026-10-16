@@ -13,7 +13,7 @@
  *  - **注入松耦合（I4a.1）**：`inject` 只声明 `tools`；`systemPrompt` 走
  *    `ctx.inject(['systemPrompt'], (scope) => ...)` 条件注册 ⇒ 缺 systemPrompt 时
  *    「只少一块注入」，而不是整个插件（含 4 个工具）都不 apply；
- *  - **不无限增长**：maxRecords / maxBytes 硬上限 + 按 recency*(1+hits) 淘汰；
+ *  - **不无限增长**：maxRecords / maxBytes 硬上限 + 按 decay(ts)*(1+hits) 淘汰；
  *  - **输出无损 JSON**：返回值过 prune()；`render` 写在 `output` 内部（同级写等于没给）。
  */
 import type { Context } from '@deepseek-ai/cordis';

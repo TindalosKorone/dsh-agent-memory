@@ -49,7 +49,7 @@
    `limit` 默认 5、最大 50，且是**硬显示上限**；`scope` **可选**：不传 = 不过滤（与过去完全一致），传了 = 只返回该 scope **或** `global` 的记录（`global` 永远包含），表头回显 `;scope=<值>`，结构化 `rows` 另带 `scope` 字段（打印行仍是 10 列）。
    `match` 恒可由打印出的 `rel`、表头两个阈值与表头回显的**内容量闸门**输入（`contentTokens`/`contentTokenMin`/`gateMargin`）复算（`qTok` 不足**且** `rel < gateMargin×strong` 时 `strong` 封顶 `weak`，短查询照样返回行；单个高专有词元 `rel` 远超阈值则例外放行）；多样性启用时 `score` 不能仅由 `rel`/`graph` 复算。库规模离标定点超过阈值时，表头会如实加一句「建议重跑 calibrate --write」（**只在 recall 表头，不进自动注入**）；实际重跑用 `pnpm run calibrate -- --write`。
 3. `memory_expand`：拿 `recall` 回的 `id` 取正文（L2）。
-4. `memory_prune`：同 kind 同标题合并（留最新、累加 hits），再按 `score = recency*(1+hits)` 从低到高淘汰；`dryRun: false` 才真删。
+4. `memory_prune`：同 kind 同标题合并（留最新、累加 hits），再按 `pruneScore = decay(ts)*(1+hits)` 从低到高淘汰；`dryRun: false` 才真删。
 
 完整列语义、打分常数、写入协议与闸门见 [docs/recall-contract.md](docs/recall-contract.md)。
 
@@ -60,7 +60,7 @@
 ## 安全
 
 - 记忆库是**本地纯文本**文件，位置 `$DSH_HOME/agent-memory/memory.ndjson`；**不含任何凭据**。
-- 上限：默认 2000 条 / 4 MiB；单条默认 ≤ maxBytes 的 10%；写超限直接拒收（不落盘、不触发淘汰）。
+- 上限：默认 2000 条 / 4 MiB；单条默认 ≤ 总上限（`maxBytes`，默认 4 MiB）的 10%；写超限直接拒收（不落盘、不触发淘汰）。
 - 许可：本插件采用 [CC BY-NC-SA 4.0](LICENSE)。
 
 ## 上游与署名
