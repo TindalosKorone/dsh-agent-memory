@@ -4,7 +4,7 @@
 
 使用与工具说明见 [../README.md](../README.md)；术语见 [glossary.md](glossary.md)；装完出问题见 [troubleshooting.md](troubleshooting.md)。
 
-## 0. 前置
+## 前置
 
 - 已装好 DSH（`dsh` 在 PATH 上）与 pnpm（`dsh plugin` 会把剩余参数转发给 pnpm）。
 - 知道目标 profile 名（如 `web` / `tui`）。
@@ -44,7 +44,7 @@ dsh plugin --profile <profile> add github:TindalosKorone/dsh-agent-memory
 
    pnpm 对本地目录记成 `link:` —— profile 的 `node_modules/@dsh-agent/dsh-agent-memory` 是指回本仓的软链。之后改代码只要重建 + **重启 DSH**，不必重装。
 
-   > 无法在仓库内建软链的环境（FUSE / `<external-storage>`）不受影响：这条路本来就把软链建在 **profile 侧**。
+   > 无法在仓库内建软链的环境（如 FUSE 外置存储）不受影响：这条路本来就把软链建在 **profile 侧**。
 
 ## 方式 C：交给 agent
 

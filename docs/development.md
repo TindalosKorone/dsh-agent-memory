@@ -107,7 +107,7 @@ node scripts/import-gotchas.mjs --source gotchas.md --write  # 落盘（先备�
 | `test/*.mjs` | 19 个测试文件（197 pass / 0 fail，2026-10-09 实测）；另有 `helpers.mjs` 与 `isolation-probe.mjs` 两个非测试文件 |
 | `scripts/*.mjs` | 5 个脚本（标定 / 导入 / 负样本 / 注入实测 / 松耦合探针） |
 | `redproof/` | 228 个被跟踪的失败证据文件（204 个 `.txt` + 17 个探针 `.mjs` + 2 个 `.sh` + 5 个 `.json`） |
-| `docs/` | 6 个工程文档（安装 / 故障排查 / 设计 / 召回契约 / 开发 / 局限） |
+| `docs/` | 工程文档：安装 / 故障排查 / 设计 / 召回契约 / 开发 / 局限 / 术语表；另有 `docs/decisions/` 内部代号归档 |
 | `package.json` / `tsconfig.json` | 包与编译配置 |
 | `cordis.patch.yml` | 本包的 bundle patch（`package.json` 的 `dsh.bundle.patch` 指向它；官方安装后由它挂载插件，不需要手改 profile 的 patch） |
 | `LICENSE` / `NOTICE` / `README.md` | 许可 / 署名 / 门面文档 |

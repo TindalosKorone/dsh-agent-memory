@@ -23,7 +23,7 @@
 - `tags` 有序不重复 **1..12** 个、每个 **1..32** 字符（全库稳定复用，只做 trim + 小写化）；
 - `source` 非空，形如 `session:xxx` / `file:path` / `url:https://...`。
 
-校验顺序是 `kind → title → body → tags → source → scope`（先报最靠前的错，指引不互相干扰；`scope` 见 §7b）。
+校验顺序是 `kind → title → body → tags → source → scope`（先报最靠前的错，指引不互相干扰；`scope` 见 §8）。
 
 ## 3. 两条 fail-closed 闸门
 
@@ -105,7 +105,7 @@ id | kind | title | tags | graph | via | rel | cov | match | score
 - 内部扩召回（残差金字塔分诊的 `kBase -> kUsed`）**只放大内部预算**（给金字塔取更大的基、给多样性更大的候选池），**绝不增加返回行数**。
 - 把「内部候选池预算」误读成「显示上限」是明确的误用。
 
-## 7b. `scope`（项目/工作区维度）
+## 8. `scope`（项目/工作区维度）
 
 - **写入**：`memory_remember` 的 `scope` 可选，约定 `project:<名>`；**省略即 `global`**（默认行为与加 scope 之前完全一致）。写入校验失败关闭：非空、单行（拒绝 `\n`/`\r`/U+2028/U+2029）、去空白并净化 `{{`/`}}` 后长度 `<= SCOPE_MAX (64)`；`scope` 会被回显到表头，所以这些约束是必要的。
 - **召回**：`memory_recall` 的 `scope` 可选。**不传 ⇒ 不过滤**（与过去逐字一致）；**传了 ⇒ 只返回 `scope == 该值` 或 `scope == global` 的记录** —— `global` 永远包含，因为跨项目经验本来就通用。只读路径对参数做宽松净化（剥换行、`{{}}` 降级、截断到 64），保证表头不被坏参数破坏。
@@ -114,14 +114,14 @@ id | kind | title | tags | graph | via | rel | cov | match | score
 - **约定怎么传达给模型**：这条约定（项目专属写 `project:<名>`、跨项目通用用默认 `global`）**通过稳定规则段**传达 —— `agent-memory-habit` 稳定段（每步都在的 system prompt 正文段）里逐字写了它，`test/inject.test.mjs` 的「稳定段写入 scope 约定」用例钉住。放这里的理由：它是**行为约定**（什么时候写、写成什么），与「遇到排查类问题先 recall」同属规则、属于稳定前缀；尾部索引随库变动，`memory_recall` 描述有 300 字符硬上限（`test/description.test.mjs`），都不适合承载。
 - **不做「当前工作区」自动推断**：运行时**拿得到**会话 cwd（`execute(args, exec)` 的 `exec.agent.id` → `sessions.get(id).header.cwd`，见 `src/index.ts` scope 处的源码行号注释），但用它当默认会**改变默认行为**、需要给插件加可选服务依赖，且「cwd → scope 名」只是**自造约定** —— 所以插件只提供**纯显式** scope，不做工作区自动推断，约定本身走上面那条稳定规则；默认值一事留待使用者拍板。
 
-## 8. 分诊与低置信
+## 9. 分诊与低置信
 
 - **残差金字塔分诊**：以候选标签向量为基、在标签 idf 词法空间做 Gram-Schmidt 残差金字塔，得到 novelty = `0.7×残差能量比 + 0.3×方向一致性`，据此决定是否扩召回（`novelty >= noveltyThreshold`，默认 0.5）。
 - **空查询不分诊**：查询无词元能量（`‖q‖²≈0`）时 `novelty=0`、`expanded=false`、`kUsed=kBase`，`explainedRatio` / `residualRatio` 如实回显 `0/0`（未定义）。
 - **低置信只报告**：`activationThreshold`（默认 0.05）下 `cov_max` 偏低只置 `lowConfidence`，**绝不返回空、绝不整批否决**。
 - **`cov` 是诊断列，不是质量保证**：高 `cov` 不等于高相关，它不门控任何结果。
 
-## 9. 表头
+## 10. 表头
 
 表头是**单行**的，总长上界为 `HEADER_MAX_CHARS = 448` 字符。这个上界由**构造**保证，与查询串多长无关：
 
@@ -134,7 +134,7 @@ id | kind | title | tags | graph | via | rel | cov | match | score
 
 非结论性诊断（`basisSize`、`layers`、`logicalDepth`、`explainedRatio`+`residualRatio` 守恒、传播上限与 `gamma`/`rho`、种子与到达计数、多样性 β）不回显在表头，但**一个都没删**，仍逐字在结构化返回字段里。
 
-## 10. 工具描述瘦身与描述/文档对账：细则都在这里
+## 11. 工具描述瘦身与描述/文档对账：细则都在这里
 
 `memory_recall` 的工具描述只留模型**每次调用都要用**的五件事（10 列清单 / `rel`-`match`-`score` 语义 / `limit` 是硬显示上限 / 绝不返回 body / 指向本文件），已从 **1182 字符压到 <= 300 字符**。
 

@@ -45,4 +45,4 @@ pnpm install && pnpm run build      # 等价 node node_modules/typescript/bin/ts
 
 ## 7. 更多本机坑
 
-`<external-storage>` 不能建软链（软链要建在 profile 侧）、`/tmp` 不可写但 `cd /tmp` 会成功 —— 见 [development.md](development.md) 第 5 节。
+外置存储（FUSE 挂载点）不能建软链（软链要建在 profile 侧）、`/tmp` 不可写但 `cd /tmp` 会成功 —— 见 [development.md](development.md) 第 5 节。
