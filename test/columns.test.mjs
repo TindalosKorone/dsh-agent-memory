@@ -1,15 +1,15 @@
-// 用例 I6：memory_recall 的「列清单」单点真相对账（防漂断言，必须能判红）。
+// 用例 列清单：memory_recall 的「列清单」单点真相对账（防漂断言，必须能变红）。
 //
 // 背景（本次要修的病）：memory_recall 的工具描述里那串列清单是**旧的 8 列**
 //   id | kind | title | tags | rel | cov | match | score
-// 而 I3 之后 formatL1 实际输出的是 **10 列**（tags 与 rel 之间多了 graph | via）。
+// 而 图奖励 之后 formatL1 实际输出的是 **10 列**（tags 与 rel 之间多了 graph | via）。
 // 这**不是纯文案问题**：工具描述是模型理解输出格式的依据 —— 描述说 8 列、实际给 10 列，
 // 模型按描述切列时就得猜。
 //
 // 修法是抽单点真相：src/index.ts 的 RECALL_COLUMNS 是列名与列序的**唯一来源**，
 // 渲染（formatL1 的 Record 取值表 + map 拼接）、工具描述、表头「列序:」段全部由它派生。
 //
-// 本文件钉住三件事（互相独立，都能单独判红）：
+// 本文件钉住三件事（互相独立，都能单独变红）：
 //   ① 描述与实现一致：description 必须含 RECALL_COLUMNS.join(' | ')；
 //   ② 渲染行与列清单一致：真跑一次召回，每行按 RECALL_COLUMN_SEP 切出的字段数
 //      必须 === RECALL_COLUMNS.length，第 1 个字段是 id、最后 1 个字段是 4 位小数的 score；
@@ -20,7 +20,7 @@ import assert from 'node:assert/strict'
 import { RECALL_COLUMNS, RECALL_COLUMN_SEP, recallCells } from '../lib/index.js'
 import { freshHome, tools } from './helpers.mjs'
 
-test('I6 单点真相：列清单自身的形状（首列 id、末列 score、无重复、分隔符带空格）', () => {
+test('单点真相：列清单自身的形状（首列 id、末列 score、无重复、分隔符带空格）', () => {
   assert.ok(Array.isArray(RECALL_COLUMNS) && RECALL_COLUMNS.length > 0, 'RECALL_COLUMNS 必须是非空数组')
   assert.equal(RECALL_COLUMNS[0], 'id', '首列必须是 id（行首解析契约）')
   assert.equal(RECALL_COLUMNS[RECALL_COLUMNS.length - 1], 'score', '列清单末位必须是 score（按 -1 取分数的契约）')
@@ -28,7 +28,7 @@ test('I6 单点真相：列清单自身的形状（首列 id、末列 score、�
   assert.equal(RECALL_COLUMN_SEP, ' | ', '列分隔符必须是「空格竖线空格」，否则既有读者切不出列')
 })
 
-test('I6 防漂 1（判红点：把描述里的列清单改回旧的 8 列硬编码串 ⇒ 本条变红）：描述与列清单同源', async () => {
+test('列清单 防漂 1（变红点：把描述里的列清单改回旧的 8 列硬编码串 ⇒ 本条变红）：描述与列清单同源', async () => {
   freshHome('columns-desc')
   const defs = tools()
   const recall = defs.get('memory_recall')
@@ -45,7 +45,7 @@ test('I6 防漂 1（判红点：把描述里的列清单改回旧的 8 列硬编
     `description 不得再出现旧的 8 列串「${oldEight}」：${recall.description}`)
 })
 
-test('I6 防漂 2（判红点：让 formatL1 少渲染一列 / 调换列序 ⇒ 本条变红）：渲染行与列清单一致', async () => {
+test('列清单 防漂 2（变红点：让 formatL1 少渲染一列 / 调换列序 ⇒ 本条变红）：渲染行与列清单一致', async () => {
   freshHome('columns-render')
   const defs = tools()
   const remember = defs.get('memory_remember')
@@ -87,12 +87,12 @@ test('I6 防漂 2（判红点：让 formatL1 少渲染一列 / 调换列序 ⇒ 
 
 // ── 同一份列清单不得养出第二个顺序（本次对账：L1Row / schema / 取值表 / 真实 rows 四处同序）──
 //
-// 背景（本次要修的病）：I3 之后打印列序是 `… tags | graph | via | rel | cov | match | score`，
-// 但 `L1Row` 接口字段序与输出 schema 的 `rows.properties` 键序仍是 I3 之前的旧序
-// （`… rel, cov, match, graph, via, score`）——同一份列清单有两个顺序，和 I6 那条列数漂移同类。
+// 背景（本次要修的病）：图奖励 之后打印列序是 `… tags | graph | via | rel | cov | match | score`，
+// 但 `L1Row` 接口字段序与输出 schema 的 `rows.properties` 键序仍是 图奖励 之前的旧序
+// （`… rel, cov, match, graph, via, score`）——同一份列清单有两个顺序，和 列清单 那条列数漂移同类。
 // 修法是纯顺序对齐（字段名/类型/必填性一个字不改），并把键序也钉成断言。
 
-test('I6 防漂 3（判红点：把 schema 里 rel/cov 两个键换回 tags 之后（旧序）⇒ 本条变红）：rows.properties 键序 === RECALL_COLUMNS (+ scope)', () => {
+test('列清单 防漂 3（变红点：把 schema 里 rel/cov 两个键换回 tags 之后（旧序）⇒ 本条变红）：rows.properties 键序 === RECALL_COLUMNS (+ scope)', () => {
   freshHome('columns-schema-order')
   const recall = tools().get('memory_recall')
   assert.ok(recall !== undefined, 'memory_recall 必须注册')
@@ -104,10 +104,10 @@ test('I6 防漂 3（判红点：把 schema 里 rel/cov 两个键换回 tags 之�
   assert.equal(keys.length, RECALL_COLUMNS.length + 1,
     `rows.properties 的键数必须等于列数+1（多出的必须是 scope），实际 ${keys.length}：${keys.join('|')}`)
   assert.deepEqual(keys, [...RECALL_COLUMNS, 'scope'],
-    `rows.properties 的键序必须是 RECALL_COLUMNS + scope（旧序 rel,cov,match,graph,via 会在这里判红）：${keys.join('|')}`)
+    `rows.properties 的键序必须是 RECALL_COLUMNS + scope（旧序 rel,cov,match,graph,via 会在这里变红）：${keys.join('|')}`)
 })
 
-test('I6 防漂 4（判红点：把 recallCells 字面量里两个键换位 ⇒ 本条变红）：取值表键序 === RECALL_COLUMNS；真实 rows 键序 === RECALL_COLUMNS + scope', async () => {
+test('列清单 防漂 4（变红点：把 recallCells 字面量里两个键换位 ⇒ 本条变红）：取值表键序 === RECALL_COLUMNS；真实 rows 键序 === RECALL_COLUMNS + scope', async () => {
   freshHome('columns-cells-order')
   // ① formatL1 的取值表（recallCells）字面量键序：同一份列清单不养第二个顺序。
   //    注意：recallCells 是**打印用**的 10 列取值表，**不含 scope**（scope 只在结构化 rows 上）。

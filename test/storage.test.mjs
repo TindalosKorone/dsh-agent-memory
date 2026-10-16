@@ -1,5 +1,5 @@
 // 用例 7：落盘格式（NDJSON 每行可 JSON.parse）+ 原子写（写坏不影响旧文件）+ 串行队列
-//        + I1.1 三道失败关闭闸门（单条过大 / 并发度可观测 / 外部改动守卫），三条都可判红。
+//        + 初版 三道失败关闭闸门（单条过大 / 并发度可观测 / 外部改动守卫），三条都可变红。
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
@@ -36,8 +36,8 @@ const tmpLeftovers = (home) => {
 }
 
 /**
- * 判红开关（补 2 的红证点）：默认走串行队列。
- * 红证做法：把这一行临时改成 `(q, task) => task()`（绕过队列）⇒ 并发度断言必须变红。
+ * 变红开关（补 2 的失败证据点）：默认走串行队列。
+ * 失败证据做法：把这一行临时改成 `(q, task) => task()`（绕过队列）⇒ 并发度断言必须变红。
  */
 const viaQueue = (q, task) => q.run(task)
 
@@ -180,8 +180,8 @@ test('串行队列：任务抛错不阻塞后续，reset 后仍可用', async ()
   assert.equal(await q.run(() => 'after-reset'), 'after-reset')
 })
 
-// ── 补 2：并发写入判据（可判红）─────────────────────────────────────────────
-test('并发写入：4 个 remember 并发提交后 4 条都在，且写事务最大并发度恒为 1（判红点）', async () => {
+// ── 补 2：并发写入判据（可变红）─────────────────────────────────────────────
+test('并发写入：4 个 remember 并发提交后 4 条都在，且写事务最大并发度恒为 1（变红点）', async () => {
   const home = freshHome('storage-concurrent')
   const g = concurrencyProbe()
   // 通过 FsOps 接缝把可观测包装注入**真实工具路径**
@@ -213,7 +213,7 @@ test('并发写入：4 个 remember 并发提交后 4 条都在，且写事务�
   assert.equal(loadRecords(cfg).length, 8, '4 条工具写入 + 4 条事务写入，一条都不能丢')
 })
 
-// ── 补 1：单条过大必须拒收（可判红）─────────────────────────────────────────
+// ── 补 1：单条过大必须拒收（可变红）─────────────────────────────────────────
 test('单条上限：默认取 maxBytes 的 10%，可用环境变量或配置覆盖', () => {
   const home = freshHome('storage-record-cap-config')
   assert.equal(resolveMaxRecordBytes(), Math.floor(4 * 1024 * 1024 * 0.1), '默认 = maxBytes 的 10%')
@@ -233,7 +233,7 @@ test('单条上限：checkRecordSize 按序列化后的真实字节数判定，�
   assert.deepEqual(checkRecordSize(rec, { home, maxRecordBytes: bytes - 1 }), { ok: false, bytes, limit: bytes - 1 })
 })
 
-test('单条过大必须拒收：不得落盘，更不得触发全库淘汰（判红点）', async () => {
+test('单条过大必须拒收：不得落盘，更不得触发全库淘汰（变红点）', async () => {
   const home = freshHome('storage-record-too-large')
   const seed = [0, 1, 2, 3, 4].map((i) => record(`seed-${i}`, T0 - i * DAY))
   saveRecords(seed, { home, now: () => T0 })
@@ -245,11 +245,11 @@ test('单条过大必须拒收：不得落盘，更不得触发全库淘汰（�
     kind: 'fact', title: '一条超大记录用来验证拒收', body: 'x'.repeat(80 * 1024), tags: ['huge'], source: 'test:huge',
   })
 
-  // 第一条断言就对准「库有没有被清空」：判红（关掉单条上限）时这里会变成空库，一眼可见
+  // 第一条断言就对准「库有没有被清空」：变红（关掉单条上限）时这里会变成空库，一眼可见
   assert.deepEqual(
     diskLines(home).map((l) => JSON.parse(l).id),
     seed.map((x) => x.id),
-    '超大记录被拒后整库 5 条必须原样保留（判红点：关掉单条上限后这里会变成空库/大量淘汰）',
+    '超大记录被拒后整库 5 条必须原样保留（变红点：关掉单条上限后这里会变成空库/大量淘汰）',
   )
   assert.equal(r.ok, false)
   assert.equal(r.code, 'record-too-large')
@@ -264,8 +264,8 @@ test('单条过大必须拒收：不得落盘，更不得触发全库淘汰（�
   assert.equal('id' in r, false, '失败时 id 必须整键省略')
 })
 
-// ── 补 3：外部改动失败关闭（可判红）─────────────────────────────────────────
-test('外部改动守卫：加载后被外部追加一行 ⇒ 写入被拒且外部那行仍在（判红点）', () => {
+// ── 补 3：外部改动失败关闭（可变红）─────────────────────────────────────────
+test('外部改动守卫：加载后被外部追加一行 ⇒ 写入被拒且外部那行仍在（变红点）', () => {
   const home = freshHome('storage-external')
   const p = memoryPath({ home })
   const cfg = { home, now: () => T0 }
@@ -289,7 +289,7 @@ test('外部改动守卫：加载后被外部追加一行 ⇒ 写入被拒且外
     refused = true
   }
 
-  // 判红点：关掉守卫后这里会变成「只剩本地那条」，外部那行被覆盖 ⇒ 一眼可见
+  // 变红点：关掉守卫后这里会变成「只剩本地那条」，外部那行被覆盖 ⇒ 一眼可见
   assert.equal(diskText(home), beforeText, '外部写入的内容必须仍在（不得被覆盖）')
   assert.ok(!diskText(home).includes('rec-local'), '本地那条不得落盘')
   assert.equal(refused, true, '加载后被外部改动 ⇒ 必须失败关闭（store-changed-externally）')

@@ -1,10 +1,10 @@
-// 用例 I5：memory_recall 的 L1 表头「减肥」与一条结构性断言。
+// 用例 表头减肥：memory_recall 的 L1 表头「减肥」与一条结构性断言。
 //
 // 背景（本次要修的病）：旧表头 1049~1066 字符（本机实测，随查询与条数变化），而 RECALL_MAX_CHARS=2000
 // ⇒ 每次实际只能显示 7~9 行；更糟的是旧表头把标度常数**本身**回显了两遍
 // （score 公式里三处 + match 阈值两处），于是改 SCALE_A/SCALE_B/WEAK/STRONG 会连带改掉
 // 「能显示几行」——上一次标定落地时 6 个既有测试红，
-// 其中 5 个就是这个原因（被迫把「8 行」改成「6 行」、把夹具标题压短）。
+// 其中 5 个就是这个原因（被迫把「8 行」改成「6 行」、把测试样本标题压短）。
 //
 // 本文件钉住三件事：
 //   ① 表头只留「可复算所必需」的信息，且**常配短查询**下 <= 400 字符 —— 防减肥**减过头**（把复算依据删了）。
@@ -12,8 +12,8 @@
 //      施加、且如实说明「开时 score 无法仅由打印的 rel/graph 复算」（旧表头只写 final=rel+graph，
 //      等于向读者承诺 score 恒等于 disp(rel+graph)）；
 //   ② 显示行数只由 limit 与行长决定，与标度常数（连它们的小数位长度）无关 —— 防表头**长回去**；
-//   ③ （修正 1）表头的**总量上界** `HEADER_MAX_CHARS` 必须对**任意查询串**成立 —— 旧用例只覆盖
-//      3 个短查询夹具（388~399），所以「<= 400」是一句**从未被最坏情况验过**的声明：表头回显
+//   ③ 表头的**总量上界** `HEADER_MAX_CHARS` 必须对**任意查询串**成立 —— 旧用例只覆盖
+//      3 个短查询测试样本（388~399），所以「<= 400」是一句**从未被最坏情况验过**的声明：表头回显
 //      `query=` 时长随查询串线性增长（200 字符含边界字符实测 742、360 字符 932），而标度常数回显
 //      宽度由配置决定（22 位小数就把固定部分顶到 413）。现在两条路径分别由 `formatHeaderQuery`
 //      （按现算预算截断 + 如实标注）与 `formatHeaderConstant`（定宽回显，超宽 `≈` 标注近似）堵死，
@@ -23,9 +23,9 @@ import assert from 'node:assert/strict'
 import { HEADER_MAX_CHARS, HEADER_QUERY_TRUNCATION_MARK } from '../lib/index.js'
 import { freshHome, tools } from './helpers.mjs'
 
-test('I5 表头自检：单行、<= 428 字符，且可复算信息一个都不少', async () => {
+test('表头自检：单行、<= 428 字符，且可复算信息一个都不少', async () => {
   const home = freshHome('header-selfcheck')
-  // ③ 起表头多了一段**条件性**的标定漂移提示（库规模离标定点远时出现，本夹具只有 3 条 ⇒ 必然出现）。
+  // ③ 起表头多了一段**条件性**的标定漂移提示（库规模离标定点远时出现，本测试样本只有 3 条 ⇒ 必然出现）。
   // 本条用例量的是**与查询/漂移无关的基表头**，所以把两个漂移阈值调到极大（等价关掉该段），
   // 让「常配短查询 <= 428」这条收紧位继续只量基表头；漂移段本身由 test/scoring.test.mjs 的
   // 「标定漂移」两条用例（一侧必现 / 一侧必不现）单独钉住。
@@ -44,8 +44,8 @@ test('I5 表头自检：单行、<= 428 字符，且可复算信息一个都不�
   const r = await recall.execute({ query: 'alpha', limit: 5 })
   const header = r.text.split('\n')[0]
   assert.ok(r.shown > 0, '至少召回一条，否则表头断言没有说服力')
-  assert.ok(!header.includes('\n'), '表头必须单行（分诊/I3 字段不得换行）')
-  // 428 是**实测锚点**（本轮闸门例外落地后本夹具 = 388/392；旧值 420/416 见 git 历史）。
+  assert.ok(!header.includes('\n'), '表头必须单行（分诊/图奖励 字段不得换行）')
+  // 428 是**实测锚点**（本轮闸门例外落地后本测试样本 = 388/392；旧值 420/416 见 git 历史）。
   // 这不是「放松总量上界」：真正的上界仍是 HEADER_MAX_CHARS=448，由本文件后两条最坏情况用例钉死；
   // 这里钉的是「常配短查询下别把表头再喂胖」的收紧位。改动表头文案前先量一遍这个数。
   assert.ok(header.length <= 428, `表头必须 <= 428 字符（旧表头实测 1049~1066），实际 ${header.length}：${header}`)
@@ -83,20 +83,20 @@ test('I5 表头自检：单行、<= 428 字符，且可复算信息一个都不�
   assert.ok(header.includes(`可达=${r.reachable}`), `表头必须回显 reachable：${header}`)
   // ⑨ 多样性（对账补上）：final=(rel+graph)×多样性因子、因子只在候选 > 5 时施加，
   //    且必须如实说明「多样性开时 score 无法仅由打印的 rel/graph 复算」——旧表头只写
-  //    final=rel+graph，等于向读者承诺 score 恒等于 disp(rel+graph)（判红点：改回旧句 ⇒ 本条变红）。
+  //    final=rel+graph，等于向读者承诺 score 恒等于 disp(rel+graph)（变红点：改回旧句 ⇒ 本条变红）。
   assert.ok(header.includes('final=(rel+graph)×多样性'),
     `表头必须写明 final=(rel+graph)×多样性因子：${header}`)
   assert.ok(header.includes('候选>5启用'),
     `表头必须写明多样性只在候选 > 5 时施加：${header}`)
   assert.ok(header.includes('开时score不可复算'),
     `表头必须如实说明"多样性开时 score 不能仅由 rel/graph 复算"：${header}`)
-  // match 的恒可复算同样必须在表头（判红点：删掉 (恒可复算) ⇒ 本条变红）
+  // match 的恒可复算同样必须在表头（变红点：删掉 (恒可复算) ⇒ 本条变红）
   assert.ok(header.includes('否则 none(恒可复算)'),
     `表头必须写明 match 恒可由 rel + 阈值复算：${header}`)
   // ⑩ 内容量闸门：闸门的**三个输入**（qTok、阈值、例外倍数 M）必须逐字回显，规则必须**按分支**写明 ——
-  //    否则「低内容量 + 离阈值多远 ⇒ 是否封顶」这条判定读者复算不出来（I1.3 铁律的延续）。
-  //    本夹具 query='alpha' ⇒ qTok=1 < 2，而该行 rel 远在 2×strong 之上 ⇒ 走**例外放行支**。
-  //    判红点：删掉这段回显（或只回显 qTok 不回显阈值/M）⇒ 本条变红。
+  //    否则「低内容量 + 离阈值多远 ⇒ 是否封顶」这条判定读者复算不出来（自证铁律 铁律的延续）。
+  //    本测试样本 query='alpha' ⇒ qTok=1 < 2，而该行 rel 远在 2×strong 之上 ⇒ 走**例外放行支**。
+  //    变红点：删掉这段回显（或只回显 qTok 不回显阈值/M）⇒ 本条变红。
   assert.equal(r.contentTokenMin, 2, '内容量闸门默认阈值必须是 2（标定见 src/pure.ts）')
   assert.equal(r.gateMargin, 2, '闸门例外倍数默认必须是 2.0（标定见 src/pure.ts 的 GATE_MARGIN）')
   assert.ok(Number.isInteger(r.contentTokens) && r.contentTokens >= 0,
@@ -104,13 +104,13 @@ test('I5 表头自检：单行、<= 428 字符，且可复算信息一个都不�
   assert.ok(header.includes(`内容量qTok=${r.contentTokens}<${r.contentTokenMin}但rel≥${r.gateMargin}×strong⇒不压级`),
     `例外放行支表头必须逐字回显闸门三输入与「不压级」（qTok=${r.contentTokens} 阈值=${r.contentTokenMin} M=${r.gateMargin}）：${header}`)
   assert.ok(!header.includes('封顶'),
-    `例外放行支的回显不得出现「封顶」字样（本夹具没有一行被压）：${header}`)
+    `例外放行支的回显不得出现「封顶」字样（本测试样本没有一行被压）：${header}`)
   // ⑩b qTok >= 阈值（真机 query=`虚拟屏` 的同类情形）：回显**不得**照抄封顶样板 ——
   //     旧实现是无条件样板，在这一支打出 `qTok=5<2` 这种假不等式且与 match=strong 自相矛盾。
-  //     判红点：把回显改回无条件样板 ⇒ 下面两条立刻变红（`!includes('封顶')` 先红）。
+  //     变红点：把回显改回无条件样板 ⇒ 下面两条立刻变红（`!includes('封顶')` 先红）。
   const free = await recall.execute({ query: 'alpha beta', limit: 5 })
   const freeHeader = free.text.split('\n')[0]
-  assert.equal(free.contentTokens, 2, `夹具前提：两词元查询必须真的 qTok=2（实测 ${free.contentTokens}）`)
+  assert.equal(free.contentTokens, 2, `测试样本前提：两词元查询必须真的 qTok=2（实测 ${free.contentTokens}）`)
   assert.ok(!freeHeader.includes('封顶'),
     `不封顶支的回显不得出现「封顶」字样（在 qTok>=阈值 时它是假的）：${freeHeader}`)
   assert.ok(freeHeader.includes(`内容量qTok=${free.contentTokens}≥${free.contentTokenMin}⇒闸门未生效`),
@@ -132,15 +132,15 @@ test('I5 表头自检：单行、<= 428 字符，且可复算信息一个都不�
   assert.match(eh, /kBase=[0-9]+->kUsed=[0-9]+/, '未分诊分支仍须打印 kBase/kUsed')
 })
 
-test('I5 结构性断言：标度常数不得影响显示行数（判红点：表头回显常数的长度会改行数）', async () => {
+test('表头结构性断言：标度常数不得影响显示行数（变红点：表头回显常数的长度会改行数）', async () => {
   const home = freshHome('header-scale')
   const defs = tools()
   const remember = defs.get('memory_remember')
 
-  // 夹具：24 条**同形**记录（同标题、同正文、同标签）⇒ 每一行打印长度完全相同；
+  // 测试样本：24 条**同形**记录（同标题、同正文、同标签）⇒ 每一行打印长度完全相同；
   // 查询命中标题与正文 ⇒ 每行 rel 相同、match 同级、score 同宽度。
   // 标题长度 50（行长 = 143）是**量出来的**：一行占 144 个字符，表头差一个字符就可能跨过行边界，
-  // 所以夹具既要给新短表头留足余量，又要让旧长表头下的常数差正好跨过行边界（判红点才看得见）。
+  // 所以测试样本既要给新短表头留足余量，又要让旧长表头下的常数差正好跨过行边界（变红点才看得见）。
   // 本次实测：新表头四组 398/387/399/412 字符 ⇒ 都恰好 10 行（余量 86~111、距下一行 33~58）；
   // 旧长表头四组 1077/1066/1078/1091 字符 ⇒ 5/6/5/5 行（两组标准标度配置差 11 个字符就少一行）。
   const TITLE = `alpha dark theme note ${'q'.repeat(28)}`
@@ -164,12 +164,12 @@ test('I5 结构性断言：标度常数不得影响显示行数（判红点：�
   const runs = []
   for (const [label, cfg] of CONFIGS) {
     const r = await tools(cfg).get('memory_recall').execute({ query: 'alpha dark theme', limit: 20 })
-    // 夹具自检：必须真的撞上字符预算，否则「行数相等」是空转（20 条候选全放得下就没有区分力）
-    assert.equal(r.truncated, true, `${label}: 夹具必须真的撞上 RECALL_MAX_CHARS 字符预算`)
+    // 测试样本自检：必须真的撞上字符预算，否则「行数相等」是空转（20 条候选全放得下就没有区分力）
+    assert.equal(r.truncated, true, `${label}: 测试样本必须真的撞上 RECALL_MAX_CHARS 字符预算`)
     assert.ok(r.shown < 20, `${label}: 必须真的发生了截断`)
-    // 夹具自检：每行等长，否则「行数」由行长序列决定，量出来的差不能归因于表头
+    // 测试样本自检：每行等长，否则「行数」由行长序列决定，量出来的差不能归因于表头
     const lineLens = new Set(r.lines.map((line) => line.length))
-    assert.equal(lineLens.size, 1, `${label}: 夹具每行必须等长，实际 ${[...lineLens].join(',')}`)
+    assert.equal(lineLens.size, 1, `${label}: 测试样本每行必须等长，实际 ${[...lineLens].join(',')}`)
     assert.equal(r.rows.length, r.shown)
     runs.push({ label, scaleA: r.scaleA, scaleB: r.scaleB, shown: r.shown, truncated: r.truncated, rowLen: r.lines[0].length, header: r.text.split('\n')[0], last: r.lines[r.lines.length - 1] })
   }
@@ -191,21 +191,21 @@ test('I5 结构性断言：标度常数不得影响显示行数（判红点：�
   assert.equal(new Set(showns).size, 1,
     `显示行数必须与标度常数无关：${runs.map((x) => `${x.label} => shown=${x.shown}`).join(' / ')}`)
   assert.equal(new Set(runs.map((x) => x.truncated)).size, 1, 'truncated 状态必须一致')
-  assert.equal(new Set(runs.map((x) => x.rowLen)).size, 1, '四组的行长必须相同（夹具等长）')
+  assert.equal(new Set(runs.map((x) => x.rowLen)).size, 1, '四组的行长必须相同（测试样本等长）')
 
-  // 行预算守卫：表头减肥后本夹具能放 10 行（旧长表头下只有 5~6 行）。
+  // 行预算守卫：表头减肥后本测试样本能放 10 行（旧长表头下只有 5~6 行）。
   // 表头一旦长回去（例如又把 basisSize/守恒式/图上限塞回来），这条会先红。
-  assert.ok(runs[0].shown >= 10, `表头 <= 400 字符时本夹具必须至少放得下 10 行，实际 ${runs[0].shown}`)
+  assert.ok(runs[0].shown >= 10, `表头 <= 400 字符时本测试样本必须至少放得下 10 行，实际 ${runs[0].shown}`)
 })
 
-// ── 修正 1：总量上界必须对**任意查询串**成立 ─────────────────────────────────────
+// ── 表头定宽回显：总量上界必须对**任意查询串**成立 ─────────────────────────────────────
 //
-// 旧用例的病根：只量了 3 个短查询（388~399）就宣称「<= 400」。这是「用方便的夹具证明一个界」，
+// 旧用例的病根：只量了 3 个短查询（388~399）就宣称「<= 400」。这是「用方便的测试样本证明一个界」，
 // 而表头的长度输入里恰恰有一个**无界**的量 —— 回显的查询串本身。
 // 本条用例把那个无界量拉到最坏：>=200 字符、且每类边界字符都命中（引号 / 反斜杠 / 换行 / 制表 / NUL）。
-// 判红点：把 `formatHeaderQuery` 里的截断去掉（直接 `JSON.stringify(query)`）⇒ 下面前两条断言变红。
+// 变红点：把 `formatHeaderQuery` 里的截断去掉（直接 `JSON.stringify(query)`）⇒ 下面前两条断言变红。
 
-test('修正 1 最坏情况：>=200 字符且含换行/引号/反斜杠/控制字符的查询下，表头仍 <= HEADER_MAX_CHARS、单行、且截断被如实标注', async () => {
+test('表头定宽回显 最坏情况：>=200 字符且含换行/引号/反斜杠/控制字符的查询下，表头仍 <= HEADER_MAX_CHARS、单行、且截断被如实标注', async () => {
   freshHome('header-worst-query')
   const defs = tools()
   const remember = defs.get('memory_remember')
@@ -221,13 +221,13 @@ test('修正 1 最坏情况：>=200 字符且含换行/引号/反斜杠/控制�
   // 每段 6 个字符：`x` `"` `\` 换行 制表 NUL —— 转义后分别是 1/2/2/2/2/6 个字符，
   // 既覆盖「两字符转义」也覆盖「`\u00XX` 六字符转义」（后者是最坏膨胀来源）。
   const LONG = 'x"\\\n\t\u0000'.repeat(40)
-  assert.equal(LONG.length, 240, '夹具必须是 240 字符（>=200）')
-  assert.ok(LONG.length >= 200, '夹具查询必须 >= 200 字符，否则不算最坏情况')
+  assert.equal(LONG.length, 240, '测试样本必须是 240 字符（>=200）')
+  assert.ok(LONG.length >= 200, '测试样本查询必须 >= 200 字符，否则不算最坏情况')
 
   const r = await recall.execute({ query: LONG, limit: 5 })
   const header = r.text.split('\n')[0]
 
-  // ① 总量上界（判红点：去掉截断 ⇒ 这里从 447 涨到 ~1500 变红）
+  // ① 总量上界（变红点：去掉截断 ⇒ 这里从 447 涨到 ~1500 变红）
   assert.ok(header.length <= HEADER_MAX_CHARS,
     `表头必须 <= HEADER_MAX_CHARS=${HEADER_MAX_CHARS}，实际 ${header.length}：${header}`)
   // ② 单行（换行/回车都被 JSON 转义，不可能留下裸换行）
@@ -258,12 +258,12 @@ test('修正 1 最坏情况：>=200 字符且含换行/引号/反斜杠/控制�
   assert.ok(shortHeader.includes('L1:query="alpha"'), `短查询应被完整回显：${shortHeader}`)
 })
 
-test('修正 1 最坏情况（固定部分）：标度常数回显宽度与库规模统计不能把表头顶过 HEADER_MAX_CHARS', async () => {
+test('表头定宽回显 最坏情况（固定部分）：标度常数回显宽度与库规模统计不能把表头顶过 HEADER_MAX_CHARS', async () => {
   freshHome('header-worst-fixed')
   const defs = tools()
   const remember = defs.get('memory_remember')
   // 60 条同形记录 ⇒ 让「候选/图规模/reachable/枢纽被压」这些统计位宽>1，
-  // 固定部分不是最窄的那种夹具（避免又用方便夹具证明一个界）。
+  // 固定部分不是最窄的那种测试样本（避免又用方便测试样本证明一个界）。
   for (let i = 0; i < 60; i += 1) {
     const w = await remember.execute({
       kind: 'fact', title: `alpha dark theme note ${i}`, body: 'alpha dark theme body',

@@ -40,7 +40,7 @@ function schemaViolations(spec, value, path = '$') {
 
 test('插件契约：name/inject 正确，恰好注册 4 个工具', () => {
   assert.equal(name, '@dsh-agent/dsh-agent-memory')
-  // 【I4a.1 契约变更（点名）】inject 从 ['tools','systemPrompt'] 收窄为 ['tools']。
+  // 【松耦合 契约变更（点名）】inject 从 ['tools','systemPrompt'] 收窄为 ['tools']。
   // 旧写法里 systemPrompt 是**必需依赖** ⇒ 它缺席时整个插件（含 4 个工具）都不 apply。
   // 现在注入面走 ctx.inject(['systemPrompt'], scope => ...) 条件注册（见 src/index.ts 末尾），
   // 缺席只意味着「少一块注入」；缺 systemPrompt 时工具面仍可用的红/绿证在 loose-inject.test.mjs。

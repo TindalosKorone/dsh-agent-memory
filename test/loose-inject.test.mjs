@@ -1,4 +1,4 @@
-// 用例 11：I4a.1 注入松耦合 —— 「缺 systemPrompt 时工具面仍然可用」。
+// 用例 11：松耦合 注入松耦合 —— 「缺 systemPrompt 时工具面仍然可用」。
 //
 // 为什么单独立一个文件：这条契约讲的是**插件级的可用性边界**，必须用**裸 cordis**跑，
 // 才能判出 cordis 的「必需依赖」语义（桩 ctx 复刻不了 fiber 的 PENDING 门禁）：
@@ -100,7 +100,7 @@ async function probeWithoutSystemPrompt(pluginModule, home) {
 }
 
 /**
- * 红证用的构建产物副本：整份 lib/*.js 拷进 .tmp-test，只把 inject 那一行改回旧声明。
+ * 失败证据用的构建产物副本：整份 lib/*.js 拷进 .tmp-test，只把 inject 那一行改回旧声明。
  * 这样做是「源码级改回」，比在测试里另造一个 { inject } 对象更接近真实回归：
  * 跑的是同一份编译产物，唯一差异就是那一行。
  */
@@ -116,8 +116,8 @@ function buildHardInjectCopy() {
   const needle = "export const inject = ['tools'];"
   const patched = src.replace(needle, "export const inject = ['tools', 'systemPrompt'];")
   if (patched === src) {
-    // 找不到锚点就必须炸：否则红证会「静默变成绿」，那就等于没有红证。
-    throw new Error(`红证副本构建失败：lib/index.js 里没有找到 ${needle}`)
+    // 找不到锚点就必须炸：否则失败证据会「静默变成绿」，那就等于没有失败证据。
+    throw new Error(`失败证据副本构建失败：lib/index.js 里没有找到 ${needle}`)
   }
   writeFileSync(entry, patched, 'utf8')
   return entry
@@ -131,7 +131,7 @@ function assertToolsAlive(res) {
 }
 
 // ── 1. 绿：缺 systemPrompt，工具面照常 ─────────────────────────────────────
-test('I4a.1 松耦合：没有 systemPrompt 的裸 cordis 环境 ⇒ 插件 apply、4 个工具全在、注入安静降级', async () => {
+test('松耦合：没有 systemPrompt 的裸 cordis 环境 ⇒ 插件 apply、4 个工具全在、注入安静降级', async () => {
   const home = freshHome('i4a1-loose')
   const green = await probeWithoutSystemPrompt(realPlugin, home)
 
@@ -155,11 +155,11 @@ test('I4a.1 松耦合：没有 systemPrompt 的裸 cordis 环境 ⇒ 插件 appl
   assert.equal(contexts.size, 0, '没有 systemPrompt 时不得注册任何 context')
 })
 
-// ── 2. 红证：把 inject 改回旧声明 ⇒ 同一断言必须变红 ────────────────────────
-test('I4a.1 红证：inject 改回 [tools, systemPrompt] 的同一份构建副本 ⇒ 插件不 apply、工具数 0', async () => {
+// ── 2. 失败证据：把 inject 改回旧声明 ⇒ 同一断言必须变红 ────────────────────────
+test('松耦合 失败证据：inject 改回 [tools, systemPrompt] 的同一份构建副本 ⇒ 插件不 apply、工具数 0', async () => {
   const hardEntry = buildHardInjectCopy()
   const hard = await import(pathToFileURL(hardEntry).href)
-  assert.deepEqual([...hard.inject], ['tools', 'systemPrompt'], '红证副本必须真的声明了旧的硬依赖')
+  assert.deepEqual([...hard.inject], ['tools', 'systemPrompt'], '失败证据副本必须真的声明了旧的硬依赖')
 
   const redHome = freshHome('i4a1-red')
   const red = await probeWithoutSystemPrompt(hard, redHome)
@@ -167,15 +167,15 @@ test('I4a.1 红证：inject 改回 [tools, systemPrompt] 的同一份构建副�
   // 同一条断言，绿环境不抛……
   const green = await probeWithoutSystemPrompt(realPlugin, freshHome('i4a1-red-green'))
   assertToolsAlive(green)
-  // ……砸到红环境必须抛：这就是「红证真的红」。
+  // ……砸到红环境必须抛：这就是「失败证据真的红」。
   let redError = null
   try {
     assertToolsAlive(red)
   } catch (err) {
     redError = err
   }
-  assert.ok(redError !== null, '红证必须真的红：同一条断言在旧声明下必须失败（否则是假绿）')
-  assert.ok(redError instanceof assert.AssertionError, `红证失败的应当是断言失败，实测 ${redError?.name}`)
+  assert.ok(redError !== null, '失败证据必须真的红：同一条断言在旧声明下必须失败（否则是假绿）')
+  assert.ok(redError instanceof assert.AssertionError, `失败证据失败的应当是断言失败，实测 ${redError?.name}`)
 
   // 红的具体形态：fiber 停在 PENDING（apply 根本没跑）、一个工具都没注册。
   assert.equal(red.loadError, null, 'cordis 不会抛：它只是把 fiber 停在 PENDING（这更隐蔽）')
@@ -185,7 +185,7 @@ test('I4a.1 红证：inject 改回 [tools, systemPrompt] 的同一份构建副�
 })
 
 // ── 3. 反向断言：有 systemPrompt 时注入确实注册成功 ────────────────────────
-test('I4a.1 反向断言：有 systemPrompt 时注入确实注册（context 存在、文本非空、<= 240）', async () => {
+test('松耦合 反向断言：有 systemPrompt 时注入确实注册（context 存在、文本非空、<= 240）', async () => {
   assert.ok(CORDIS !== null && SP !== null, '反向断言需要真 cordis + 真 dsh-system-prompt')
   const root = new CORDIS.Context()
   const defs = new Map()
@@ -212,7 +212,7 @@ test('I4a.1 反向断言：有 systemPrompt 时注入确实注册（context 存�
   })
 
   const home = freshHome('i4a1-reverse')
-  // 【I4a.2 契约变更】原来只有 1 条记录，任何标签的出现率都是 100% ⇒ 会被锚点资格过滤掉，
+  // 【锚点资格过滤 契约变更】原来只有 1 条记录，任何标签的出现率都是 100% ⇒ 会被锚点资格过滤掉，
   // 那一行会退化成「无可区分锚点」（文本仍非空，但本用例要断言带锚点的完整行）。
   // 这里补 9 条共用一个超频标签的记录（9/10 = 0.9 > 0.3 ⇒ 该标签被剔除，不抢锚点），
   // 于是 `松耦合`（1/10 = 0.1）如实成为唯一锚点；降级口径由 test/anchor.test.mjs 覆盖。
@@ -237,16 +237,16 @@ test('I4a.1 反向断言：有 systemPrompt 时注入确实注册（context 存�
   assert.ok(mine[0].text.length > 0, '文本必须非空（功能没被改坏）')
   assert.ok(mine[0].text.length <= DEFAULT_INJECTION_MAX_CHARS, `文本长度 ${mine[0].text.length} 必须 <= 240`)
   assert.ok(mine[0].text.includes('memory_recall'), '查询工具指路照旧在（只是换了句式）')
-  assert.ok(mine[0].text.includes('先 memory_recall 查库'), 'I4a.3：真引擎路径上那行同样必须是条件规则')
+  assert.ok(mine[0].text.includes('先 memory_recall 查库'), '条件规则：真引擎路径上那行同样必须是条件规则')
   assert.equal(mine[0].text, '记忆 10 条（跨会话经验教训）｜排查·为什么·复现·以前是否踩过 这类问题，先 memory_recall 查库｜标签锚点：松耦合')
-  // I4a.3：稳定段也必须经真引擎注册成功（section 与 context 是两张表）
+  // 条件规则：稳定段也必须经真引擎注册成功（section 与 context 是两张表）
   const mySections = assembly.sections.filter((s) => s.name === 'agent-memory-habit')
   assert.equal(mySections.length, 1, '真引擎 assemble 的 sections 里必须有 agent-memory-habit')
   assert.ok(mySections[0].text.includes('先用 memory_recall 查记忆库'), `段文本必须含触发条件，实测 ${mySections[0].text}`)
 })
 
 // ── 4. 迟到依赖：加载顺序不再决定注入生死 ─────────────────────────────────
-test('I4a.1 迟到依赖：systemPrompt 后到（插件先加载）也能注册（不靠加载顺序）', async () => {
+test('松耦合 迟到依赖：systemPrompt 后到（插件先加载）也能注册（不靠加载顺序）', async () => {
   assert.ok(CORDIS !== null && SP !== null, '本用例需要真 cordis + 真 dsh-system-prompt')
   const root = new CORDIS.Context()
   const defs = new Map()

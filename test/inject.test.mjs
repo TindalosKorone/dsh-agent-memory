@@ -1,6 +1,6 @@
-// 用例 10：I4a / I4a.3 记忆注入（systemPrompt 尾部动态块 + 稳定段）。
+// 用例 10：索引注入 / 条件规则 记忆注入（systemPrompt 尾部动态块 + 稳定段）。
 //
-// 契约（与任务规格一一对应，全部可判红）：
+// 契约（与任务规格一一对应，全部可变红）：
 //  1) 注册面：name 固定、order 是**显式数字且大于 120**、text 是函数（引擎每次 assemble 现算）；
 //  2) 开关：injection.enabled=false ⇒ **不注册**（contexts 里没有）且不输出任何字符；
 //  3) 内容：**一行**、与查询无关、低频变化（条数 + 这是什么 + 什么时候该用 + 锚点），
@@ -10,11 +10,11 @@
 //  6) fail-open：读库/解析/注册任何异常都**不抛**，注入空串或最小占位；
 //  7) 缓存：只读、幂等，键严格是 {path, size, mtimeMs}（与库自身的外部改动守卫同口径）。
 //
-// I4a.1：注入面从「必需依赖」改为条件注册 `ctx.inject(['systemPrompt'], scope => ...)`。
+// 松耦合：注入面从「必需依赖」改为条件注册 `ctx.inject(['systemPrompt'], scope => ...)`。
 // 本文件覆盖「有 systemPrompt」这一半（注册面/内容/上限/稳定性/fail-open）；「缺 systemPrompt 时
 // 工具面仍可用」的红绿证在 test/loose-inject.test.mjs（用裸 cordis 才能判出必需依赖的 PENDING 门禁）。
 //
-// I4a.3（本次改动，见第 12 节）：
+// 条件规则（本次改动，见第 12 节）：
 //  8) 尾部那行的**语法**从陈述句改成**条件规则**：必须含触发条件（这类问题 ⇒ 先 memory_recall 查库），
 //     而不是「库里有这么个东西」的陈述；「上限 M」这类无关信息不得回堆；
 //  9) 同一条规则**另注册为稳定段**（`section`，不是 `context`）：name=agent-memory-habit、
@@ -22,9 +22,9 @@
 //     段文本极短且含触发条件；
 // 10) **两条贡献共用同一个 enabled 开关**：关掉时尾部块与稳定段都不注册（不许半开）；
 // 11) 两条贡献各自 fail-open：任一侧注册抛都只意味着「少一块」，另一侧与 4 个工具照常。
-// 12) I4a.4：稳定段里**另写入 scope 约定**（项目专属 `project:<名>`、跨项目通用默认 `global`）——
+// 12) scope 约定：稳定段里**另写入 scope 约定**（项目专属 `project:<名>`、跨项目通用默认 `global`）——
 //     使用者拍板「不做自动默认，只写成约定」；插件**不**推断当前工作区，文案也不得作此承诺。
-//     红证：把那句约定从稳定段删掉 ⇒ 用例「I4a.4 稳定段：写入 scope 约定…」的三条正向断言变红。
+//     失败证据：把那句约定从稳定段删掉 ⇒ 用例「scope 约定 稳定段：写入 scope 约定…」的三条正向断言变红。
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
@@ -53,12 +53,12 @@ function seed(home, records) {
 }
 
 /**
- * 7 条固定记忆。锚点口径（I4a.2 起先做出现率资格过滤，总记录数 7）：
+ * 7 条固定记忆。锚点口径（锚点资格过滤 起先做出现率资格过滤，总记录数 7）：
  *   失败关闭 2/7 ≈ 0.2857（≤ 0.3，合格）；render / 协议 / 测试 / 填充1..4 各 1/7（合格）
  *   ⇒ 合格集合排序 = 失败关闭(2) → render(1，ASCII 码元最小) → 协议(1) → 填充1..4 → 测试
  *   ⇒ 锚点 = 失败关闭 / render / 协议。
- * 【I4a.2 契约变更】原来只有 3 条记录，任何标签的出现率都 ≥ 1/3 > 0.3，默认口径下会**全部被过滤**，
- * 那一行会退化成「无可区分锚点」——本文件要测的是「带锚点的完整行」，所以夹具扩到 7 条
+ * 【锚点资格过滤 契约变更】原来只有 3 条记录，任何标签的出现率都 ≥ 1/3 > 0.3，默认口径下会**全部被过滤**，
+ * 那一行会退化成「无可区分锚点」——本文件要测的是「带锚点的完整行」，所以测试样本扩到 7 条
  * （每个新增记录的标签唯一 ⇒ 不抢前三名）。降级口径本身由 test/anchor.test.mjs 覆盖。
  */
 function smallLibrary() {
@@ -74,7 +74,7 @@ function smallLibrary() {
 }
 
 /**
- * 【I4a.3 文案契约】尾部那行（逐字固定夹具）。
+ * 【条件规则 文案契约】尾部那行（逐字固定测试样本）。
  * 结构 = 条数 + 这是什么（跨会话经验教训）+ **条件规则**（这种情况 ⇒ 先 memory_recall 查库）+ 锚点。
  * 与改动前的旧句 `记忆 7 条（上限 2000）｜标签锚点：…｜细则用 memory_recall` 相比：
  * 去掉了「上限」与陈述式的「细则用…」，换成了带触发条件的行动规则。
@@ -88,7 +88,7 @@ function sectionText(contribution) {
 
 /**
  * 2000 条 + 每条 12 个 ~27 字符长标签 ⇒ 默认预算下就超限（用 topTags=64 让超限更明确）。
- * 【I4a.2】标签按记录索引取唯一名（df = 1/2000 ⇒ 全部合格）：否则 12 个标签在每条记录上
+ * 【锚点资格过滤】标签按记录索引取唯一名（df = 1/2000 ⇒ 全部合格）：否则 12 个标签在每条记录上
  * 都出现（出现率 100%）会被资格过滤全部剔除，超限阶梯就永远走不到了。
  */
 function bigLibrary(n) {
@@ -136,7 +136,7 @@ function injectedFs(overrides = {}) {
 }
 
 // ── 1. 注册面：字段与顺序 ────────────────────────────────────────────────
-test('I4a：注册面是 context() 的 {name, order, text}，order 是显式数字且大于 120（尾部）', () => {
+test('索引注入：注册面是 context() 的 {name, order, text}，order 是显式数字且大于 120（尾部）', () => {
   const home = freshHome('i4a-fields')
   seed(home, smallLibrary())
   const { contribution, text } = registeredText({ home })
@@ -149,7 +149,7 @@ test('I4a：注册面是 context() 的 {name, order, text}，order 是显式数�
 })
 
 // ── 2. 内容：一行、无花括号、无换行、与查询无关 ─────────────────────────
-test('I4a：注入文本是单行、无 { }、与请求无关（换参数/换缓存实例同字节）', () => {
+test('索引注入：注入文本是单行、无 { }、与请求无关（换参数/换缓存实例同字节）', () => {
   const home = freshHome('i4a-oneline')
   seed(home, smallLibrary())
   const { contribution } = registeredText({ home })
@@ -166,7 +166,7 @@ test('I4a：注入文本是单行、无 { }、与请求无关（换参数/换缓
 })
 
 // ── 3. 开关：关掉就不注册、不输出 ────────────────────────────────────────
-test('I4a：injection.enabled=false ⇒ 一个 context 都不注册、文本为空串（零字符）', () => {
+test('索引注入：injection.enabled=false ⇒ 一个 context 都不注册、文本为空串（零字符）', () => {
   const home = freshHome('i4a-off')
   seed(home, smallLibrary())
   const contexts = appliedContexts({ home, injection: { enabled: false } })
@@ -179,7 +179,7 @@ test('I4a：injection.enabled=false ⇒ 一个 context 都不注册、文本为�
 })
 
 // ── 4. 工具面不受影响（4 个工具照旧） ────────────────────────────────────
-test('I4a.1：工具面照旧 4 个；注入面是条件注册，不再进 inject 必需依赖', () => {
+test('松耦合：工具面照旧 4 个；注入面是条件注册，不再进 inject 必需依赖', () => {
   const home = freshHome('i4a-tools')
   seed(home, smallLibrary())
   const defs = tools({ home })
@@ -192,7 +192,7 @@ test('I4a.1：工具面照旧 4 个；注入面是条件注册，不再进 injec
 })
 
 // ── 5. 口径解析：默认 / 越界夹取 / 非法回落 ──────────────────────────────
-test('I4a：口径解析有默认值、越界夹到天花板、非法类型回落（解析本身不抛）', () => {
+test('索引注入：口径解析有默认值、越界夹到天花板、非法类型回落（解析本身不抛）', () => {
   assert.deepEqual(resolveInjectionOptions(undefined), {
     enabled: true, maxChars: DEFAULT_INJECTION_MAX_CHARS, topTags: DEFAULT_INJECTION_TOP_TAGS,
     anchorMaxDfRatio: ANCHOR_MAX_DF_RATIO,
@@ -208,14 +208,14 @@ test('I4a：口径解析有默认值、越界夹到天花板、非法类型回�
     enabled: false, maxChars: 0, topTags: 0, anchorMaxDfRatio: ANCHOR_MAX_DF_RATIO,
   })
   assert.equal(resolveInjectionOptions({ maxChars: '120' }).maxChars, 120)
-  // I4a.2：锚点资格过滤上限也在同一解析面里（越界夹到 0..1，非有限值回落默认）
+  // 锚点资格过滤：锚点资格过滤上限也在同一解析面里（越界夹到 0..1，非有限值回落默认）
   assert.equal(ANCHOR_MAX_DF_RATIO, 0.3)
   assert.equal(resolveInjectionOptions({ anchorMaxDfRatio: 9 }).anchorMaxDfRatio, 1)
   assert.equal(resolveInjectionOptions({ anchorMaxDfRatio: Number.NaN }).anchorMaxDfRatio, ANCHOR_MAX_DF_RATIO)
 })
 
 // ── 6. 空库：不炸、给最小占位、不写「标签锚点」空段 ──────────────────────
-test('I4a：空库 ⇒ 注册成功、给最小占位（记忆 0 条），不抛、不注入垃圾', () => {
+test('索引注入：空库 ⇒ 注册成功、给最小占位（记忆 0 条），不抛、不注入垃圾', () => {
   const home = freshHome('i4a-empty')
   const { text } = registeredText({ home })
   assert.equal(text, '记忆 0 条（跨会话经验教训）｜排查·为什么·复现·以前是否踩过 这类问题，先 memory_recall 查库')
@@ -227,12 +227,12 @@ test('I4a：空库 ⇒ 注册成功、给最小占位（记忆 0 条），不抛
   assert.equal(r.diag.truncated, false)
   // 空库也绝不出现「标签锚点：」后面跟空串这种半句
   assert.ok(!text.includes('标签锚点'))
-  // I4a.3：**条件规则段不受「没有锚点」影响** —— 规则是承重墙，绝不能因为压预算/无锚点就消失
+  // 条件规则：**条件规则段不受「没有锚点」影响** —— 规则是承重墙，绝不能因为压预算/无锚点就消失
   assert.ok(text.includes('先 memory_recall 查库'), '空库那行同样必须带触发条件')
 })
 
 // ── 7. 硬上限：2000 条 + 长标签 ⇒ 截断且带省略标记 ────────────────────────
-test('I4a：2000 条 + 长标签 ⇒ 注入文本长度 <= maxChars 且带如实省略标记', () => {
+test('索引注入：2000 条 + 长标签 ⇒ 注入文本长度 <= maxChars 且带如实省略标记', () => {
   const home = freshHome('i4a-cap')
   seed(home, bigLibrary(2000))
   const maxChars = 240
@@ -249,9 +249,9 @@ test('I4a：2000 条 + 长标签 ⇒ 注入文本长度 <= maxChars 且带如实
   assert.ok(text.length <= maxChars)
 })
 
-test('I4a：手工改库塞进 300 字符超长标签 ⇒ 仍 <= maxChars（阶梯最后一级硬截断）', () => {
+test('索引注入：手工改库塞进 300 字符超长标签 ⇒ 仍 <= maxChars（阶梯最后一级硬截断）', () => {
   const home = freshHome('i4a-huge-tag')
-  // 【I4a.2】1 条记录时任何标签的出现率都是 100% ⇒ 会被资格过滤掉，超长标签根本进不了锚点。
+  // 【锚点资格过滤】1 条记录时任何标签的出现率都是 100% ⇒ 会被资格过滤掉，超长标签根本进不了锚点。
   // 这里补 9 条标签唯一的记录（超长标签出现率 1/10 = 0.1 ⇒ 合格，且 ASCII 码元最小 ⇒ 排第一），
   // 本用例要测的仍是「超长锚点撑爆预算时的截断阶梯」。
   const fillers = []
@@ -265,7 +265,7 @@ test('I4a：手工改库塞进 300 字符超长标签 ⇒ 仍 <= maxChars（阶�
   assert.equal(r.diag.omitted > 0, true)
 })
 
-test('I4a：maxChars 极小/为 0 时也绝不超限（装不下标记就给空串）', () => {
+test('索引注入：maxChars 极小/为 0 时也绝不超限（装不下标记就给空串）', () => {
   const anchors = ['aaaaaaaaaaaaaaaaaaaa', 'bbbbbbbbbbbbbbbbbbbb', 'cccccccccccccccccccc']
   assert.ok(planInjectionLine(9, 2000, anchors, 8).text.length <= 8)
   assert.ok(planInjectionLine(9, 2000, anchors, 8).text.includes(HARD_MARK))
@@ -278,14 +278,14 @@ test('I4a：maxChars 极小/为 0 时也绝不超限（装不下标记就给空�
   assert.equal(okPlan.omitted, 0)
 })
 
-test('I4a：锚点排序是确定口径（频次降序 → 码元升序），净化后相同的标签合并计数', () => {
+test('索引注入：锚点排序是确定口径（频次降序 → 码元升序），净化后相同的标签合并计数', () => {
   const recs = [
     record('mem_1', T0, { tags: ['b', 'a'] }),
     record('mem_2', T0, { tags: ['a', 'c'] }),
     record('mem_3', T0, { tags: ['c', '{d}'] }),
   ]
   // 频次：a=2 c=2 b=1 d=1（'{d}' 被净化成 'd'）⇒ 先按频次降序，再按码元升序决胜。
-  // 【I4a.2 契约变更】stableAnchors 增加第三参数 maxDfRatio（默认 0.3 资格过滤）：本用例的
+  // 【锚点资格过滤 契约变更】stableAnchors 增加第三参数 maxDfRatio（默认 0.3 资格过滤）：本用例的
   // 三条记录里每个标签的出现率都 ≥ 1/3 > 0.3，默认口径下会全被过滤掉，无法再验证「纯排序」。
   // 所以这里**显式传 1**（= 关掉过滤）来保留本用例原本的语义；过滤语义由 test/anchor.test.mjs 覆盖。
   assert.deepEqual(stableAnchors(recs, 3, 1), ['a', 'c', 'b'])
@@ -295,7 +295,7 @@ test('I4a：锚点排序是确定口径（频次降序 → 码元升序），净
 })
 
 // ── 8. 稳定性：库不变 ⇒ 逐字节相同 ───────────────────────────────────────
-test('I4a：库不变时连续多次 assemble（多次取文本）逐字节完全相同', async () => {
+test('索引注入：库不变时连续多次 assemble（多次取文本）逐字节完全相同', async () => {
   const home = freshHome('i4a-stable')
   seed(home, smallLibrary())
   const contexts = appliedContexts({ home })
@@ -314,7 +314,7 @@ test('I4a：库不变时连续多次 assemble（多次取文本）逐字节完�
   assert.equal(cached.text, got[0])
 })
 
-test('I4a：库内容变了（条数/锚点变）⇒ 文本才跟着变（不是冻结在 boot 时刻）', () => {
+test('索引注入：库内容变了（条数/锚点变）⇒ 文本才跟着变（不是冻结在 boot 时刻）', () => {
   const home = freshHome('i4a-change')
   seed(home, smallLibrary())
   assert.equal(buildInjectionIndex({ home }).text, SMALL_EXPECT)
@@ -325,7 +325,7 @@ test('I4a：库内容变了（条数/锚点变）⇒ 文本才跟着变（不是
 })
 
 // ── 9. 只读缓存：键 = {path,size,mtimeMs}，同键必同值 ──────────────────────
-test('I4a：缓存键严格是 {path,size,mtimeMs}：命中同值、文件改动后失效重读', () => {
+test('索引注入：缓存键严格是 {path,size,mtimeMs}：命中同值、文件改动后失效重读', () => {
   const home = freshHome('i4a-cache')
   seed(home, smallLibrary())
   const cache = createInjectionCache()
@@ -362,7 +362,7 @@ test('I4a：缓存键严格是 {path,size,mtimeMs}：命中同值、文件改动
 })
 
 // ── 10. fail-open：读库抛 / 解析坏 / 注册抛，全都不许抛 ────────────────────
-test('I4a fail-open：读库抛异常 ⇒ 注入空串、绝不抛（注册也成功）', () => {
+test('索引注入 fail-open：读库抛异常 ⇒ 注入空串、绝不抛（注册也成功）', () => {
   const home = freshHome('i4a-failread')
   seed(home, smallLibrary())
   const throwing = {
@@ -385,7 +385,7 @@ test('I4a fail-open：读库抛异常 ⇒ 注入空串、绝不抛（注册也�
   assert.equal(contribution.name, INJECTION_CONTEXT_NAME)
 })
 
-test('I4a fail-open：stat 抛 / exists 抛 / 目录路径 ⇒ 都不抛且仍给出结论', () => {
+test('索引注入 fail-open：stat 抛 / exists 抛 / 目录路径 ⇒ 都不抛且仍给出结论', () => {
   const home = freshHome('i4a-failstat')
   seed(home, smallLibrary())
   const badStat = { home, fs: injectedFs({ existsSync: () => true, readFileSync: () => serialize(smallLibrary()), statSync: () => { throw new Error('stat 炸') } }) }
@@ -397,7 +397,7 @@ test('I4a fail-open：stat 抛 / exists 抛 / 目录路径 ⇒ 都不抛且仍�
   assert.equal(r.diag.ok, false)
 })
 
-test('I4a fail-open：NDJSON 坏行/空行/非对象行 ⇒ 跳过坏行、不抛、计数只算好行', () => {
+test('索引注入 fail-open：NDJSON 坏行/空行/非对象行 ⇒ 跳过坏行、不抛、计数只算好行', () => {
   const home = freshHome('i4a-badlines')
   const p = seed(home, smallLibrary())
   writeFileSync(p, `${serialize(smallLibrary())}{坏行不是 JSON\n\n[1,2,3]\nnull\n`, 'utf8')
@@ -406,7 +406,7 @@ test('I4a fail-open：NDJSON 坏行/空行/非对象行 ⇒ 跳过坏行、不�
   assert.equal(r.diag.count, 7)
 })
 
-test('I4a fail-open：systemPrompt.context 注册时抛 ⇒ apply 不抛、4 个工具照常注册', () => {
+test('索引注入 fail-open：systemPrompt.context 注册时抛 ⇒ apply 不抛、4 个工具照常注册', () => {
   const home = freshHome('i4a-failreg')
   seed(home, smallLibrary())
   const { ctx, defs } = makeCtx()
@@ -415,7 +415,7 @@ test('I4a fail-open：systemPrompt.context 注册时抛 ⇒ apply 不抛、4 个
   assert.deepEqual([...defs.keys()].sort(), ['memory_expand', 'memory_prune', 'memory_recall', 'memory_remember'])
 })
 
-test('I4a.1 fail-open：宿主连 ctx.inject 都没有 ⇒ 不抛、4 个工具照常注册（只有注入面缺席）', () => {
+test('松耦合 fail-open：宿主连 ctx.inject 都没有 ⇒ 不抛、4 个工具照常注册（只有注入面缺席）', () => {
   const home = freshHome('i4a-noinject')
   seed(home, smallLibrary())
   const { ctx, defs } = makeCtx()
@@ -434,7 +434,7 @@ const ENGINE_BASE = `${process.env.PREFIX ?? ''}/lib/node_modules/@deepseek-ai/d
 const ENGINE_SP = `${ENGINE_BASE}/dsh-system-prompt/lib/index.js`
 const ENGINE_CORDIS = `${ENGINE_BASE}/cordis/lib/index.js`
 
-test('I4a / I4a.3：真引擎注册 + assemble：context 落在 contexts、段落在 sections、5 次逐字节相同', async () => {
+test('索引注入 / 条件规则：真引擎注册 + assemble：context 落在 contexts、段落在 sections、5 次逐字节相同', async () => {
   if (!existsSync(ENGINE_SP) || !existsSync(ENGINE_CORDIS)) {
     // 换环境时如实降级：本机（引擎在）走真路径，别处至少验证桩路径的形状
     const home = freshHome('i4a-engine-absent')
@@ -455,7 +455,7 @@ test('I4a / I4a.3：真引擎注册 + assemble：context 落在 contexts、段�
   const service = rootCtx.get('systemPrompt')
   assert.ok(service, '真引擎必须提供 systemPrompt 服务')
 
-  // I4a.1：注入面改走 ctx.inject(['systemPrompt']) ⇒ 必须真 cordis 才能跑通（旧的裸对象桩没有 inject，
+  // 松耦合：注入面改走 ctx.inject(['systemPrompt']) ⇒ 必须真 cordis 才能跑通（旧的裸对象桩没有 inject，
   // 插件会 fail-open 地跳过注入注册）。所以这里补一个 tools 服务，然后把**插件模块本身**按官方方式加载。
   const defs = new Map()
   rootCtx.plugin({
@@ -479,7 +479,7 @@ test('I4a / I4a.3：真引擎注册 + assemble：context 落在 contexts、段�
     const mine = assembly.contexts.filter((c) => c.name === INJECTION_CONTEXT_NAME)
     assert.equal(mine.length, 1, '我们的 context 必须恰好贡献一次')
     assert.equal(mine[0].text, SMALL_EXPECT)
-    // I4a.3：真引擎的 sections 里必须有稳定段，且文本含触发条件
+    // 条件规则：真引擎的 sections 里必须有稳定段，且文本含触发条件
     const mySections = assembly.sections.filter((s) => s.name === INJECTION_SECTION_NAME)
     assert.equal(mySections.length, 1, `真引擎 sections 里必须恰好有一条 ${INJECTION_SECTION_NAME}`)
     assert.equal(mySections[0].text, INJECTION_HABIT_TEXT, '段文本必须逐字就是那条规则')
@@ -496,18 +496,18 @@ test('I4a / I4a.3：真引擎注册 + assemble：context 落在 contexts、段�
   await root.dispose?.()
 })
 
-// ── 12. I4a.3：条件规则（尾部块）+ 稳定段（section）───────────────────────
+// ── 12. 条件规则：条件规则（尾部块）+ 稳定段（section）───────────────────────
 //
 // 背景：真机观察到旧那行是**陈述句**（「库里有 200 条…细则用 memory_recall」），不触发行为——
 // 上线以来模型一次都不是被它提醒去召回的。所以本次把它改成**条件规则**（这种情况 ⇒ 做这个），
 // 并把同一条规则另注册成**稳定段**（规则属于稳定前缀，索引属于易变尾部，两者用不同机制承载）。
 
-test('I4a.3 条件规则：尾部那行含明确的触发条件与行动（不是「有这个东西」的陈述）', () => {
+test('条件规则：尾部那行含明确的触发条件与行动（不是「有这个东西」的陈述）', () => {
   const home = freshHome('i4a3-rule')
   seed(home, smallLibrary())
   const { text } = registeredText({ home })
 
-  // 【红证 1】先断言**含行动规则**（触发条件 ⇒ 动作）——这是本次改动的要害，
+  // 【失败证据 1】先断言**含行动规则**（触发条件 ⇒ 动作）——这是本次改动的要害，
   // 放在最前面：改回旧的陈述句（`…｜细则用 memory_recall`）时，**这一条自己就是红的**
   // （不会像「整行逐字相等」那样先兜住失败，让人误以为要害断言没被测到）。
   assert.ok(text.includes('先 memory_recall 查库'), `必须含行动规则「触发条件 ⇒ 动作」，实测 ${text}`)
@@ -531,7 +531,7 @@ test('I4a.3 条件规则：尾部那行含明确的触发条件与行动（不�
   assert.ok(text.length <= DEFAULT_INJECTION_MAX_CHARS, `长度 ${text.length} 必须 <= ${DEFAULT_INJECTION_MAX_CHARS}`)
 })
 
-test('I4a.3 条件规则：压缩阶梯只丢锚点、绝不丢条件规则（预算再紧也保得住触发条件）', () => {
+test('条件规则：压缩阶梯只丢锚点、绝不丢条件规则（预算再紧也保得住触发条件）', () => {
   const anchors = ['aaaaaaaaaaaaaaaaaaaa', 'bbbbbbbbbbbbbbbbbbbb', 'cccccccccccccccccccc']
   // 从紧到松扫一遍：只要那行非空，就**必须**含条件规则（除非已退化到硬截断标记）
   for (const maxChars of [30, 40, 50, 56, 57, 60, 80, 120, 240]) {
@@ -548,12 +548,12 @@ test('I4a.3 条件规则：压缩阶梯只丢锚点、绝不丢条件规则（�
   assert.ok(tight.text.includes('先 memory_recall 查库'), '最小行里条件规则必须还在')
 })
 
-test('I4a.3 稳定段：注册 agent-memory-habit（section），含触发条件，order 是显式数字且落在空档', () => {
+test('条件规则 稳定段：注册 agent-memory-habit（section），含触发条件，order 是显式数字且落在空档', () => {
   const home = freshHome('i4a3-section')
   seed(home, smallLibrary())
   const sections = appliedSections({ home })
 
-  // 【红证 2】去掉 index.ts 里的 section 注册 ⇒ 这条必红。
+  // 【失败证据 2】去掉 index.ts 里的 section 注册 ⇒ 这条必红。
   const contribution = sections.get(INJECTION_SECTION_NAME)
   assert.ok(contribution, `必须注册名为 ${INJECTION_SECTION_NAME} 的 section 贡献`)
   assert.equal(INJECTION_SECTION_NAME, 'agent-memory-habit')
@@ -580,14 +580,14 @@ test('I4a.3 稳定段：注册 agent-memory-habit（section），含触发条件
   assert.ok(!sections.has(INJECTION_CONTEXT_NAME), '尾部块不得跑进 sections 表')
 })
 
-test('I4a.4 稳定段：写入 scope 约定（项目专属 project:<名>，跨项目通用默认 global），且不承诺自动推断', () => {
+test('scope 约定 稳定段：写入 scope 约定（项目专属 project:<名>，跨项目通用默认 global），且不承诺自动推断', () => {
   const home = freshHome('i4a4-section-scope')
   seed(home, smallLibrary())
   const text = sectionText(appliedSections({ home }).get(INJECTION_SECTION_NAME))
 
   // 逐字对常量（保证「段就是那条规则」）；改常量而不同步测试时这条仍会兜住。
   assert.equal(text, INJECTION_HABIT_TEXT, '段文本必须逐字就是那条常量')
-  // 【红证 4】把稳定段文案里那句 scope 约定删掉 ⇒ 下面三条正向断言全红。
+  // 【失败证据 4】把稳定段文案里那句 scope 约定删掉 ⇒ 下面三条正向断言全红。
   assert.ok(text.includes('scope'), `稳定段必须写明 scope 约定，实测 ${text}`)
   assert.ok(text.includes('project:'), `约定必须点名 project:<名> 这种取值，实测 ${text}`)
   assert.ok(text.includes('global'), `约定必须说明跨项目通用的用默认 global，实测 ${text}`)
@@ -599,7 +599,7 @@ test('I4a.4 稳定段：写入 scope 约定（项目专属 project:<名>，跨�
   assert.equal(sanitizeForPrompt(text), text, '新增文案不得引入需要净化的字符（净化对整段仍为恒等）')
 })
 
-test('I4a.3 稳定段是常量：与库内容无关（库变了段逐字节不变，尾部行才跟着变）', () => {
+test('条件规则 稳定段是常量：与库内容无关（库变了段逐字节不变，尾部行才跟着变）', () => {
   const home = freshHome('i4a3-section-const')
   seed(home, smallLibrary())
   const before = sectionText(appliedSections({ home }).get(INJECTION_SECTION_NAME))
@@ -611,11 +611,11 @@ test('I4a.3 稳定段是常量：与库内容无关（库变了段逐字节不�
   assert.notEqual(lineAfter, lineBefore, '索引属于易变尾部：库变了就该跟着变（阴性对照，证明上面那条不是假绿）')
 })
 
-test('I4a.3 开关：enabled=false ⇒ 尾部块与稳定段**都不注册**（共用同一个开关，不许半开）', () => {
+test('条件规则 开关：enabled=false ⇒ 尾部块与稳定段**都不注册**（共用同一个开关，不许半开）', () => {
   const home = freshHome('i4a3-off')
   seed(home, smallLibrary())
   const cfg = { home, injection: { enabled: false } }
-  // 【红证 3】把 section 注册挪到 enabled 判断之外 ⇒ 第二条断言变红。
+  // 【失败证据 3】把 section 注册挪到 enabled 判断之外 ⇒ 第二条断言变红。
   assert.equal(appliedContexts(cfg).size, 0, '关掉时尾部块不得注册')
   assert.equal(appliedSections(cfg).size, 0, '关掉时稳定段同样不得注册')
   // 阴性对照：同一条桩、同一个库，开关打开时两条都必须在（否则上面的 0 是假绿）
@@ -624,7 +624,7 @@ test('I4a.3 开关：enabled=false ⇒ 尾部块与稳定段**都不注册**（�
   assert.equal(appliedSections(on).size, 1)
 })
 
-test('I4a.3 fail-open：section 注册抛 ⇒ apply 不抛，尾部块与 4 个工具照常', () => {
+test('条件规则 fail-open：section 注册抛 ⇒ apply 不抛，尾部块与 4 个工具照常', () => {
   const home = freshHome('i4a3-failsec')
   seed(home, smallLibrary())
   const { ctx, defs, contexts, sections } = makeCtx()
@@ -636,7 +636,7 @@ test('I4a.3 fail-open：section 注册抛 ⇒ apply 不抛，尾部块与 4 个�
   assert.equal(contexts.get(INJECTION_CONTEXT_NAME).text(), SMALL_EXPECT)
 })
 
-test('I4a.3 fail-open：宿主连 section 面都没有（旧宿主桩）⇒ 不抛、尾部块照常注册', () => {
+test('条件规则 fail-open：宿主连 section 面都没有（旧宿主桩）⇒ 不抛、尾部块照常注册', () => {
   const home = freshHome('i4a3-nosection')
   seed(home, smallLibrary())
   const { ctx, contexts } = makeCtx()
@@ -645,7 +645,7 @@ test('I4a.3 fail-open：宿主连 section 面都没有（旧宿主桩）⇒ 不�
   assert.equal(contexts.get(INJECTION_CONTEXT_NAME).text(), SMALL_EXPECT)
 })
 
-test('I4a.3：库的硬上限（maxRecords）不再进注入行，且换上限不改变那一行', () => {
+test('条件规则：库的硬上限（maxRecords）不再进注入行，且换上限不改变那一行', () => {
   const home = freshHome('i4a-limit')
   seed(home, smallLibrary())
   const r = buildInjectionIndex({ home, maxRecords: 7 })

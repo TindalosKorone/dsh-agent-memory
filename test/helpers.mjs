@@ -37,7 +37,7 @@ export function diskText(home) {
   return existsSync(p) ? readFileSync(p, 'utf8') : ''
 }
 
-/** 桩 ctx：收集工具定义、effect 清理函数、以及 I4a/I4a.3 的 systemPrompt 贡献（context + section）。 */
+/** 桩 ctx：收集工具定义、effect 清理函数、以及 索引注入/条件规则 的 systemPrompt 贡献（context + section）。 */
 export function makeCtx() {
   const defs = new Map()
   const effects = []
@@ -54,7 +54,7 @@ export function makeCtx() {
         contexts.set(contribution.name, contribution)
         return { dispose: () => contexts.delete(contribution.name) }
       },
-      // I4a.3：section 与 context 是**两张不同的注册表**（真引擎里分别是 layers.sections / layers.contexts）。
+      // 条件规则：section 与 context 是**两张不同的注册表**（真引擎里分别是 layers.sections / layers.contexts）。
       // 校验口径照抄真实现：order 必须有限（否则 TypeError），name 非空。
       section: (contribution) => {
         if (!Number.isFinite(contribution?.order)) throw new TypeError('prompt section order must be a finite number')
@@ -64,7 +64,7 @@ export function makeCtx() {
       },
       // 与真引擎一致：**未列名返回 undefined**（dsh-system-prompt/lib/index.js:249-251）。
       // 桩刻意如实返回 undefined 而不是编一个默认值：插件若偷懒用它当 order，
-      // section() 就会因「order 非有限」抛错 ⇒ 段注册不上 ⇒ 判红。这样「必须传显式数字」是自然判红的。
+      // section() 就会因「order 非有限」抛错 ⇒ 段注册不上 ⇒ 变红。这样「必须传显式数字」是自然变红的。
       getSectionOrder: () => undefined,
     },
     // 桩 ctx.inject：与 cordis 同语义 —— **任一**必需服务缺席 ⇒ 回调永不执行（fiber 停在 PENDING），
@@ -90,14 +90,14 @@ export function tools(config = {}) {
   return defs
 }
 
-/** apply 之后拿到 I4a 注册的 systemPrompt context 贡献（键 = context 名）。 */
+/** apply 之后拿到 索引注入 注册的 systemPrompt context 贡献（键 = context 名）。 */
 export function appliedContexts(config = {}) {
   const { ctx, contexts } = makeCtx()
   apply(ctx, config)
   return contexts
 }
 
-/** apply 之后拿到 I4a.3 注册的 systemPrompt **section**（稳定段）贡献（键 = section 名）。 */
+/** apply 之后拿到 条件规则 注册的 systemPrompt **section**（稳定段）贡献（键 = section 名）。 */
 export function appliedSections(config = {}) {
   const { ctx, sections } = makeCtx()
   apply(ctx, config)

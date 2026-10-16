@@ -1,7 +1,7 @@
-// I1.2 打分口径用例：BM25（长度惩罚 / idf）、VCP 覆盖率 cov、绝对映射与 match 判定、
+// 打分口径用例：BM25（长度惩罚 / idf）、VCP 覆盖率 cov、绝对映射与 match 判定、
 // 多样性并入分数、候选 <= 5 跳过多样性。
 //
-// 口径来源：第三方设计审计（修 A/B/C）。三条红证（无关查询不得满分 / 短相关胜过长无关 /
+// 口径来源：第三方设计审计（修 A/B/C）。三条失败证据（无关查询不得满分 / 短相关胜过长无关 /
 // 打印分数单调）放在 test/recall.test.mjs，因为它们断言的是「工具打印出来的那一列」。
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
@@ -21,7 +21,7 @@ const scoreOfLine = (line) => Number(line.split(SPLIT).at(-1))
 const fieldOfLine = (line, k) => line.split(SPLIT).at(k)
 
 /**
- * 用**打印出来的量**复算 match（I1.3 铁律）：rel + 两个阈值 + 内容量闸门输入（qTok/阈值/例外倍数 M）。
+ * 用**打印出来的量**复算 match（自证铁律 铁律）：rel + 两个阈值 + 内容量闸门输入（qTok/阈值/例外倍数 M）。
  * 规则与表头逐字一致：
  *   match = qTok=0 ? none
  *         : qTok < contentTokenMin ? (base=strong 且 rel < gateMargin × strong ? weak : base)
@@ -77,7 +77,7 @@ test('BM25：长度惩罚（b=0.75 压低长文档；b=0 关掉长度归一后�
   assert.ok(bShort > bLong, `短文档必须赢：short=${bShort} long=${bLong}`)
   assert.ok(bLong > 0, '长文档不是 0 分（只被稀释，不被清零）')
 
-  // b=0 ⇒ 长度归一关闭 ⇒ 同一 tf 下两条完全相等（红证 2 的判红点就是关掉这里）
+  // b=0 ⇒ 长度归一关闭 ⇒ 同一 tf 下两条完全相等（失败证据 2 的变红点就是关掉这里）
   const zShort = bm25Relevance('zetaword', shortRec, stats, { b: 0 })
   const zLong = bm25Relevance('zetaword', longRec, stats, { b: 0 })
   assert.equal(zShort, zLong, 'b=0 时长度信息被彻底丢弃 ⇒ 只按 tf 打平')
@@ -219,7 +219,7 @@ test('多样性并入分数：final = rel × (1 − β·maxSim)，序列本身�
   for (let i = 1; i < finals.length; i += 1) {
     assert.ok(finals[i] <= finals[i - 1], `final 序列必须单调不增：${finals.join(',')}`)
   }
-  // 旧口径（打印惩罚前的分）必然倒挂 —— 这正是 I1.2 修 C 的病根。
+  // 旧口径（打印惩罚前的分）必然倒挂 —— 这正是 打分口径 修 C 的病根。
   const printedRel = out.map((r) => r.score)
   assert.ok(printedRel.some((v, i) => i > 0 && v > printedRel[i - 1]), `打印 rel 会倒挂：${printedRel.join(',')}`)
 
@@ -268,7 +268,7 @@ test('工具层：Top1 不再恒为 1.0000（绝对映射），且 rel/score 同
   assert.equal(r.rows[0].id, w.id)
   assert.ok(r.rows[0].score < 0.5, `Top1 不得是满分：${r.rows[0].score}`)
   assert.ok(r.rows[0].score < 1)
-  // I1.3 自证修正：rel 是判定所依据的 BM25 原始分，score 是映射到 0..1 的展示分（两种标度，
+  // 自证铁律 自证修正：rel 是判定所依据的 BM25 原始分，score 是映射到 0..1 的展示分（两种标度，
   // 表头已声明）。可验算的是「用打印的 rel + 阈值 + 内容量闸门输入复现 match」，而不是两列相等。
   assert.equal(r.rows[0].match, expectMatch(r, r.rows[0].rel),
     '用打印的 rel 与表头阈值必须能复现 match')
@@ -295,7 +295,7 @@ test('工具层：候选 > 5 才启用多样性；cov 作为诊断列不门控�
   const remember = defs.get('memory_remember')
   const recall = defs.get('memory_recall')
 
-  // 8 条候选（> 5 ⇒ 开多样性）。I5 表头减肥后行预算回来了：表头 <= 400 字符 ⇒
+  // 8 条候选（> 5 ⇒ 开多样性）。表头减肥后行预算回来了：表头 <= 400 字符 ⇒
   // 8 行（每行约 112 字符）离 RECALL_MAX_CHARS=2000 还很远，本用例重新回到旧口径
   // 「rows.length 恰好等于候选数」（原先为绕开长表头的字符预算被压成 6/limit=6）。
   for (let i = 0; i < 8; i += 1) {
@@ -307,7 +307,7 @@ test('工具层：候选 > 5 才启用多样性；cov 作为诊断列不门控�
   }
   const r = await recall.execute({ query: 'dark theme', limit: 8 })
   assert.equal(r.rows.length, 8, '候选 > 5 ⇒ 走多样性分支，且 8 行都在字符预算内')
-  assert.equal(r.truncated, false, '夹具必须留在字符预算内，否则下面的多样性断言会被截断干扰')
+  assert.equal(r.truncated, false, '测试样本必须留在字符预算内，否则下面的多样性断言会被截断干扰')
   assert.equal(r.diversityApplied, true)
   assert.equal(r.diversityBeta, DEFAULT_DIVERSITY_BETA)
   const finals = r.lines.map(scoreOfLine)
@@ -317,7 +317,7 @@ test('工具层：候选 > 5 才启用多样性；cov 作为诊断列不门控�
   assert.equal(scoreOfLine(r.lines[0]), Number(r.rows[0].score.toFixed(4)))
   for (const row of r.rows) {
     assert.ok(row.cov >= 0 && row.cov <= 1, `cov 必须落在 0..1：${row.cov}`)
-    // I1.3：rel 与 score 是两种标度（rel=BM25 原始分，score=disp(final)），不再有 score<=rel
+    // 自证铁律：rel 与 score 是两种标度（rel=BM25 原始分，score=disp(final)），不再有 score<=rel
     // 的跨标度关系；改为断言「match 可由打印的 rel + 阈值 + 内容量闸门输入复现」。
     assert.equal(row.match, expectMatch(r, row.rel),
       '用打印的 rel 与表头阈值必须能复现 match')
@@ -332,9 +332,9 @@ test('工具层：候选 > 5 才启用多样性；cov 作为诊断列不门控�
   assert.ok(low.rows.some((row) => row.match === 'none' || row.match === 'weak'), '低覆盖不该被抬成 strong')
 })
 
-// ── I1.3：自证（打印的数必须能自行复现判定）────────────────────────────────
+// ── 自证铁律：自证（打印的数必须能自行复现判定）────────────────────────────────
 
-test('I1.3 自证：每一行都可用打印的 rel 与表头阈值复现 match（两种标度不混用）', async () => {
+test('自证铁律 自证：每一行都可用打印的 rel 与表头阈值复现 match（两种标度不混用）', async () => {
   freshHome('scoring-selfproof')
   const defs = tools()
   const remember = defs.get('memory_remember')
@@ -383,10 +383,10 @@ test('I1.3 自证：每一行都可用打印的 rel 与表头阈值复现 match�
     }
   }
 
-  // 夹具自检：若一条分歧行都没有，本用例对「把 rel 换成 disp」这种回归**没有区分力**
-  //（这正是第一版红证没变红的原因：夹具全落在两种基准判定相同的区间）。
+  // 测试样本自检：若一条分歧行都没有，本用例对「把 rel 换成 disp」这种回归**没有区分力**
+  //（这正是第一版失败证据没变红的原因：测试样本全落在两种基准判定相同的区间）。
   assert.ok(bandRows > 0,
-    `夹具必须覆盖「两种基准判定分歧」的区间，否则本判据是死的（实测 bandRows=${bandRows}）`)
+    `测试样本必须覆盖「两种基准判定分歧」的区间，否则本判据是死的（实测 bandRows=${bandRows}）`)
 
   // 无关查询：Top1 必须不是 strong（且不应是 1.0 满分）。
   const r0 = await recall.execute({ query: 'nonexistent-token-xyz', limit: 3 })
@@ -396,14 +396,14 @@ test('I1.3 自证：每一行都可用打印的 rel 与表头阈值复现 match�
   }
 })
 
-// ── 2026-10-09 真实语料标定：边界红证 + 注释/常数一致性 ──────────────────────
+// ── 2026-10-09 真实语料标定：边界失败证据 + 注释/常数一致性 ──────────────────────
 
-test('边界红证（判红点：WEAK_THRESHOLD 改回 0.06 即变红）：噪声上界 0.06 -> 0.0363 后，rel 落在该区间的真相关记录必须由 none 变 weak', async () => {
+test('边界失败证据（变红点：WEAK_THRESHOLD 改回 0.06 即变红）：噪声上界 0.06 -> 0.0363 后，rel 落在该区间的真相关记录必须由 none 变 weak', async () => {
   const home = freshHome('scoring-band-redproof')
   // 出处（只读测量真实库，2026-10-09）：195 条真实库上以**标签「坑位」**为查询时，只共享该标签的
   // 记录 rel 落在 (0.0363, 0.06)（最高 0.052397，记录 mem_mv0btnuq_4a8d731f50，其后 0.0494/0.0436/…），
   // 旧 WEAK=0.06 判 none、新 0.0363 判 weak —— 这正是本次标定的实际意义（噪声上界下调）。
-  // 真实 rel 依赖全库 195 条的 N/df/avgdl，无法把整库搬进夹具；这里按同一语义合成一个 100 条语料：
+  // 真实 rel 依赖全库 195 条的 N/df/avgdl，无法把整库搬进测试样本；这里按同一语义合成一个 100 条语料：
   // 每条都带同一个高频标签「bandprobe」（df=N ⇒ idf 极小，相当于那条「万能标签」），
   // 只有目标记录在正文里再出现它一次（真相关、但证据弱），实测目标行 rel = 0.047384。
   const N = 100
@@ -429,9 +429,9 @@ test('边界红证（判红点：WEAK_THRESHOLD 改回 0.06 即变红）：噪�
   const r = await tools().get('memory_recall').execute({ query: 'bandprobe', limit: 5 })
   const row = r.rows.find((x) => x.id === 'mem_band_target')
   assert.ok(row !== undefined, '目标记录必须在结果里')
-  // 夹具自检：rel 必须**严格**落在两把噪声上界之间（0.0363 = 标定后 p95(负样本)、0.06 = 旧值）。
-  // 这两个数是夹具锚点（写死才判得动红），**不是**从常量读回来的 —— 从常量读会让断言跟着常量漂移成假绿。
-  assert.ok(row.rel > 0.0363 && row.rel < 0.06, `夹具 rel 必须严格落在 (0.0363, 0.06)：${row.rel}`)
+  // 测试样本自检：rel 必须**严格**落在两把噪声上界之间（0.0363 = 标定后 p95(负样本)、0.06 = 旧值）。
+  // 这两个数是测试样本锚点（写死才判得动红），**不是**从常量读回来的 —— 从常量读会让断言跟着常量漂移成假绿。
+  assert.ok(row.rel > 0.0363 && row.rel < 0.06, `测试样本 rel 必须严格落在 (0.0363, 0.06)：${row.rel}`)
   // 核心断言：只断言**标签**（不回显常量值）⇒ 把 WEAK_THRESHOLD 临时改回 0.06，该行变 none，此条必红。
   assert.equal(row.match, 'weak',
     `rel 在噪声上界之下的真相关记录必须判 weak（实测 rel=${row.rel} 判 ${row.match}）`)
@@ -472,15 +472,15 @@ test('标定一致性：4 个默认常数必须与 src/pure.ts 注释里「落�
   )
 })
 
-// ── 第二次标定（2026-10-09）：四个常数**各自**的边界红证 ───────────────────────
+// ── 第二次标定（2026-10-09）：四个常数**各自**的边界失败证据 ───────────────────────
 //
 // 第二次落地把四个常数改到 0.0199 / 0.3666 / 0.0382 / 0.1507，与旧值的差分别是
 // +0.0012 / +0.0246 / +0.0019 / +0.0031（四个量出自**同一次确定性运行**；按「差异 ≥ 0.005 视为显著」
 // 只有 SCALE_B 单独显著，整组落地的理由见 src/pure.ts 注释）。
-// 这里给四个常数各配一条**夹具 rel 落在该常数新旧值之间**的用例，断言只写在「标签 / 展示分」上
-//（**不回显常量**）⇒ 把该常数改回旧值，对应那条必红。这就是「配能判红的边界用例」。
+// 这里给四个常数各配一条**测试样本 rel 落在该常数新旧值之间**的用例，断言只写在「标签 / 展示分」上
+//（**不回显常量**）⇒ 把该常数改回旧值，对应那条必红。这就是「配能变红的边界用例」。
 //
-// 夹具的 rel 是**实测锚点**（写死才判得动红）：字符串里写死的两个数是新旧常数，不是从常量读回来的 ——
+// 测试样本的 rel 是**实测锚点**（写死才判得动红）：字符串里写死的两个数是新旧常数，不是从常量读回来的 ——
 // 从常量读会让断言跟着常量漂移成假绿。
 
 /** 合成一份「目标记录 rel 恰好夹在某个常数新旧值之间」的语料（与既有边界用例同构）。 */
@@ -510,50 +510,50 @@ function seedSecondBandCorpus(home, { N, df, fields, tf, pad }) {
 /** 关掉多样性与图传播 ⇒ 打印的 score 恰好 = disp(rel)，让「标度」边界不被别的机制搅浑。 */
 const PURE_SCALE = { score: { diversityBeta: 0 }, graph: { maxHops: 0 } }
 
-test('边界红证（判红点：WEAK_THRESHOLD 改回 0.0363 即变红）：rel 落在 (0.0363, 0.0382) 的记录必须由 weak 落回 none', async () => {
+test('边界失败证据（变红点：WEAK_THRESHOLD 改回 0.0363 即变红）：rel 落在 (0.0363, 0.0382) 的记录必须由 weak 落回 none', async () => {
   const home = freshHome('scoring-band2-weak')
   seedSecondBandCorpus(home, { N: 6, df: 3, fields: { body: true }, tf: 12, pad: 1 })
   const r = await tools().get('memory_recall').execute({ query: 'zzqterm', limit: 5 })
   const row = r.rows.find((x) => x.id === 'mem_band_target')
   assert.ok(row !== undefined, '目标记录必须在结果里')
   assert.ok(row.rel > 0.0363 && row.rel < 0.0382,
-    `夹具 rel 必须严格落在 (0.0363, 0.0382)（= WEAK 的新旧值）：${row.rel}`)
+    `测试样本 rel 必须严格落在 (0.0363, 0.0382)（= WEAK 的新旧值）：${row.rel}`)
   assert.equal(row.match, 'none',
     `rel 落在新噪声上界之下的记录必须判 none（实测 rel=${row.rel} 判 ${row.match}）`)
 })
 
-test('边界红证（判红点：STRONG_THRESHOLD 改回 0.1476 即变红）：rel 落在 (0.1476, 0.1507) 的记录必须由 strong 降为 weak', async () => {
+test('边界失败证据（变红点：STRONG_THRESHOLD 改回 0.1476 即变红）：rel 落在 (0.1476, 0.1507) 的记录必须由 strong 降为 weak', async () => {
   const home = freshHome('scoring-band2-strong')
   seedSecondBandCorpus(home, { N: 6, df: 2, fields: { title: true, body: true }, tf: 8, pad: 16 })
   const r = await tools().get('memory_recall').execute({ query: 'zzqterm', limit: 5 })
   const row = r.rows.find((x) => x.id === 'mem_band_target')
   assert.ok(row !== undefined, '目标记录必须在结果里')
   assert.ok(row.rel > 0.1476 && row.rel < 0.1507,
-    `夹具 rel 必须严格落在 (0.1476, 0.1507)（= STRONG 的新旧值）：${row.rel}`)
+    `测试样本 rel 必须严格落在 (0.1476, 0.1507)（= STRONG 的新旧值）：${row.rel}`)
   assert.equal(row.match, 'weak',
     `rel 落在新 strong 阈值之下的记录必须判 weak（实测 rel=${row.rel} 判 ${row.match}）`)
 })
 
-test('边界红证（判红点：SCALE_B 改回 0.3420 即变红）：rel 落在 (0.3420, 0.3666) 的记录展示分不再顶到 1.0000', async () => {
+test('边界失败证据（变红点：SCALE_B 改回 0.3420 即变红）：rel 落在 (0.3420, 0.3666) 的记录展示分不再顶到 1.0000', async () => {
   const home = freshHome('scoring-band2-scaleb')
   seedSecondBandCorpus(home, { N: 6, df: 1, fields: { tags: true, title: true, body: true }, tf: 1, pad: 4 })
   const r = await tools(PURE_SCALE).get('memory_recall').execute({ query: 'zzqterm', limit: 5 })
   const row = r.rows.find((x) => x.id === 'mem_band_target')
   assert.ok(row !== undefined, '目标记录必须在结果里')
   assert.ok(row.rel > 0.342 && row.rel < 0.3666,
-    `夹具 rel 必须严格落在 (0.3420, 0.3666)（= SCALE_B 的新旧值）：${row.rel}`)
+    `测试样本 rel 必须严格落在 (0.3420, 0.3666)（= SCALE_B 的新旧值）：${row.rel}`)
   assert.ok(row.score < 1,
     `rel 低于新区间上界的记录展示分必须**严格小于** 1（旧 SCALE_B 会把它顶到 1.0000）：${row.score}`)
 })
 
-test('边界红证（判红点：SCALE_A 改回 0.0187 即变红）：rel 落在 (0.0187, 0.0199) 的记录展示分被新噪声地板压到 0', async () => {
+test('边界失败证据（变红点：SCALE_A 改回 0.0187 即变红）：rel 落在 (0.0187, 0.0199) 的记录展示分被新噪声地板压到 0', async () => {
   const home = freshHome('scoring-band2-scalea')
   seedSecondBandCorpus(home, { N: 6, df: 5, fields: { title: true }, tf: 1, pad: 1 })
   const r = await tools(PURE_SCALE).get('memory_recall').execute({ query: 'zzqterm', limit: 5 })
   const row = r.rows.find((x) => x.id === 'mem_band_target')
   assert.ok(row !== undefined, '目标记录必须在结果里')
   assert.ok(row.rel > 0.0187 && row.rel < 0.0199,
-    `夹具 rel 必须严格落在 (0.0187, 0.0199)（= SCALE_A 的新旧值）：${row.rel}`)
+    `测试样本 rel 必须严格落在 (0.0187, 0.0199)（= SCALE_A 的新旧值）：${row.rel}`)
   assert.equal(row.score, 0,
     `rel 落在新噪声地板之下的记录展示分必须是 0（旧 SCALE_A 会给出一个小正数）：${row.score}`)
 })
@@ -592,13 +592,13 @@ test('内容量闸门（纯函数）：queryContentTokens 口径 + matchLevelGat
   assert.equal(GATE_MARGIN, 2.0, '闸门例外倍数默认 2.0（标定见 src/pure.ts 的 GATE_MARGIN）')
   assert.equal(matchLevelGated(0.9, WEAK_THRESHOLD, STRONG_THRESHOLD, 0), 'none')
   // ★ 本次修的真回归：raw=0.9 是 strong 阈值的 5.97 倍（远超 M=2），单个内容词元也**不该**被压 ——
-  //   旧实现（纯 qTok 封顶）在这里判 weak，把真话题误杀。判红点：删掉 margin 例外 ⇒ 本条变红。
+  //   旧实现（纯 qTok 封顶）在这里判 weak，把真话题误杀。变红点：删掉 margin 例外 ⇒ 本条变红。
   assert.equal(matchLevelGated(0.9, WEAK_THRESHOLD, STRONG_THRESHOLD, 1), 'strong',
     '离 strong 阈值远超 M 倍的单内容词元必须判 strong（不许误杀真话题）')
   assert.equal(matchLevelGated(0.9, WEAK_THRESHOLD, STRONG_THRESHOLD, 2), 'strong')
   assert.equal(matchLevelGated(0.9, WEAK_THRESHOLD, STRONG_THRESHOLD, 99), 'strong')
   // ★ 贴线的噪声仍必须封顶：真实库 `ok`/`做`/`b` 实测 1.13~1.23 倍。
-  //   判红点：把 M 调成 0（永不封顶）⇒ 下面三条变红。
+  //   变红点：把 M 调成 0（永不封顶）⇒ 下面三条变红。
   assert.equal(matchLevelGated(STRONG_THRESHOLD * 1.23, WEAK_THRESHOLD, STRONG_THRESHOLD, 1), 'weak',
     '贴线（1.23×strong）的单内容词元必须仍封顶 weak')
   assert.equal(matchLevelGated(STRONG_THRESHOLD * 1.13, WEAK_THRESHOLD, STRONG_THRESHOLD, 1), 'weak')
@@ -613,9 +613,9 @@ test('内容量闸门（纯函数）：queryContentTokens 口径 + matchLevelGat
   assert.equal(matchLevelGated(0, WEAK_THRESHOLD, STRONG_THRESHOLD, 1), 'none')
   // qTok 非有限：保守（当 0）⇒ 不给 strong
   assert.equal(matchLevelGated(0.9, WEAK_THRESHOLD, STRONG_THRESHOLD, Number.NaN), 'none')
-  // M 的可覆盖性与回落：0 = **永不封顶**（红证用，合法值）；负数/非有限一律回落默认 2.0。
+  // M 的可覆盖性与回落：0 = **永不封顶**（失败证据用，合法值）；负数/非有限一律回落默认 2.0。
   assert.equal(matchLevelGated(0.9, WEAK_THRESHOLD, STRONG_THRESHOLD, 1, CONTENT_TOKEN_MIN, 0), 'strong',
-    'M=0 表示永不封顶（判红用）')
+    'M=0 表示永不封顶（变红用）')
   assert.equal(matchLevelGated(STRONG_THRESHOLD * 1.01, WEAK_THRESHOLD, STRONG_THRESHOLD, 1, CONTENT_TOKEN_MIN, 0), 'strong',
     'M=0 时连贴线的 strong 也不封')
   assert.equal(matchLevelGated(0.9, WEAK_THRESHOLD, STRONG_THRESHOLD, 1, CONTENT_TOKEN_MIN, -1), 'strong',
@@ -636,7 +636,7 @@ test('内容量闸门（纯函数）：queryContentTokens 口径 + matchLevelGat
   // resolveScoreOptions：默认 2 / 2.0、显式 1 可关闸门、M=0 合法、非法回落
   assert.equal(resolveScoreOptions().contentTokenMin, CONTENT_TOKEN_MIN)
   assert.equal(resolveScoreOptions().gateMargin, GATE_MARGIN)
-  assert.equal(resolveScoreOptions({ contentTokenMin: 1 }).contentTokenMin, 1, '阈值 1 = 关闸门（红证用）')
+  assert.equal(resolveScoreOptions({ contentTokenMin: 1 }).contentTokenMin, 1, '阈值 1 = 关闸门（失败证据用）')
   assert.equal(resolveScoreOptions({ contentTokenMin: 3.9 }).contentTokenMin, 3, '取整')
   assert.equal(resolveScoreOptions({ contentTokenMin: 0 }).contentTokenMin, CONTENT_TOKEN_MIN)
   assert.equal(resolveScoreOptions({ contentTokenMin: -3 }).contentTokenMin, CONTENT_TOKEN_MIN)
@@ -659,7 +659,7 @@ test('内容量闸门（纯函数）：queryContentTokens 口径 + matchLevelGat
   assert.equal(resolveScoreOptions().strong, STRONG_THRESHOLD)
 })
 
-/** 内容量闸门夹具：200 条，仅目标记录标题+正文含 zzgate（单内容词元、真命中、rel >= strong）。 */
+/** 内容量闸门测试样本：200 条，仅目标记录标题+正文含 zzgate（单内容词元、真命中、rel >= strong）。 */
 function seedContentGateCorpus(home) {
   const lines = []
   for (let i = 0; i < 200; i += 1) {
@@ -685,11 +685,11 @@ test('内容量闸门（工具层）：单内容词元查询 rel>=strong 也只�
   const r = await tools().get('memory_recall').execute({ query: 'zzgate', limit: 3 })
   const row = r.rows.find((x) => x.id === 'mem_gate_target')
   assert.ok(row !== undefined, '目标记录必须在结果里（低内容量不整批否决）')
-  assert.equal(r.contentTokens, 1, `夹具前提：单内容词元（实测 qTok=${r.contentTokens}）`)
+  assert.equal(r.contentTokens, 1, `测试样本前提：单内容词元（实测 qTok=${r.contentTokens}）`)
   assert.equal(r.contentTokenMin, 2)
-  // 夹具自检：rel 必须真的 >= strong 阈值，否则本用例没有区分力（封顶根本没触发）
+  // 测试样本自检：rel 必须真的 >= strong 阈值，否则本用例没有区分力（封顶根本没触发）
   assert.ok(row.rel >= r.strongThreshold,
-    `夹具自检：目标行 rel 必须 >= strong 阈值，否则闸门没被触发：rel=${row.rel} 阈值=${r.strongThreshold}`)
+    `测试样本自检：目标行 rel 必须 >= strong 阈值，否则闸门没被触发：rel=${row.rel} 阈值=${r.strongThreshold}`)
   // 核心断言：单内容词元 ⇒ 最高只到 weak
   assert.equal(row.match, 'weak', `单内容词元查询不得判 strong（rel=${row.rel}）`)
   assert.equal(row.match, expectMatch(r, row.rel), '打印量（rel+阈值+qTok）必须复现 match')
@@ -703,15 +703,15 @@ test('内容量闸门（工具层）：单内容词元查询 rel>=strong 也只�
     `贴线封顶支表头必须回显内容量闸门的三个输入与规则：${header}`)
   assert.ok(header.includes('封顶'), `封顶支必须出现「封顶」字样：${header}`)
 
-  // 判红点：把阈值设成 1（等价关掉闸门）⇒ 同一行必须回到 strong
+  // 变红点：把阈值设成 1（等价关掉闸门）⇒ 同一行必须回到 strong
   const off = await tools({ score: { contentTokenMin: 1 } }).get('memory_recall').execute({ query: 'zzgate', limit: 3 })
   assert.equal(off.contentTokenMin, 1)
   const offRow = off.rows.find((x) => x.id === 'mem_gate_target')
   assert.equal(offRow.rel, row.rel, '关闸门绝不该改 rel（只改判定）')
-  assert.equal(offRow.match, 'strong', '关掉闸门后必须回到 strong —— 这正是本用例的判红点')
+  assert.equal(offRow.match, 'strong', '关掉闸门后必须回到 strong —— 这正是本用例的变红点')
   // ★ 本支 = **不封顶支**（阈值 1 ⇒ qTok<1 恒不成立，闸门对本次查询没生效）。
   //   旧实现在这一支照抄封顶样板，打出 `qTok=1<1⇒strong封顶weak`：不等式假、且与 match=strong 自相矛盾。
-  //   判红点：把回显改回无条件样板 ⇒ 下面的 `!includes('封顶')` 与 `≥` 断言立刻变红。
+  //   变红点：把回显改回无条件样板 ⇒ 下面的 `!includes('封顶')` 与 `≥` 断言立刻变红。
   const offHeader = off.text.split('\n')[0]
   assert.ok(!offHeader.includes('封顶'),
     `不封顶支的回显不得出现「封顶」字样（无条件样板在此支是假的）：${offHeader}`)
@@ -721,8 +721,8 @@ test('内容量闸门（工具层）：单内容词元查询 rel>=strong 也只�
   // 话题侧防误伤：两个内容词元的查询（阈值 2）不被封顶
   const two = await tools().get('memory_recall').execute({ query: 'zzgate note', limit: 3 })
   const twoRow = two.rows.find((x) => x.id === 'mem_gate_target')
-  assert.equal(two.contentTokens, 2, `夹具前提：两个内容词元（实测 ${two.contentTokens}）`)
-  assert.ok(twoRow.rel >= two.strongThreshold, `夹具自检：两词元查询 rel 必须 >= strong：${twoRow.rel}`)
+  assert.equal(two.contentTokens, 2, `测试样本前提：两个内容词元（实测 ${two.contentTokens}）`)
+  assert.ok(twoRow.rel >= two.strongThreshold, `测试样本自检：两词元查询 rel 必须 >= strong：${twoRow.rel}`)
   assert.equal(twoRow.match, 'strong', '内容量达标（qTok>=阈值）的查询不得被封顶')
   assert.equal(twoRow.match, expectMatch(two, twoRow.rel), '打印量必须复现 match')
   // ★ 本支同样 = **不封顶支**（qTok=2 >= min=2，真机 query=`虚拟屏` 的同类情形）：回显必须准确。
@@ -734,7 +734,7 @@ test('内容量闸门（工具层）：单内容词元查询 rel>=strong 也只�
 })
 
 /**
- * 闸门例外夹具（本次修的真回归）：200 条，目标记录带标签 `zzrare` ⇒ 单内容词元查询
+ * 闸门例外测试样本（本次修的真回归）：200 条，目标记录带标签 `zzrare` ⇒ 单内容词元查询
  * `zzrare` 实测 rel≈0.4084 = strong 阈值的 **2.71 倍**（>= M=2）。
  * 形态对齐真实库的 `adb`（qTok=1、rel=0.6557 = 4.35×strong，见 redproof/i11-*.txt）。
  */
@@ -763,14 +763,14 @@ test('内容量闸门例外（工具层，真回归）：单内容词元但 rel 
   const r = await tools().get('memory_recall').execute({ query: 'zzrare', limit: 3 })
   const row = r.rows.find((x) => x.id === 'mem_gate_far')
   assert.ok(row !== undefined, '目标记录必须在结果里')
-  assert.equal(r.contentTokens, 1, `夹具前提：单内容词元（实测 qTok=${r.contentTokens}）`)
+  assert.equal(r.contentTokens, 1, `测试样本前提：单内容词元（实测 qTok=${r.contentTokens}）`)
   assert.equal(r.contentTokenMin, 2)
   assert.equal(r.gateMargin, 2)
-  // 夹具自检：rel 必须真的 >= M×strong，否则本用例没有区分力（例外根本没触发）
+  // 测试样本自检：rel 必须真的 >= M×strong，否则本用例没有区分力（例外根本没触发）
   assert.ok(row.rel >= r.gateMargin * r.strongThreshold,
-    `夹具自检：目标行 rel 必须 >= M×strong：rel=${row.rel} M×strong=${r.gateMargin * r.strongThreshold}`)
+    `测试样本自检：目标行 rel 必须 >= M×strong：rel=${row.rel} M×strong=${r.gateMargin * r.strongThreshold}`)
   // ★ 核心断言（本次要修的真回归）：单个高专有词元 = 真话题，**不得**被内容量闸门误杀。
-  //   判红点：删掉 matchLevelGated 里的 margin 例外（退回纯 qTok 封顶）⇒ 这里变成 weak。
+  //   变红点：删掉 matchLevelGated 里的 margin 例外（退回纯 qTok 封顶）⇒ 这里变成 weak。
   assert.equal(row.match, 'strong', `单内容词元但 rel 远超 M×strong 必须判 strong（rel=${row.rel}）`)
   assert.equal(row.match, expectMatch(r, row.rel), '打印量（rel+阈值+qTok+M）必须复现 match')
   const header = r.text.split('\n')[0]
@@ -779,14 +779,14 @@ test('内容量闸门例外（工具层，真回归）：单内容词元但 rel 
     `例外放行支表头必须逐字回显闸门三输入：${header}`)
   assert.ok(!header.includes('封顶'), `例外放行支不得出现「封顶」字样：${header}`)
 
-  // 反向对照（判红点：把 M 抬到极大 = 退回纯 qTok 封顶）⇒ 同一行必须变回 weak。
+  // 反向对照（变红点：把 M 抬到极大 = 退回纯 qTok 封顶）⇒ 同一行必须变回 weak。
   const capped = await tools({ score: { gateMargin: 1e9 } }).get('memory_recall').execute({ query: 'zzrare', limit: 3 })
   const cappedRow = capped.rows.find((x) => x.id === 'mem_gate_far')
   assert.equal(cappedRow.rel, row.rel, '改 M 绝不该改 rel（只改判定）')
   assert.equal(cappedRow.match, 'weak', '把 M 抬到极大（等价退回纯 qTok 封顶）后必须变红为 weak')
 })
 
-/** 标定漂移夹具：直接写 N 条同形记录（比 remember 循环快，也便于精确控制库规模）。 */
+/** 标定漂移测试样本：直接写 N 条同形记录（比 remember 循环快，也便于精确控制库规模）。 */
 function seedPlainCorpus(home, n) {
   const lines = []
   for (let i = 0; i < n; i += 1) {
@@ -831,7 +831,7 @@ test('标定漂移（纯函数）：相对/绝对阈值取先到者 + 非法回�
   assert.equal(calibrationDrift(300, 204, -1, -1).driftRel, CALIBRATION_DRIFT_REL, '负阈值回落默认')
 })
 
-test('标定漂移（工具层，双侧）：库规模远离标定点 ⇒ 表头必现提示；接近 ⇒ 必不出现（判红点：去掉该分支 ⇒ 前侧变红）', async () => {
+test('标定漂移（工具层，双侧）：库规模远离标定点 ⇒ 表头必现提示；接近 ⇒ 必不出现（变红点：去掉该分支 ⇒ 前侧变红）', async () => {
   // ── 侧 A：20 条（|20−204|=184 > 100）⇒ 必现 ──────────────────────────────
   const homeA = freshHome('drift-far')
   seedPlainCorpus(homeA, 20)

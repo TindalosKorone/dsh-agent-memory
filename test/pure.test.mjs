@@ -68,9 +68,9 @@ test('用例 4：rrf 同路重复 id 只记首次名次，且空/非法输入不
   assert.deepEqual(rrf([[]]), [])
 })
 
-test('lexicalScore（I1.2 改契约）：BM25 绝对标度 0..1，字段权重 tags > title > body', () => {
-  // 【本用例断言被有意改过】I1.1 契约是 Σ(字段权重×命中词元数)/(6×查询词元数)（tags 3/6、title 2/6、body 1/6）。
-  // I1.2 起主分改 BM25（第三方审计修 B），契约变为：
+test('lexicalScore（打分口径 改契约）：BM25 绝对标度 0..1，字段权重 tags > title > body', () => {
+  // 【本用例断言被有意改过】初版 契约是 Σ(字段权重×命中词元数)/(6×查询词元数)（tags 3/6、title 2/6、body 1/6）。
+  // 打分口径 起主分改 BM25（第三方审计修 B），契约变为：
   //   rel = Σ_f w_f·Σ_w idf_f(w)·sat_f(w,D)  ÷  Σ_f w_f·Σ_w idf_f(w)·(k1+1)，w = tags:3 / title:2 / body:1
   // 单条自语料（N=1，各字段 |D|=avgdl=1 ⇒ sat=1）下：
   //   命中字段 idf = log(1+(1-1+0.5)/(1+0.5)) = log(4/3)；未命中字段 idf = log(1+(1-0+0.5)/0.5) = log(4)。

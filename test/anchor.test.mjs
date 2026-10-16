@@ -1,10 +1,10 @@
-// 用例 14：I4a.2 注入锚点的**区分力资格过滤**（本增量新增，专测锚点选择与降级）。
+// 用例 14：锚点资格过滤 注入锚点的**区分力资格过滤**（本增量新增，专测锚点选择与降级）。
 //
 // 背景（真机现象）：导入 185 条坑位语料后，注入那行的锚点从 `失败关闭 / 假绿 / 区分力`
 // 退化成 `坑位 / 判据 / 快照` —— `坑位` 覆盖率 182/194 ≈ 94%，区分不了任何两条记忆，
 // 等于往每一步的上下文里塞噪音。根因：原规则「按全局词频取 top-N」把「最高频」当成了「最有区分力」。
 //
-// 契约（全部可判红）：
+// 契约（全部可变红）：
 //  1) 资格过滤：出现率（含该标签的记录数 / 总记录数）**严格大于** maxDfRatio 的标签不得成为锚点；
 //     df 口径是「记录数」：一条记录内重复写同一个标签只计一次；
 //  2) 合格集合内排序确定：df 降序 → 标签码元升序决胜（与记录书写顺序、Map 迭代顺序无关）；
@@ -35,7 +35,7 @@ function seed(home, records) {
 }
 
 /**
- * 覆盖全库形状的夹具：120 条记录，`坑位` 覆盖 115/120 ≈ 0.9583（> 0.3，必须被剔除），
+ * 覆盖全库形状的测试样本：120 条记录，`坑位` 覆盖 115/120 ≈ 0.9583（> 0.3，必须被剔除），
  * 合格集合 = 判据 12 / 快照 11 / 测试 10 / 构建 9（都 ≤ 120×0.3 = 36）⇒ top-3 = 判据/快照/测试。
  */
 function coverAllLibrary(total = 120, cover = 115) {
@@ -55,7 +55,7 @@ function coverAllLibrary(total = 120, cover = 115) {
 const COVER_ALL_LINE = '记忆 120 条（跨会话经验教训）｜排查·为什么·复现·以前是否踩过 这类问题，先 memory_recall 查库｜标签锚点：判据 / 快照 / 测试'
 
 // ── 1. 资格过滤：覆盖全库的标签不得成为锚点 ─────────────────────────────
-test('I4a.2 资格过滤：覆盖率 95.8% 的标签被剔除，合格集合里 df 最高的三个才是锚点', () => {
+test('锚点资格过滤 资格过滤：覆盖率 95.8% 的标签被剔除，合格集合里 df 最高的三个才是锚点', () => {
   const home = freshHome('i4a2-filter')
   const recs = coverAllLibrary()
   seed(home, recs)
@@ -77,7 +77,7 @@ test('I4a.2 资格过滤：覆盖率 95.8% 的标签被剔除，合格集合里 
   assert.ok(r.text.length <= DEFAULT_INJECTION_MAX_CHARS)
 })
 
-test('I4a.2 红证形态（双侧钉死）：同一份库把 maxDfRatio 放到 1（=关掉过滤）⇒ 最高频标签立刻被选中', () => {
+test('锚点资格过滤 失败证据形态（双侧钉死）：同一份库把 maxDfRatio 放到 1（=关掉过滤）⇒ 最高频标签立刻被选中', () => {
   const recs = coverAllLibrary()
   // 这一侧就是「去掉资格过滤」的判据：过滤一旦失效，默认口径会返回与 ratio=1 相同的结果，
   // 上面那条 `!plan.anchors.includes('坑位')` 随即变红。
@@ -86,7 +86,7 @@ test('I4a.2 红证形态（双侧钉死）：同一份库把 maxDfRatio 放到 1
   assert.notDeepEqual(stableAnchors(recs, 3), stableAnchors(recs, 3, 1))
 })
 
-test('I4a.2 边界：出现率恰好等于上限的标签**保留**（剔除条件是严格大于）', () => {
+test('锚点资格过滤 边界：出现率恰好等于上限的标签**保留**（剔除条件是严格大于）', () => {
   // 10 条记录、`边界` 恰好 3 条 = 0.3，不 > 0.3 ⇒ 合格；`超界` 4 条 = 0.4 ⇒ 剔除。
   const recs = []
   for (let i = 0; i < 10; i += 1) {
@@ -99,7 +99,7 @@ test('I4a.2 边界：出现率恰好等于上限的标签**保留**（剔除条�
   assert.deepEqual(planAnchors(recs, 5, 0.4).anchors, ['超界', '边界'])
 })
 
-test('I4a.2 df 口径是「记录数」：一条记录内重复写同一标签只计一次', () => {
+test('锚点资格过滤 df 口径是「记录数」：一条记录内重复写同一标签只计一次', () => {
   const recs = []
   for (let i = 0; i < 5; i += 1) {
     recs.push(record(`mem_dup_${i}`, T0 + i * DAY, { tags: i === 0 ? ['重复', '重复', '重复'] : [] }))
@@ -111,7 +111,7 @@ test('I4a.2 df 口径是「记录数」：一条记录内重复写同一标签�
 })
 
 // ── 2. 合格锚点不足 / 一个都没有 ⇒ 如实降级 ──────────────────────────────
-test('I4a.2 合格锚点不足 N 个 ⇒ 如实少给，绝不补位、绝不回落到超频标签', () => {
+test('锚点资格过滤 合格锚点不足 N 个 ⇒ 如实少给，绝不补位、绝不回落到超频标签', () => {
   const home = freshHome('i4a2-fewer')
   const recs = []
   for (let i = 0; i < 20; i += 1) {
@@ -130,7 +130,7 @@ test('I4a.2 合格锚点不足 N 个 ⇒ 如实少给，绝不补位、绝不回
   assert.ok(!r.text.includes('宽标签'))
 })
 
-test('I4a.2 一个合格锚点都没有 ⇒ 那行如实写「无可区分锚点」，绝不回落到最高频标签', () => {
+test('锚点资格过滤 一个合格锚点都没有 ⇒ 那行如实写「无可区分锚点」，绝不回落到最高频标签', () => {
   const home = freshHome('i4a2-none')
   const recs = []
   for (let i = 0; i < 5; i += 1) recs.push(record(`mem_only_${i}`, T0 + i * DAY, { tags: ['坑位'] }))
@@ -146,7 +146,7 @@ test('I4a.2 一个合格锚点都没有 ⇒ 那行如实写「无可区分锚点
   assert.ok(r.text.length <= DEFAULT_INJECTION_MAX_CHARS)
   assert.equal(r.diag.truncated, false)
 
-  // 红证形态：加一个「回落取最高频」的兜底 ⇒ 这一侧会包含 `坑位`，上面两条断言立刻变红。
+  // 失败证据形态：加一个「回落取最高频」的兜底 ⇒ 这一侧会包含 `坑位`，上面两条断言立刻变红。
   assert.equal(buildInjectionIndex({ home, injection: { anchorMaxDfRatio: 1 } }).text.includes('坑位'), true)
   // 「库里根本没有标签」与「有标签但都超频」是两回事：前者不写这一段。
   seed(home, [record('mem_untagged', T0, { tags: [] })])
@@ -157,7 +157,7 @@ test('I4a.2 一个合格锚点都没有 ⇒ 那行如实写「无可区分锚点
 })
 
 // ── 3. 确定性 ────────────────────────────────────────────────────────────
-test('I4a.2 确定性：记录顺序打乱、重复取值、换缓存实例，锚点与那一行逐字节相同', () => {
+test('锚点资格过滤 确定性：记录顺序打乱、重复取值、换缓存实例，锚点与那一行逐字节相同', () => {
   const home = freshHome('i4a2-det')
   const recs = coverAllLibrary()
   seed(home, recs)
@@ -184,7 +184,7 @@ test('I4a.2 确定性：记录顺序打乱、重复取值、换缓存实例，�
 })
 
 // ── 4. 长度上限：带锚点行与降级行都必须守住 ─────────────────────────────
-test('I4a.2 长度上限：带锚点行与「无可区分锚点」降级行在任意 maxChars 下都 ≤ 上限', () => {
+test('锚点资格过滤 长度上限：带锚点行与「无可区分锚点」降级行在任意 maxChars 下都 ≤ 上限', () => {
   const home = freshHome('i4a2-cap')
   const recs = coverAllLibrary()
   seed(home, recs)
@@ -204,7 +204,7 @@ test('I4a.2 长度上限：带锚点行与「无可区分锚点」降级行在�
     ]) assert.ok(text.length <= maxChars, `纯函数输出 ${JSON.stringify(text)} 必须 <= ${maxChars}`)
   }
   // 降级行塞不下「无可区分锚点」时：丢掉这一段，但 truncated 必须为 true（确实丢了一句如实说明）。
-  // 【I4a.3】最小行现在含条件规则（56 字符），所以边界不再写死数字，而是由两条完整行的长度差推导：
+  // 【条件规则】最小行现在含条件规则（56 字符），所以边界不再写死数字，而是由两条完整行的长度差推导：
   // 预算 = 「带标记的降级行长度 - 1」⇒ 正好装得下最小行、装不下「无可区分锚点」。
   const minimal = planInjectionLine(5, 2000, [], 999, false).text
   assert.equal(minimal, '记忆 5 条（跨会话经验教训）｜排查·为什么·复现·以前是否踩过 这类问题，先 memory_recall 查库')
@@ -224,7 +224,7 @@ test('I4a.2 长度上限：带锚点行与「无可区分锚点」降级行在�
 })
 
 // ── 5. 口径解析与可配置 ─────────────────────────────────────────────────
-test('I4a.2 口径解析：anchorMaxDfRatio 夹到 0..1、非有限值回落默认（绝不静默变成「不过滤」）', () => {
+test('锚点资格过滤 口径解析：anchorMaxDfRatio 夹到 0..1、非有限值回落默认（绝不静默变成「不过滤」）', () => {
   assert.equal(resolveInjectionOptions(undefined).anchorMaxDfRatio, ANCHOR_MAX_DF_RATIO)
   assert.equal(resolveInjectionOptions({ anchorMaxDfRatio: 5 }).anchorMaxDfRatio, 1)
   assert.equal(resolveInjectionOptions({ anchorMaxDfRatio: -1 }).anchorMaxDfRatio, 0)
@@ -235,7 +235,7 @@ test('I4a.2 口径解析：anchorMaxDfRatio 夹到 0..1、非有限值回落默�
   assert.equal(resolveInjectionOptions({ anchorMaxDfRatio: 'abc' }).anchorMaxDfRatio, ANCHOR_MAX_DF_RATIO)
 })
 
-test('I4a.2 可配置：放宽到 0.1 会换掉锚点集合；收紧到 0 等于「不要锚点」', () => {
+test('锚点资格过滤 可配置：放宽到 0.1 会换掉锚点集合；收紧到 0 等于「不要锚点」', () => {
   const home = freshHome('i4a2-knob')
   const recs = coverAllLibrary()
   seed(home, recs)
@@ -251,7 +251,7 @@ test('I4a.2 可配置：放宽到 0.1 会换掉锚点集合；收紧到 0 等于
 })
 
 // ── 6. 端到端：apply 注册的那一行就是同一行 ──────────────────────────────
-test('I4a.2 端到端：apply 注册的 agent-memory 那行与 buildInjectionIndex 完全一致（含降级形状）', () => {
+test('锚点资格过滤 端到端：apply 注册的 agent-memory 那行与 buildInjectionIndex 完全一致（含降级形状）', () => {
   const home = freshHome('i4a2-apply')
   const recs = coverAllLibrary()
   seed(home, recs)

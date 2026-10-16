@@ -1,5 +1,5 @@
 // 用例 5：memory_recall 是 L1 —— 任何情况下都不得泄漏 body；正文只能经 memory_expand（L2）取回。
-// 另附 I1.2 打分口径的三条红证（判红点就写在用例名里）：
+// 另附 打分口径的三条失败证据（变红点就写在用例名里）：
 //  A) 无关查询不得是满分（批内归一化会把它打成 1.0000）
 //  B) 短而相关必须赢过长而无关（关掉 BM25 的 b 就反超）
 //  C) 候选 <= 5 且 limit >= 候选数时，打印的 score 序列必须单调不增（多样性不并入分数就倒挂）
@@ -109,9 +109,9 @@ test('memory_recall 的 limit 参数被夹到 1..50', async () => {
   assert.equal((await recall.execute({ query: 'x' })).limit, 5)
 })
 
-// ── I1.2 打分口径三条红证 ────────────────────────────────────────────────────
+// ── 打分口径三条失败证据 ────────────────────────────────────────────────────
 
-test('打分红证 1（判红点）：无关查询不得是满分 ⇒ Top1 match !== strong 且 disp < 0.5', async () => {
+test('打分失败证据 1（变红点）：无关查询不得是满分 ⇒ Top1 match !== strong 且 disp < 0.5', async () => {
   const home = freshHome('recall-unrelated')
   const defs = tools()
   const remember = defs.get('memory_remember')
@@ -135,14 +135,14 @@ test('打分红证 1（判红点）：无关查询不得是满分 ⇒ Top1 match
   assert.ok(top.score < 0.5, `Top1 展示分必须 < 0.5，实际 ${top.score}`)
   assert.equal(top.rel, 0, '无任何证据 ⇒ 相关度为 0（只奖不罚，不统一扣分）')
 
-  // 打印列（最后一列）必须和结构化行一致 —— 判红（换回批内归一化）时这里会变成 1.0000
+  // 打印列（最后一列）必须和结构化行一致 —— 变红（换回批内归一化）时这里会变成 1.0000
   const printed = scoreOfLine(r.lines[0])
   assert.ok(printed < 0.5, `打印分不得是 1.0000，实际 ${printed}`)
   assert.equal(printed, 0)
   assert.equal(r.diversityApplied, false)
 })
 
-test('打分红证 2（判红点）：短而相关必须赢过长而无关（BM25 长度归一）', async () => {
+test('打分失败证据 2（变红点）：短而相关必须赢过长而无关（BM25 长度归一）', async () => {
   const home = freshHome('recall-length')
   const defs = tools()
   const remember = defs.get('memory_remember')
@@ -173,13 +173,13 @@ test('打分红证 2（判红点）：短而相关必须赢过长而无关（BM2
   const r = await recall.execute({ query: 'zetaword', limit: 50 })
   const ids = r.rows.map((row) => row.id)
   assert.ok(ids.includes(short.id) && ids.includes(long.id), `两条都必须在候选里：${ids.join(',')}`)
-  // 失败信息给可读名次（红证时必须一眼看出是谁反超了谁）
+  // 失败信息给可读名次（失败证据时必须一眼看出是谁反超了谁）
   const order = r.rows
     .map((row) => (row.id === short.id ? 'SHORT-RELEVANT' : row.id === long.id ? 'LONG-NOISE' : 'other'))
     .join(' > ')
   assert.ok(
     ids.indexOf(short.id) < ids.indexOf(long.id),
-    `短而相关必须排在长而噪声之前（判红点：把 BM25 的 b 设为 0 后长的那条会反超）：${order}`,
+    `短而相关必须排在长而噪声之前（变红点：把 BM25 的 b 设为 0 后长的那条会反超）：${order}`,
   )
   const printedIds = r.lines.map(idOfLine)
   assert.ok(printedIds.indexOf(short.id) < printedIds.indexOf(long.id), '打印顺序必须一致')
@@ -189,17 +189,17 @@ test('打分红证 2（判红点）：短而相关必须赢过长而无关（BM2
   assert.ok(longRow.rel > 0, '长文档应保留非零相关度（只稀释、不清零）')
 })
 
-test('打分红证 3（判红点）：候选 <= 5 时打印的 score 序列单调不增', async () => {
+test('打分失败证据 3（变红点）：候选 <= 5 时打印的 score 序列单调不增', async () => {
   const home = freshHome('recall-monotone')
   const defs = tools()
   const remember = defs.get('memory_remember')
   const recall = defs.get('memory_recall')
 
   // 3 条候选（<= 5）：A 三字段命中、B/C 都命中标题+正文（B 与 A 同标签、C 不同标签）。
-  // 2026-10-09 标定把噪声地板抬到 0.0187、阈值下调：旧夹具里 B/C 是纯正文命中（rel≈0.011），
+  // 2026-10-09 标定把噪声地板抬到 0.0187、阈值下调：旧测试样本里 B/C 是纯正文命中（rel≈0.011），
   // 新标度下两条都会打印成 0.0000，「分数必须有区分度」这条区分力自检会直接失效。
   // 现在让 B/C 也带标题命中（实测 rel≈0.0593 / 0.0458），三条都高于噪声地板且打印分互不相同；
-  // 判红所需的性质同时保留：C 的 rel 严格大于 0.7×B（0.7 = B 吃了同标签多样性惩罚后的系数），
+  // 变红所需的性质同时保留：C 的 rel 严格大于 0.7×B（0.7 = B 吃了同标签多样性惩罚后的系数），
   // ⇒ 一旦把多样性重排强行打开、仍「按 rel 排序却打印含惩罚的 final」，B 与 C 就会倒挂。
   const seeds = [
     { title: 'zetaword a', body: 'zetaword zetaword', tags: ['zetaword', 'x'] },
@@ -220,7 +220,7 @@ test('打分红证 3（判红点）：候选 <= 5 时打印的 score 序列单�
   for (let i = 1; i < printed.length; i += 1) {
     assert.ok(
       printed[i] <= printed[i - 1],
-      `打印的 score 必须单调不增（判红点：强制开启多样性重排就会倒挂）：${printed.join(',')}`,
+      `打印的 score 必须单调不增（变红点：强制开启多样性重排就会倒挂）：${printed.join(',')}`,
     )
   }
   // 单调由两件事共同保证：候选 <= 5 跳过多样性 + 打印的是含惩罚的最终分。
@@ -231,12 +231,12 @@ test('打分红证 3（判红点）：候选 <= 5 时打印的 score 序列单�
 
 // ── ② scope（项目/工作区维度）：向后兼容 + 过滤 + 表头回显 ──────────────────────
 //
-// 契约（都能判红）：
+// 契约（都能变红）：
 //  (a) **不传** scope ⇒ 行为与过去完全一致（不过滤，三条都召回）；
 //  (b) 传 `project:a` ⇒ 只出 `project:a` 与 `global` 的记录（global 永远包含，跨项目经验通用）；
 //  (c) 表头回显 `;scope=project:a`（过滤结果对读者可见）；
 //  (d) 打印行仍是 10 列（RECALL_COLUMNS 不动），但结构化 rows 带 scope 字段。
-// 判红点：去掉过滤 ⇒ (b) 变红（project:b 会漏出来）。
+// 变红点：去掉过滤 ⇒ (b) 变红（project:b 会漏出来）。
 
 test('② scope：不传不过滤（三条都可召回）；传 project:a 只出 project:a 与 global；表头回显 scope；行仍 10 列', async () => {
   freshHome('recall-scope')
@@ -284,7 +284,7 @@ test('② scope：不传不过滤（三条都可召回）；传 project:a 只出
   const aIds = new Set(a.rows.map((row) => row.id))
   assert.ok(aIds.has(ids['project:a']), '必须含 project:a 自己的记录')
   assert.ok(aIds.has(ids.global), 'global 永远包含（跨项目经验通用）')
-  assert.ok(!aIds.has(ids['project:b']), `project:b 的记录不得漏出来（判红点：去掉过滤 ⇒ 这里变红）：${[...aIds].join(',')}`)
+  assert.ok(!aIds.has(ids['project:b']), `project:b 的记录不得漏出来（变红点：去掉过滤 ⇒ 这里变红）：${[...aIds].join(',')}`)
   assert.ok(a.rows.every((row) => row.scope === 'project:a' || row.scope === 'global'),
     `过滤后每行的 scope 只能是 project:a 或 global：${a.rows.map((row) => row.scope).join(',')}`)
 

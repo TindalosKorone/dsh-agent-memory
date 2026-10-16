@@ -1,6 +1,6 @@
-// 用例 15：I2.2 离线标定的**负样本扩容与敏感性对照**（只读脚本；本文件绝不碰真实记忆库）。
+// 用例 15：标定扩容 离线标定的**负样本扩容与敏感性对照**（只读脚本；本文件绝不碰真实记忆库）。
 //
-// 契约（全部可判红）：
+// 契约（全部可变红）：
 //  1) 负样本 ≥200 个，且**确定性**：同一份库两次运行 stdout 逐字节一致；
 //  2) 构词与语料无关：查询串只能由冻结的跨域词表 + 固定连接词组合而成（生成器零入参、零 IO），
 //     头部 12 个就是旧脚本原样的那 12 个（否则「只取前 12 个」的对照就不是旧口径了）；
@@ -82,7 +82,7 @@ function dirFingerprint(dir) {
 }
 
 // ── 1. 生成器：确定性、词表闭包、零入参 ────────────────────────────────────
-test('I2.2 负样本生成器：≥200 个、零入参（不读库）、两次调用逐字节一致、词表闭包', () => {
+test('标定扩容 负样本生成器：≥200 个、零入参（不读库）、两次调用逐字节一致、词表闭包', () => {
   const a = buildNegativeQueries()
   const b = buildNegativeQueries()
   assert.equal(buildNegativeQueries.length, 0, '生成器不得有任何入参（否则可能把库内容喂进来）')
@@ -119,7 +119,7 @@ test('I2.2 负样本生成器：≥200 个、零入参（不读库）、两次�
 })
 
 // ── 2. 脚本：样本量、敏感性对照、两套建议 ─────────────────────────────────
-test('I2.2 标定报告：负样本 ≥200、分位数齐全、敏感性对照与两套建议并列且互相自洽', () => {
+test('标定扩容 标定报告：负样本 ≥200、分位数齐全、敏感性对照与两套建议并列且互相自洽', () => {
   const home = freshDir('calibrate-report')
   seedLibrary(home, 5)
   const { code, out } = runCalibrate(home)
@@ -164,7 +164,7 @@ test('I2.2 标定报告：负样本 ≥200、分位数齐全、敏感性对照�
   assert.ok(!out.includes('个负样本明细（--dump-negatives'), '默认运行不逐条打印全部明细（要 --dump-negatives）')
 })
 
-test('I2.2 --dump-negatives：逐条打印全部负样本，顺序与生成器一致', () => {
+test('标定扩容 --dump-negatives：逐条打印全部负样本，顺序与生成器一致', () => {
   const home = freshDir('calibrate-dump')
   seedLibrary(home, 3)
   const { code, out } = runCalibrate(home, ['--dump-negatives'])
@@ -178,7 +178,7 @@ test('I2.2 --dump-negatives：逐条打印全部负样本，顺序与生成器�
 })
 
 // ── 3. 确定性：两次运行逐字节一致 ─────────────────────────────────────────
-test('I2.2 确定性：同一份库两次运行 stdout 逐字节一致', () => {
+test('标定扩容 确定性：同一份库两次运行 stdout 逐字节一致', () => {
   const home = freshDir('calibrate-det')
   seedLibrary(home, 4)
   const first = runCalibrate(home)
@@ -189,7 +189,7 @@ test('I2.2 确定性：同一份库两次运行 stdout 逐字节一致', () => {
 })
 
 // ── 4. 只打印不改写 ───────────────────────────────────────────────────────
-test('I2.2 只读：跑完之后库文件字节不变、DSH_HOME 里不多任何文件', () => {
+test('标定扩容 只读：跑完之后库文件字节不变、DSH_HOME 里不多任何文件', () => {
   const home = freshDir('calibrate-readonly')
   const file = seedLibrary(home, 6)
   const before = dirFingerprint(home)
@@ -202,7 +202,7 @@ test('I2.2 只读：跑完之后库文件字节不变、DSH_HOME 里不多任何
 })
 
 // ── 5. 空库：可读提示 + 退出码 0 ──────────────────────────────────────────
-test('I2.2 空库：可读提示 + 退出码 0（且不抛）', () => {
+test('标定扩容 空库：可读提示 + 退出码 0（且不抛）', () => {
   const home = freshDir('calibrate-empty')
   assert.ok(!existsSync(join(home, 'agent-memory', 'memory.ndjson')))
   const { code, out } = runCalibrate(home)
@@ -221,9 +221,9 @@ test('I2.2 空库：可读提示 + 退出码 0（且不抛）', () => {
   assert.ok(second.out.includes('记忆库为空'), second.out)
 })
 
-// ── 6. 修正 4：`--write` 是**显式 opt-in** 的唯一落地路径 ────────────────────
+// ── 6. 写盘 opt-in：`--write` 是**显式 opt-in** 的唯一落地路径 ────────────────────
 //
-// 契约（全部可判红）：
+// 契约（全部可变红）：
 //  1) 不带 --write ⇒ 行为与历史完全一致：一个字节都不写、不多任何文件（上面第 4 组已钉，
 //     这里再钉一次「即使指定了 --target 也不写」）；
 //  2) 带 --write ⇒ 先备份成 `<target>.bak-<时间戳>`、打印逐行 diff、再改写**锚点行**
@@ -245,7 +245,7 @@ function tempTarget(name) {
   return p
 }
 
-test('修正 4：不带 --write 时，即使指定了 --target 也一个字节都不写（默认契约不变）', () => {
+test('写盘 opt-in：不带 --write 时，即使指定了 --target 也一个字节都不写（默认契约不变）', () => {
   const home = freshDir('calibrate-write-off')
   seedLibrary(home, 6)
   const target = tempTarget('calibrate-write-off-target')
@@ -258,7 +258,7 @@ test('修正 4：不带 --write 时，即使指定了 --target 也一个字节�
   assert.ok(!out.includes('--write：显式落地'), `不带 --write 时不得出现落地段：${out}`)
 })
 
-test('修正 4：带 --write 时备份 + 打印 diff + 改写锚点行（③ 起含标定元数据；且只在显式请求下发生）', () => {
+test('写盘 opt-in：带 --write 时备份 + 打印 diff + 改写锚点行（③ 起含标定元数据；且只在显式请求下发生）', () => {
   const home = freshDir('calibrate-write-on')
   seedLibrary(home, 6)
   const target = tempTarget('calibrate-write-on-target')
@@ -334,7 +334,7 @@ test('修正 4：带 --write 时备份 + 打印 diff + 改写锚点行（③ 起
   assert.ok(changedIdx.length <= 8, `改动行数不得超过 8 个锚点，实测 ${changedIdx.length}`)
 })
 
-test('修正 4：--write 失败关闭 —— 目标缺锚点 ⇒ 退非零、不写、不备份', () => {
+test('写盘 opt-in：--write 失败关闭 —— 目标缺锚点 ⇒ 退非零、不写、不备份', () => {
   const home = freshDir('calibrate-write-bad')
   seedLibrary(home, 6)
   const dir = freshDir('calibrate-write-bad-target')
@@ -347,7 +347,7 @@ test('修正 4：--write 失败关闭 —— 目标缺锚点 ⇒ 退非零、不
   assert.ok(out.includes('失败关闭'), `必须如实说明失败关闭：${out}`)
 })
 
-test('修正 4：第二次 --write 无差异 ⇒ 不写、不生成新备份（幂等）', () => {
+test('写盘 opt-in：第二次 --write 无差异 ⇒ 不写、不生成新备份（幂等）', () => {
   const home = freshDir('calibrate-write-idem')
   seedLibrary(home, 6)
   const target = tempTarget('calibrate-write-idem-target')
