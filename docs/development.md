@@ -1,6 +1,6 @@
 # 开发与验证
 
-本文件写给**改代码、跑测试、加红证的人**：构建、测试纪律、红证目录、脚本用法与本机环境事实。
+本文件写给**改代码、跑测试、加失败证据的人**：构建、测试纪律、失败证据目录、脚本用法与本机环境事实。
 
 术语见 [glossary.md](glossary.md)、安装见 [install.md](install.md)、故障排查见 [troubleshooting.md](troubleshooting.md)、使用见 [../README.md](../README.md)；设计主张见 [design.md](design.md)。
 
@@ -33,11 +33,11 @@ bash redproof/run-all.sh 证据路径   # 自定义输出；有 fail 时退出�
 
 **注意 `&&` 会截断**：`npm test` 的脚本用 `&&` 串联 19 个文件，**任一文件失败都会停在那里**，后面的文件根本不跑 —— 而 `ℹ pass` 汇总看上去仍像「跑完了」。例如只跑到第 11 个文件时是 137 pass，全量才是 197。红了要先确认截断点，别把局部汇总当全量。
 
-**红证要求（重要）**：新增或改动一条机制时，**必须有「能判红」的证据** —— 先把机制人为禁用 / 改坏，确认相关测试**确实变红**；再恢复，确认**变绿**。只有「测试通过」不算证据：那可能是测试永远绿。红证成对落在 `redproof/`，命名 `…-disable.txt` / `…-restored.txt`。
+**失败证据要求（重要）**：新增或改动一条机制时，**必须有「能让测试变红」的证据** —— 先把机制人为禁用 / 改坏，确认相关测试**确实变红**；再恢复，确认**变绿**。只有「测试通过」不算证据：那可能是测试永远绿。失败证据成对落在 `redproof/`，命名 `…-disable.txt` / `…-restored.txt`。
 
 ## 3. `redproof/` 是什么
 
-本项目的**红证取证目录**：每条机制都附一份「**能判红**」的证据。做法是先把机制**人为禁用/改坏**（`*-disable.txt` 是禁用后的失败输出），确认测试确实变红；再恢复（`*-restored.txt`）确认变绿。所以目录里成对出现 `…-disable.txt` / `…-restored.txt`。
+本项目的**失败证据目录**：每条机制都附一份「**能让测试变红**」的证据。做法是先把机制**人为禁用/改坏**（`*-disable.txt` 是禁用后的失败输出），确认测试确实变红；再恢复（`*-restored.txt`）确认变绿。所以目录里成对出现 `…-disable.txt` / `…-restored.txt`。
 
 被跟踪内容：**228 个文件** = 204 个 `.txt` 取证日志 + 17 个探针 `.mjs` + 2 个 `.sh` + 5 个 `.json`。
 
@@ -46,17 +46,17 @@ bash redproof/run-all.sh 证据路径   # 自定义输出；有 fail 时退出�
 | 脚本 | 用法 |
 | --- | --- |
 | `patch-src.mjs` | `node redproof/patch-src.mjs "<原串>" "<新串>"`，对 `src/index.ts` 做一次精确子串替换（找不到 / 多处命中即失败），让「关掉某个机制」这一步可复现、可核对 |
-| `measure-header.mjs` | `node redproof/measure-header.mjs`，量两处夹具的表头长度，确认「单行」 |
+| `measure-header.mjs` | `node redproof/measure-header.mjs`，量两处测试样本的表头长度，确认「单行」 |
 | `lineformat-probe.mjs` | `node redproof/lineformat-probe.mjs <lib/index.js 路径> <home 子目录名>`，用同一份固定语料 + 同一批查询对比改动前后的 L1 输出 |
 | `draft-header-lengths.mjs` | `node redproof/draft-header-lengths.mjs`，试算表头草稿长度，找最短可行措辞组合 |
 | `i7a-header-after-measure.mjs` | `node redproof/i7a-header-after-measure.mjs`，量「表头上界修正」后的表头长度：短查询 / 240 字符边界查询 / `Number.MAX_VALUE` 常数，全部必须 `<= HEADER_MAX_CHARS` |
 | `i7c-desc-lengths.mjs` | `node redproof/i7c-desc-lengths.mjs`，量 4 个工具描述的字符数（工具描述瘦身的前后对照） |
-| `i7e-band-search.mjs` | `node redproof/i7e-band-search.mjs`，扫合成语料，为每个常数找「rel 落在新旧值之间」的边界夹具参数 |
-| `i7e-band-verify.mjs` | `node redproof/i7e-band-verify.mjs`，把上一步找到的四组夹具参数喂给真工具，打印 rel / match / score |
-| `i7e-revert-const.mjs` | `node redproof/i7e-revert-const.mjs <NAME> <值>`，把 `src/pure.ts` 的某个常数**连同「落地值：」行**一起改到指定值（红证用；不改注释行会连带弄红「注释↔常数一致性」用例，那样就孤立不出边界用例） |
-| `i7e-redproof.sh` | `bash redproof/i7e-redproof.sh`，逐个回退 4 个常数并跑 `test/scoring.test.mjs`，确认**对应那条**边界用例判红，然后自动恢复 |
+| `i7e-band-search.mjs` | `node redproof/i7e-band-search.mjs`，扫合成语料，为每个常数找「rel 落在新旧值之间」的边界测试样本参数 |
+| `i7e-band-verify.mjs` | `node redproof/i7e-band-verify.mjs`，把上一步找到的四组测试样本参数喂给真工具，打印 rel / match / score |
+| `i7e-revert-const.mjs` | `node redproof/i7e-revert-const.mjs <NAME> <值>`，把 `src/pure.ts` 的某个常数**连同「落地值：」行**一起改到指定值（失败证据用；不改注释行会连带弄红「注释↔常数一致性」用例，那样就孤立不出边界用例） |
+| `i7e-redproof.sh` | `bash redproof/i7e-redproof.sh`，逐个回退 4 个常数并跑 `test/scoring.test.mjs`，确认**对应那条**边界用例变红，然后自动恢复 |
 
-**如何加一条红证**：
+**如何加一条失败证据**：
 
 1. 先确保对应用例在正常状态下**绿**（跑一遍该文件）。
 2. 用 `node redproof/patch-src.mjs "<原串>" "<新串>"` 关掉该机制（改的是 `src/index.ts`），重建 `tsc -p .`。
@@ -106,7 +106,7 @@ node scripts/import-gotchas.mjs --source gotchas.md --write  # 落盘（先备�
 | `lib/*.js` + `lib/types/*.d.ts` | tsc 构建产物（6 个 `.js` + 6 个 `.d.ts`），**随包入库** —— 官方安装不跑构建 |
 | `test/*.mjs` | 19 个测试文件（197 pass / 0 fail，2026-10-09 实测）；另有 `helpers.mjs` 与 `isolation-probe.mjs` 两个非测试文件 |
 | `scripts/*.mjs` | 5 个脚本（标定 / 导入 / 负样本 / 注入实测 / 松耦合探针） |
-| `redproof/` | 228 个被跟踪红证取证文件（204 个 `.txt` + 17 个探针 `.mjs` + 2 个 `.sh` + 5 个 `.json`） |
+| `redproof/` | 228 个被跟踪的失败证据文件（204 个 `.txt` + 17 个探针 `.mjs` + 2 个 `.sh` + 5 个 `.json`） |
 | `docs/` | 6 个工程文档（安装 / 故障排查 / 设计 / 召回契约 / 开发 / 局限） |
 | `package.json` / `tsconfig.json` | 包与编译配置 |
 | `cordis.patch.yml` | 本包的 bundle patch（`package.json` 的 `dsh.bundle.patch` 指向它；官方安装后由它挂载插件，不需要手改 profile 的 patch） |

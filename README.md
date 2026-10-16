@@ -74,7 +74,7 @@
 - [docs/troubleshooting.md](docs/troubleshooting.md) — 故障排查（工具不出现、卡 PENDING、注入不变、库位置与备份）
 - [docs/design.md](docs/design.md) — 分期实现、7 条硬不变量、两条注入机制、为什么不自动召回
 - [docs/recall-contract.md](docs/recall-contract.md) — 10 列逐列含义、打分常数、写入协议与 fail-closed 闸门
-- [docs/development.md](docs/development.md) — 构建、测试纪律与红证、脚本、环境事实
+- [docs/development.md](docs/development.md) — 构建、测试纪律与失败证据、脚本、环境事实
 - [docs/limitations.md](docs/limitations.md) — 9 条诚实局限、标定出处、发布注意
-- [redproof/](https://github.com/TindalosKorone/dsh-agent-memory/tree/main/redproof) — 红证取证目录（每条机制一份「能判红」的证据）
+- [redproof/](https://github.com/TindalosKorone/dsh-agent-memory/tree/main/redproof) — 失败证据目录（每条机制一份「能让测试变红」的证据）
 - [NOTICE](NOTICE) / [LICENSE](LICENSE)

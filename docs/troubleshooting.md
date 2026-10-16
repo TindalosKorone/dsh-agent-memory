@@ -2,7 +2,7 @@
 
 本文件写给**装完 / 改完却觉得没生效的人**：最常见的几种「插件没工作」现象、各自的原因与排查步骤。
 
-安装见 [install.md](install.md)；术语见 [glossary.md](glossary.md)；红证纪律与本机环境事实见 [development.md](development.md)；诚实局限见 [limitations.md](limitations.md)。
+安装见 [install.md](install.md)；术语见 [glossary.md](glossary.md)；失败证据纪律与本机环境事实见 [development.md](development.md)；诚实局限见 [limitations.md](limitations.md)。
 
 ## 1. 工具没出现
 
